@@ -1,22 +1,20 @@
-import React, { useState, useRef, useEffect, useMemo, createContext, useContext } from 'react';
+import React, { useRef, useMemo, createContext, useContext, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform, TouchableOpacity, View, StyleSheet, Animated, Dimensions, Image, Text } from 'react-native';
+import { Platform, View, StyleSheet, Animated, Dimensions } from 'react-native';
 import { useNavigation, ParamListBase } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 
 import Icons from '@/assets/svgs';
 import COLORS from '@/assets/colors';
-import TYPOGRAPHY from '@/assets/typography';
 
 import AnimatedTabIcon from './AnimatedTabIcon';
-import FeedScreen from '@/screens/sample-ui/Threads/feed-screen/FeedScreen';
+import TownSquareScreen from '@/screens/TownSquareScreen';
 import SwapScreen from '@/modules/swap/screens/SwapScreen';
 
 import { ChatListScreen } from '@/screens/sample-ui/chat';
 import ModuleScreen from '@/screens/Common/launch-modules-screen/LaunchModules';
 
-// Create context for scroll-based UI hiding
 interface ScrollUIContextType {
   hideTabBar: () => void;
   showTabBar: () => void;
@@ -32,19 +30,10 @@ export const useScrollUI = () => {
   return context;
 };
 
-// Platform icons matching PlatformSelectionScreen
-const platformIcons = {
-  threads: 'https://img.icons8.com/color/96/000000/twitter--v1.png',
-  insta: 'https://img.icons8.com/color/96/000000/instagram-new.png',
-  chats: 'https://img.icons8.com/color/96/000000/chat--v1.png',
-};
-
 const Tab = createBottomTabNavigator();
 const { width } = Dimensions.get('window');
 
-// Calculate tab positions based on 4-tab layout - adjusted for accuracy
 const TAB_WIDTH = width / 4;
-const FEED_TAB_CENTER = TAB_WIDTH * 1.5; // Second tab center (0-based index)
 
 const iconStyle = {
   shadowColor: COLORS.black,
@@ -54,176 +43,40 @@ const iconStyle = {
   elevation: 6,
 };
 
+const HIDE_OFFSET = 100; // How much to translate the tab bar vertically to hide it
+const ANIMATION_DURATION = 300; // Duration of the animation
+
 export default function MainTabs() {
   const navigation = useNavigation<BottomTabNavigationProp<ParamListBase>>();
-  const [expandedMenu, setExpandedMenu] = useState(false);
-  const [currentPlatform, setCurrentPlatform] = useState<'threads' | 'insta' | 'chats'>('threads');
-  const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-render
-  const menuAnimation = useRef(new Animated.Value(0)).current;
-
-  // Tab bar animation for scroll-based hiding
   const tabBarTranslateY = useRef(new Animated.Value(0)).current;
 
-  // Function to toggle platform selection menu
-  const togglePlatformMenu = () => {
-    // Only toggle menu visibility, don't touch anything related to rendering
-    setExpandedMenu(!expandedMenu);
-
-    Animated.spring(menuAnimation, {
-      toValue: expandedMenu ? 0 : 1,
-      friction: 8,
-      tension: 40,
+  const hideTabBar = useCallback(() => {
+    Animated.timing(tabBarTranslateY, {
+      toValue: HIDE_OFFSET,
+      duration: ANIMATION_DURATION,
       useNativeDriver: true,
     }).start();
-  };
+  }, [tabBarTranslateY]);
 
-  // Function to select a platform and close menu with smoother animation
-  const selectPlatform = (platform: 'threads' | 'insta' | 'chats') => {
-    // Only update if platform changed
-    if (platform !== currentPlatform) {
-      setCurrentPlatform(platform);
-      // Force a refresh by incrementing the key
-      setRefreshKey(prevKey => prevKey + 1);
-    }
-
-    // Close the menu
-    setExpandedMenu(false);
-    Animated.spring(menuAnimation, {
+  const showTabBar = useCallback(() => {
+    Animated.timing(tabBarTranslateY, {
       toValue: 0,
-      friction: 8,
-      tension: 40,
+      duration: ANIMATION_DURATION,
       useNativeDriver: true,
     }).start();
-  };
-
-  // Scroll UI context functions
-  const hideTabBar = () => {
-    console.log('🔽 Hiding tab bar');
-    Animated.timing(tabBarTranslateY, {
-      toValue: 100, // Hide tab bar by moving it down
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const showTabBar = () => {
-    console.log('🔼 Showing tab bar');
-    Animated.timing(tabBarTranslateY, {
-      toValue: 0, // Show tab bar by moving it back to original position
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  };
+  }, [tabBarTranslateY]);
 
   const scrollUIContextValue = useMemo(() => ({
     hideTabBar,
     showTabBar,
-  }), []);
-
-  // Create a stable component that doesn't rerender on menu toggle         
-  const StableFeedComponent = React.useMemo(() => {
-    // This component is created once and captured in useMemo
-    // It will only update when platformSwitchKey changes
-    const Component = () => {
-      switch (currentPlatform) {
-        case 'threads':
-          return <FeedScreen key={`threads-${refreshKey}`} />;
-        case 'insta':
-          return <FeedScreen key={`insta-${refreshKey}`} />;
-        case 'chats':
-          // Navigate to ChatListScreen instead of showing ChatScreen directly
-          React.useEffect(() => {
-            navigation.navigate('ChatListScreen');
-          }, []);
-          // Return empty view as navigation will handle the rendering
-          return <View style={{ flex: 1 }} />;
-        default:
-          return <FeedScreen key={`threads-${refreshKey}`} />;
-      }
-    };
-
-    return Component;
-  }, [currentPlatform, refreshKey, navigation]);
-
-  // Calculate transformations for the menu with smoother curves
-  const menuTranslateY = menuAnimation.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [50, 10, 0], // More nuanced movement
-  });
-
-  const menuScale = menuAnimation.interpolate({
-    inputRange: [0, 0.7, 1],
-    outputRange: [0.92, 0.98, 1], // Smoother scaling
-  });
-
-  const menuOpacity = menuAnimation.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0.8, 1], // Faster fade in
-  });
+  }), [hideTabBar, showTabBar]);
 
   return (
     <ScrollUIContext.Provider value={scrollUIContextValue}>
-      {/* Platform Selection Menu - appears above tab bar */}
-      <Animated.View
-        style={[
-          platformStyles.menuContainer,
-          {
-            transform: [
-              { translateY: menuTranslateY },
-              { scale: menuScale }
-            ],
-            opacity: menuOpacity,
-          }
-        ]}
-        pointerEvents={expandedMenu ? 'auto' : 'none'}
-      >
-        <View style={platformStyles.menuContent}>
-          {/* Twitter/Threads Option */}
-          <TouchableOpacity
-            style={[
-              platformStyles.platformButton,
-              currentPlatform === 'threads' && platformStyles.activePlatform
-            ]}
-            onPress={() => selectPlatform('threads')}
-          >
-            <Image
-              source={{ uri: platformIcons.threads }}
-              style={platformStyles.platformIcon}
-            />
-          </TouchableOpacity>
-
-          {/* Instagram Option */}
-          <TouchableOpacity
-            style={[
-              platformStyles.platformButton,
-              currentPlatform === 'insta' && platformStyles.activePlatform
-            ]}
-            onPress={() => selectPlatform('insta')}
-          >
-            <Image
-              source={{ uri: platformIcons.insta }}
-              style={platformStyles.platformIcon}
-            />
-          </TouchableOpacity>
-
-          {/* Chat Option */}
-          <TouchableOpacity
-            style={[
-              platformStyles.platformButton,
-              currentPlatform === 'chats' && platformStyles.activePlatform
-            ]}
-            onPress={() => selectPlatform('chats')}
-          >
-            <Image
-              source={{ uri: platformIcons.chats }}
-              style={platformStyles.platformIcon}
-            />
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+      {/* Platform Selection Menu - Removed for now */}
 
       <Tab.Navigator
-        initialRouteName="Feed"
+        initialRouteName="TownSquare" // Changed initial route name
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: false,
@@ -256,8 +109,8 @@ export default function MainTabs() {
           ),
         }}>
         <Tab.Screen
-          name="Feed"
-          component={StableFeedComponent}
+          name="TownSquare" // New name for the feed tab
+          component={TownSquareScreen} // Directly use TownSquareScreen
           options={{
             tabBarIcon: ({ focused, size }) => (
               <AnimatedTabIcon

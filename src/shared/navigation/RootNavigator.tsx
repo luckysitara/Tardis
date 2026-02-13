@@ -4,11 +4,11 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import MainTabs from './MainTabs';
 import CoinDetailPage from '@/screens/sample-ui/Threads/coin-detail-page/CoinDetailPage';
-import { PumpfunScreen, PumpSwapScreen } from '@/modules/pump-fun';
-import { TokenMillScreen } from '@/modules/token-mill';
+
+
 import { NftScreen } from '@/modules/nft';
-import { MeteoraScreen } from '@/modules/meteora';
-import LaunchlabsScreen from '@/modules/raydium/screens/LaunchlabsScreen';
+
+
 import ChatScreen from '@/screens/sample-ui/chat/chat-screen/ChatScreen';
 import ChatListScreen from '@/screens/sample-ui/chat/chat-list-screen';
 import UserSelectionScreen from '@/screens/sample-ui/chat/user-selection-screen/UserSelectionScreen';
@@ -17,26 +17,27 @@ import PostThreadScreen from '@/screens/sample-ui/Threads/post-thread-screen/Pos
 import FollowersFollowingListScreen from '@/core/profile/components/followers-following-listScreen/FollowersFollowingListScreen';
 import ProfileScreen from '@/screens/sample-ui/Threads/profile-screen/ProfileScreen';
 
-import { MercuroScreen } from '@/modules/mercuryo';
+
 import SwapScreen from '@/modules/swap/screens/SwapScreen';
-import OnrampScreen from '@/modules/moonpay/screens/OnrampScreen';
+
 import socketService from '@/shared/services/socketService';
 import { fetchUserChats } from '@/shared/state/chat/slice';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { TokenInfo } from '@/modules/data-module';
 
-import WalletScreen from '@/modules/moonpay/screens/WalletScreen';
+
 import { DeleteAccountConfirmationScreen, IntroScreen, LoginScreen, WebViewScreen, LandingScreen } from '@/screens'; // Import LandingScreen
 import TardisShield from '@/components/auth/TardisShield'; // Import TardisShield
+import CreatePost from '@/components/socialFeed/CreatePost'; // Import CreatePost
 
 export type RootStackParamList = {
   IntroScreen: undefined;
   LoginOptions: undefined;
   MainTabs: undefined;
   CoinDetailPage: undefined;
-  Blink: undefined;
-  Pumpfun: undefined;
-  TokenMill: undefined;
+
+
+
   NftScreen: undefined;
   ChatListScreen: undefined;
   ChatScreen: {
@@ -45,19 +46,16 @@ export type RootStackParamList = {
     isGroup: boolean;
   };
   UserSelectionScreen: undefined;
-  PumpSwap: undefined;
-  MercuroScreen: undefined;
-  LaunchlabsScreen: undefined;
-  MeteoraScreen: undefined;
+
+
+
+
   OtherProfile: { userId: string };
   PostThread: { postId: string };
   FollowersFollowingList: undefined;
   ProfileScreen: undefined;
-  WalletScreen: {
-    walletAddress?: string;
-    walletBalance?: string;
-  };
-  OnrampScreen: undefined;
+
+
   WebViewScreen: { uri: string; title: string };
   DeleteAccountConfirmationScreen: undefined;
   SwapScreen: {
@@ -74,6 +72,7 @@ export type RootStackParamList = {
     showBackButton?: boolean;
   };
   LandingScreen: undefined; // Add LandingScreen to RootStackParamList
+  CreatePostModal: undefined; // Add CreatePostModal to RootStackParamList
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -85,16 +84,16 @@ const AuthenticatedStack: React.FC = () => {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen name="CoinDetailPage" component={CoinDetailPage} />
-        <Stack.Screen name="Pumpfun" component={PumpfunScreen} />
-        <Stack.Screen name="TokenMill" component={TokenMillScreen} />
+
+
         <Stack.Screen name="NftScreen" component={NftScreen} />
         <Stack.Screen name="ChatListScreen" component={ChatListScreen} />
         <Stack.Screen name="ChatScreen" component={ChatScreen} />
         <Stack.Screen name="UserSelectionScreen" component={UserSelectionScreen} />
-        <Stack.Screen name="PumpSwap" component={PumpSwapScreen} />
-        <Stack.Screen name="MercuroScreen" component={MercuroScreen} />
-        <Stack.Screen name="LaunchlabsScreen" component={LaunchlabsScreen} />
-        <Stack.Screen name="MeteoraScreen" component={MeteoraScreen} />
+
+
+
+
         <Stack.Screen name="OtherProfile" component={OtherProfileScreen} />
         <Stack.Screen name="PostThread" component={PostThreadScreen} />
         <Stack.Screen
@@ -103,11 +102,13 @@ const AuthenticatedStack: React.FC = () => {
           options={{ title: '' }}
         />
         <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
-        <Stack.Screen name="WalletScreen" component={WalletScreen} />
-        <Stack.Screen name="OnrampScreen" component={OnrampScreen} />
+
+
         <Stack.Screen name="WebViewScreen" component={WebViewScreen} />
         <Stack.Screen name="DeleteAccountConfirmationScreen" component={DeleteAccountConfirmationScreen} />
         <Stack.Screen name="SwapScreen" component={SwapScreen} />
+        {/* Add CreatePost as a modal */}
+        <Stack.Screen name="CreatePostModal" component={CreatePost} options={{ presentation: 'modal' }} />
       </Stack.Navigator>
     </TardisShield>
   );

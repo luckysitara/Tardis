@@ -18,7 +18,7 @@ import { RootStackParamList } from '@/shared/navigation/RootNavigator';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import HomeEnvErrorBanner from '@/core/shared-ui/EnvErrors/HomeEnvErrorBanner';
 import FeedItemSkeleton from '@/core/thread/components/FeedSkeleton';
-import notificationService from '@/shared/services/notificationService';
+
 import { useScrollUI } from '@/shared/navigation/MainTabs';
 
 /**
@@ -50,7 +50,7 @@ export default function FeedScreen() {
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [profileStable, setProfileStable] = useState(false);
   const [areInitialPostsLoading, setAreInitialPostsLoading] = useState(true);
-  const [hasRegisteredPushToken, setHasRegisteredPushToken] = useState(false);
+
 
   // Build current user object from Redux data
   const currentUser: ThreadUser = {
@@ -63,38 +63,9 @@ export default function FeedScreen() {
     avatar: storedProfilePic ? { uri: storedProfilePic } : DEFAULT_IMAGES.user,
   };
 
-  // Register push token with server when user is logged in
-  useEffect(() => {
-    const registerPushToken = async () => {
-      if (userWallet && isLoggedIn && !hasRegisteredPushToken) {
-        try {
-          console.log('🔔 Attempting to register push token for user:', userWallet);
 
-          // Wait a bit to ensure notification service is initialized
-          await new Promise(resolve => setTimeout(resolve, 1000));
 
-          const success = await notificationService.registerTokenWithServer(userWallet);
-          if (success) {
-            setHasRegisteredPushToken(true);
-            console.log('✅ Push token registered successfully for user:', userWallet);
-          } else {
-            console.warn('⚠️ Failed to register push token for user:', userWallet);
-          }
-        } catch (error) {
-          console.error('❌ Error registering push token:', error);
-        }
-      }
-    };
 
-    registerPushToken();
-  }, [userWallet, isLoggedIn, hasRegisteredPushToken]);
-
-  // Reset push token registration status when user logs out
-  useEffect(() => {
-    if (!isLoggedIn) {
-      setHasRegisteredPushToken(false);
-    }
-  }, [isLoggedIn]);
 
   // On mount, fetch all posts and set loading state for initial posts
   useEffect(() => {
