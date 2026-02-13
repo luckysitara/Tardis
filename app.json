@@ -1,0 +1,51 @@
+ {
+       "expo": {
+         "name": "Tardis",
+         "slug": "tardis",
+         "scheme": "tardisapp",
+         "version": "0.0.1",
+         "orientation": "portrait",
+         "userInterfaceStyle": "dark",
+         "icon": "./src/assets/images/tardis_icon.png",
+         "assetBundlePatterns": [
+           "**/*"
+         ],
+         "android": {
+          "package": "com.tardis.app",
+          "adaptiveIcon": {
+            "foregroundImage": "./src/assets/images/tardis_icon.png",
+            "backgroundColor": "#00050D"
+          },
+          "permissions": [
+            "android.permission.RECORD_AUDIO"
+          ]
+        },
+        "ios": {
+          "bundleIdentifier": "com.tardis.app",
+          "infoPlist": {
+            "NSPhotoLibraryUsageDescription": "We need access to your photos to let you pick images."
+          }
+        },
+        "plugins": [
+          "expo-secure-store",
+          [
+            "expo-image-picker",
+            {
+              "photosPermission": "We need access to your photos to let you pick images."
+            }
+          ],
+          [
+            "expo-dev-client",
+            {
+              "launchMode": "most-recent"
+            }
+          ]
+        ],
+        "extra": {
+          "eas": {
+            "projectId": "Tardis"
+          }
+        },
+        "owner": "bughacker.skr"
+      }
+    }

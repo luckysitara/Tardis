@@ -1,10 +1,7 @@
 // File: src/index.ts
 import express, { Request, Response } from 'express';
 import {
-  TokenParams,
-  FreeMarketParams,
   TokenMetadata,
-  SwapAmounts,
 } from './types/interfaces';
 import { PublicKey } from '@solana/web3.js';
 import { launchRouter } from './routes/pumpfun/pumpfunLaunch';
@@ -12,12 +9,12 @@ import { launchRouter } from './routes/pumpfun/pumpfunLaunch';
 import knex from './db/knex';
 import jupiterSwapRouter from './routes/swap/jupiterSwapRoutes';
 import jupiterUltraSwapRouter from './routes/swap/jupiterUltraSwapRoutes';
-import raydiumSwapRouter from './routes/swap/raydiumSwapRoutes';
+
 import { threadImageRouter } from './routes/feed/threadImageRoutes';
-import tokenMillRouter from './routes/tokenmill/tokenMillRoutes';
+
 import { threadRouter } from './routes/feed/threadRoutes';
 import profileImageRouter from './routes/user/userRoutes';
-import { pumpSwapRouter } from './routes/pumpfun/pumpSwapRoutes';
+
 import turnkeyAuthRouter from './routes/auth/turnkeyAuthRoutes';
 import adminAuthRouter from './routes/auth/adminAuthRoutes';
 import auraRouter from './routes/aura';
@@ -28,10 +25,11 @@ import { WebSocketService } from './service/websocketService';
 import cors from 'cors';
 import meteoraDBCRouter from './routes/meteora/meteoraDBCRoutes';
 import { setupConnection } from './utils/connection';
-import raydiumLaunchpadRoutes from './routes/raydium/launchpad.routes';
+
 import nftRoutes from './routes/nft';
-import notificationRoutes from './routes/notifications/notificationRoutes';
-import luloRouter from './routes/lulo';
+
+
+import socialFeedRoutes from './routes/socialFeedRoutes'; // Import socialFeedRoutes
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -196,23 +194,24 @@ app.get('/health', (req, res) => {
 
 // Use the routes
 app.use('/api/pumpfun', launchRouter);
+app.use('/api/social-feed', socialFeedRoutes); // Register social feed routes
 app.use('/api', threadRouter);
 app.use('/api/jupiter', jupiterSwapRouter);
 app.use('/api/jupiter/ultra', jupiterUltraSwapRouter);
-app.use('/api/raydium/swap', raydiumSwapRouter);
-app.use('/api/raydium/launchpad', raydiumLaunchpadRoutes);
+
+
 app.use('/api/profile', profileImageRouter);
 app.use('/api/thread/images', threadImageRouter);
-app.use('/api/pump-swap', pumpSwapRouter);
-app.use('/api', tokenMillRouter);
+
+
 app.use('/api/auth', turnkeyAuthRouter);
 app.use('/api/auth', adminAuthRouter);
 app.use('/api/aura', auraRouter);
 app.use('/api/chat', chatRouter); // Add the chat routes
 app.use('/api/meteora', meteoraDBCRouter);
 app.use('/api/nft', nftRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/lulo', luloRouter);
+
+
 
 // app.post('/api/build-compressed-nft-listing-tx', async (req: any, res: any) => {
 //   try {
@@ -243,7 +242,7 @@ const HOST = '0.0.0.0'; // Critical for App Runner health checks
   // Run async operations after server starts to not block health checks
   try {
     await testDbConnection();
-    await runMigrationsAndStartServer();
+
     console.log('✅ Database and migrations completed successfully');
   } catch (error) {
     console.error('⚠️ Database/migration setup failed, but server is running:', error);

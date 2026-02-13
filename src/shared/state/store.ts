@@ -6,6 +6,7 @@ import usersReducer from './users/reducer';
 import notificationReducer from './notification/reducer';
 import profileReducer from './profile/reducer';
 import chatReducer from './chat/slice';
+import socialFeedReducer from './socialFeed/slice'; // Import the new socialFeedReducer
 
 // Redux persist imports
 import { persistStore, persistReducer } from 'redux-persist';
@@ -29,7 +30,9 @@ const rootReducer = combineReducers({
   notification: notificationReducer,
   profile: profileReducer,
   chat: chatReducer,
+  socialFeed: socialFeedReducer, // Add the new socialFeedReducer
 });
+
 
 // Create persisted reducer (only for auth)
 const persistedReducer = persistReducer(persistConfig, rootReducer);

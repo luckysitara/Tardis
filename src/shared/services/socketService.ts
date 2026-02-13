@@ -2,7 +2,7 @@
  * Service for managing WebSocket connections for real-time chat
  */
 import { io, Socket } from 'socket.io-client';
-import { SERVER_URL } from '@env';
+
 import { store } from '@/shared/state/store';
 import { receiveMessage, incrementUnreadCount } from '@/shared/state/chat/slice';
 
@@ -31,15 +31,16 @@ class SocketService {
       this.userId = userId;
       this.reconnectAttempts = 0;
 
-      console.log('Initializing socket connection to:', SERVER_URL);
+      const SOCKET_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://192.168.1.175:8080'; // Fallback to host machine IP if EXPO_PUBLIC_SERVER_URL is undefined
+      console.log('Initializing socket connection to:', SOCKET_SERVER_URL);
       
       // Determine if we should force secure WebSockets based on server URL
-      const forceSecure = SERVER_URL.startsWith('https://');
+      const forceSecure = SOCKET_SERVER_URL.startsWith('https://');
 
       // Calculate connection timeout based on attempt number
       const connectionTimeout = 5000 + (this.reconnectAttempts * 2000);
       
-      this.socket = io(SERVER_URL, {
+      this.socket = io(SOCKET_SERVER_URL, {
         transports: ['websocket' , 'polling'],
         autoConnect: true,
         reconnection: true,
@@ -85,7 +86,7 @@ class SocketService {
       this.socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         console.error('Connection details:', {
-          url: SERVER_URL,
+          url: SOCKET_SERVER_URL,
           userId: this.userId,
           attempt: this.reconnectAttempts + 1,
           error: error.message,

@@ -3,7 +3,7 @@ import {Knex} from 'knex';
 export async function up(knex: Knex): Promise<void> {
   // Create the "posts" table.
   await knex.schema.createTable('posts', table => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary();
     // For threaded posts, parent_id references posts.id.
     table
       .uuid('parent_id')
@@ -19,13 +19,13 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('CASCADE');
     // Store post content as JSON.
-    table.jsonb('sections').notNullable().defaultTo('[]');
+    table.json('sections').notNullable().defaultTo('[]');
     // Interaction counters.
     table.integer('reaction_count').defaultTo(0);
     table.integer('retweet_count').defaultTo(0);
     table.integer('quote_count').defaultTo(0);
     // Detailed reactions stored as JSON (e.g. { "👍": 5 }).
-    table.jsonb('reactions').notNullable().defaultTo('{}');
+    table.json('reactions').notNullable().defaultTo('{}');
     // If the post is a retweet, retweet_of references another post.
     table
       .uuid('retweet_of')
@@ -34,7 +34,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('posts')
       .onDelete('CASCADE');
     // Timestamp for when the post was created.
-    table.timestamp('created_at', {useTz: true}).defaultTo(knex.fn.now());
+    table.datetime('created_at').defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   });
 }
 

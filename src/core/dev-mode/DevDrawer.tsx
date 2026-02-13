@@ -10,7 +10,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/shared/state/store';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
-import NotificationTestPanel from './NotificationTestPanel';
+
 // Import specific environment variables needed for the frontend
 import {
     PRIVY_APP_ID,
@@ -567,10 +567,7 @@ const DevDrawer = () => {
 
                     <View style={styles.divider} />
 
-                    {/* Notification Test Panel */}
-                    <View style={styles.notificationPanelContainer}>
-                        <NotificationTestPanel />
-                    </View>
+
 
                     <View style={styles.divider} />
 

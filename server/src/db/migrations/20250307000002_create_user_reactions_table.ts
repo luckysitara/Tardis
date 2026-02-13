@@ -3,7 +3,7 @@ import {Knex} from 'knex';
 export async function up(knex: Knex): Promise<void> {
   // Create the "user_reactions" table to track individual user reactions
   await knex.schema.createTable('user_reactions', table => {
-    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('id').primary();
     
     // Reference to the post being reacted to
     table
