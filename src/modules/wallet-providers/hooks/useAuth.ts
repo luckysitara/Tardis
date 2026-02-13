@@ -831,10 +831,23 @@ export function useAuth() {
       address: storedAddress,
       publicKey: storedAddress,
       rawWallet: { address: storedAddress },
-      getWalletInfo: () => ({
-        walletType: 'MWA',
-        address: storedAddress,
-      }),
+      getWalletInfo: () => {
+        const metadata = {
+          name: 'Tardis MWA Wallet', // Placeholder name
+          label: 'MWA Connected Wallet', // Placeholder label
+          address: storedAddress,
+        };
+        console.log('--- WALLET HANDSHAKE DATA ---');
+        console.log('Wallet Name (Primary):', metadata?.name);
+        console.log('Wallet Label (Alias):', metadata?.label);
+        console.log('Full Metadata Object:', JSON.stringify(metadata, null, 2));
+        console.log('------------------------------');
+        return {
+          walletType: 'MWA',
+          address: storedAddress,
+          metadata: metadata, // Optionally pass metadata
+        };
+      },
       // For MWA, we don't have a provider as transactions are handled by the Phantom app
       getProvider: async () => {
         // Throw error with useful message about MWA not having a provider
