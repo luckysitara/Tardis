@@ -66,7 +66,7 @@ import COLORS from './src/assets/colors';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { PersistGate } from 'redux-persist/integration/react';
 
-import { PrivyProvider, PrivyElements } from '@privy-io/expo';
+
 import { TurnkeyProvider } from '@turnkey/sdk-react-native';
 
 // Dynamic client initialization
@@ -188,25 +188,7 @@ export default function App() {
             <DevModeProvider>
               <EnvErrorProvider>
                 <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-                  {config.auth.provider === 'privy' ? (
-                    <PrivyProvider
-                      appId={config.auth.privy.appId}
-                      clientId={config.auth.privy.clientId}
-                      config={{
-                        embedded: {
-                          solana: {
-                            createOnLogin: 'users-without-wallets',
-                          },
-                        },
-                      }}>
-                      <NavigationContainer ref={navigationRef}>
-                        <RootNavigator />
-                      </NavigationContainer>
-                      {getDynamicWebView()}
-                      <GlobalUIElements />
-                      <PrivyElements />
-                    </PrivyProvider>
-                  ) : config.auth.provider === 'turnkey' ? (
+ config.auth.provider === 'turnkey' ? (
                     <TurnkeyProvider config={turnkeySessionConfig}>
                       <NavigationContainer ref={navigationRef}>
                         <RootNavigator />
