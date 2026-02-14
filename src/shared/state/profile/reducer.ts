@@ -89,72 +89,10 @@ export const enrichActionTransactions = async (actions: Action[], walletAddress:
     // Determine transaction type with more specificity
     let enrichedType = action.type || action.transactionType || 'UNKNOWN';
     
-    // Process swap transactions
-    if (action.events?.swap) {
-      enrichedType = 'SWAP';
-      
-      // Extract swap details if available
-      const swap = action.events.swap;
-      const hasTokenInputs = swap.tokenInputs && swap.tokenInputs.length > 0;
-      const hasTokenOutputs = swap.tokenOutputs && swap.tokenOutputs.length > 0;
-      
-      if (hasTokenInputs && hasTokenOutputs) {
-        // Extract token symbols if available
-        const inputToken = swap.tokenInputs![0];
-        const outputToken = swap.tokenOutputs![0];
-        
-        const inputAmount = inputToken.rawTokenAmount?.tokenAmount 
-          ? parseFloat(inputToken.rawTokenAmount.tokenAmount) / Math.pow(10, inputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        const outputAmount = outputToken.rawTokenAmount?.tokenAmount
-          ? parseFloat(outputToken.rawTokenAmount.tokenAmount) / Math.pow(10, outputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        // Add enriched info
-        action.enrichedData = {
-          swapType: 'TOKEN_TO_TOKEN',
-          inputSymbol: truncateAddress(inputToken.mint),
-          outputSymbol: truncateAddress(outputToken.mint),
-          inputAmount,
-          outputAmount,
-          direction: inputToken.userAccount === walletAddress ? 'OUT' : 'IN'
-        };
-      } else if (swap.nativeInput && hasTokenOutputs) {
-        // SOL to token swap
-        const outputToken = swap.tokenOutputs![0];
-        const outputAmount = outputToken.rawTokenAmount?.tokenAmount
-          ? parseFloat(outputToken.rawTokenAmount.tokenAmount) / Math.pow(10, outputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        action.enrichedData = {
-          swapType: 'SOL_TO_TOKEN',
-          inputSymbol: 'SOL',
-          outputSymbol: truncateAddress(outputToken.mint),
-          inputAmount: Number(swap.nativeInput.amount) / 1_000_000_000, // lamports to SOL
-          outputAmount,
-          direction: swap.nativeInput.account === walletAddress ? 'OUT' : 'IN'
-        };
-      } else if (hasTokenInputs && swap.nativeOutput) {
-        // Token to SOL swap
-        const inputToken = swap.tokenInputs![0];
-        const inputAmount = inputToken.rawTokenAmount?.tokenAmount
-          ? parseFloat(inputToken.rawTokenAmount.tokenAmount) / Math.pow(10, inputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        action.enrichedData = {
-          swapType: 'TOKEN_TO_SOL',
-          inputSymbol: truncateAddress(inputToken.mint),
-          outputSymbol: 'SOL',
-          inputAmount,
-          outputAmount: Number(swap.nativeOutput.amount) / 1_000_000_000, // lamports to SOL
-          direction: inputToken.userAccount === walletAddress ? 'OUT' : 'IN'
-        };
-      }
-    }
+    // Removed: Process swap transactions
     
-    // Process transfer transactions
-    else if (action.nativeTransfers && action.nativeTransfers.length > 0) {
+    // Process native transfers
+    if (action.nativeTransfers && action.nativeTransfers.length > 0) {
       enrichedType = 'TRANSFER';
       const transfer = action.nativeTransfers[0];
       
@@ -267,7 +205,7 @@ const profileSlice = createSlice({
     builder.addCase(fetchWalletActionsWithCache.fulfilled, (state, action) => {
       const walletAddress = action.meta.arg.walletAddress;
       // Only update if we actually got new data from the API
-      // This check prevents unnecessary state updates when using cached data
+      // This check prevents unnecessary state updates when data hasn't changed
       if (!arraysEqual(action.payload, state.actions.data[walletAddress] || [])) {
         state.actions.data[walletAddress] = action.payload;
       }
@@ -305,4 +243,4 @@ function arraysEqual(a: Action[], b: Action[]): boolean {
 // Export actions
 export const { clearActionsCache, clearActionErrors, pruneOldActionData } = profileSlice.actions;
 
-export default profileSlice.reducer; 
+export default profileSlice.reducer;

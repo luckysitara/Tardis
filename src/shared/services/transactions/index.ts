@@ -1,5 +1,4 @@
 export { sendSOL } from './methods/sendSOL';
-export { sendToken } from './methods/sendToken';
 export { 
   sendPriorityTransactionMWA,
   sendTransactionWithPriorityFee 

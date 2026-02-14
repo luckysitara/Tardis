@@ -22,7 +22,6 @@ import { useAppSelector, useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { Cluster, Connection, clusterApiUrl, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import {
   sendSOL,
-  sendToken,
   COMMISSION_PERCENTAGE,
 } from '@/shared/services/transactions';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
@@ -32,14 +31,22 @@ import {
 } from '@/shared/state/transaction/reducer';
 import { CLUSTER, HELIUS_STAKED_URL } from '@env';
 import { TransactionService } from '@/modules/wallet-providers/services/transaction/transactionService';
-import { TokenInfo, fetchTokenBalance, DEFAULT_SOL_TOKEN } from '@/modules/data-module';
-import SelectTokenModal from '@/modules/swap/components/SelectTokenModal';
+import { fetchSolBalance } from '@/modules/data-module/utils/fetch';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import { ENDPOINTS } from '@/shared/config/constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height: windowHeight } = Dimensions.get('window');
+
+// Hardcode SOL for Phase 1
+const SOL_TOKEN_INFO = {
+  symbol: 'SOL',
+  name: 'Solana',
+  decimals: 9,
+  address: 'So11111111111111111111111111111111111111112',
+  logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+};
 
 export interface TransferBalanceButtonProps {
   amIFollowing?: boolean;
@@ -84,20 +91,12 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
   const [walletAddressError, setWalletAddressError] = useState('');
   const [fetchingBalance, setFetchingBalance] = useState(false);
   
-  // Token-related state
-  const [selectedToken, setSelectedToken] = useState<TokenInfo>(() => {
-    console.log('[TransferBalanceButton] Initializing with DEFAULT_SOL_TOKEN:', DEFAULT_SOL_TOKEN.symbol);
-    return DEFAULT_SOL_TOKEN;
-  });
+  // Hardcoded to SOL for Phase 1
+  const selectedToken = SOL_TOKEN_INFO;
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
-  const [currentTokenPrice, setCurrentTokenPrice] = useState<number | null>(null);
-  const [showSelectTokenModal, setShowSelectTokenModal] = useState(false);
-  const [loadingTokenData, setLoadingTokenData] = useState(false);
-
-  // Debug: Log current selected token whenever it changes
-  useEffect(() => {
-    console.log('[TransferBalanceButton] Selected token changed to:', selectedToken?.symbol);
-  }, [selectedToken]);
+  // No token price needed for SOL transfers directly here
+  // Removed: const [currentTokenPrice, setCurrentTokenPrice] = useState<number | null>(null);
+  // Removed: const [loadingTokenData, setLoadingTokenData] = useState(false);
 
   const modalRef = useRef<View | null>(null);
   const keyboardAvoidingRef = useRef<KeyboardAvoidingView | null>(null);
@@ -221,16 +220,6 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
     setWalletAddressError('');
   };
 
-  // Handle token selection
-  const handleTokenSelected = useCallback((token: TokenInfo) => {
-    console.log('[TransferBalanceButton] Token selected:', token.symbol);
-    
-    setSelectedToken(token);
-    setShowSelectTokenModal(false);
-    setAmountSol(''); // Reset amount when token changes
-    setCurrentBalance(null); // Reset balance when token changes
-  }, []); // Remove dependencies that cause stale closures
-
   const handleSendTransaction = async () => {
     try {
       if (!selectedMode) {
@@ -261,11 +250,6 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
         return;
       }
 
-      if (!selectedToken) {
-        Alert.alert('Error', 'No token selected');
-        return;
-      }
-
       if (selectedMode) {
         dispatch(setMode(selectedMode));
 
@@ -282,11 +266,11 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
 
       setTransactionStatus('Preparing transaction...');
 
-      const signature = await sendToken({
+      // Use sendSOL for SOL transfers
+      const signature = await sendSOL({
         wallet,
         recipientAddress: finalRecipientAddress,
-        amount: parsedAmount,
-        tokenInfo: selectedToken,
+        amountSol: parsedAmount,
         connection,
         onStatusUpdate: status => {
           if (!status.startsWith('Error:')) {
@@ -298,7 +282,7 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
         },
       });
 
-      console.log(`[TransferBalanceButton] sendToken returned signature: ${signature}`);
+      console.log(`[TransferBalanceButton] sendSOL returned signature: ${signature}`);
 
       setTimeout(() => {
         setSendModalVisible(false);
@@ -327,17 +311,16 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
 
   // Use refs to prevent re-rendering loops
   const fetchingRef = useRef(false);
-  const lastFetchRef = useRef<{ wallet: string | null; token: TokenInfo | null }>({ wallet: null, token: null });
+  const lastFetchRef = useRef<{ wallet: string | null }>({ wallet: null });
 
-  // Manual fetch for specific cases (like MAX button)
-  const fetchTokenBalanceData = async () => {
-    if (!wallet || !selectedToken || fetchingRef.current) {
+  const fetchSolBalanceData = async () => {
+    if (!wallet || fetchingRef.current) {
       return;
     }
 
     try {
       fetchingRef.current = true;
-      setLoadingTokenData(true);
+      // setLoadingTokenData(true); // Removed
       
       const addr = (wallet as any).address || (wallet as any).publicKey;
       if (!addr) {
@@ -345,36 +328,30 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
         return;
       }
 
-      const walletAddrString = typeof addr === 'string' ? addr : addr.toString();
       const publicKey = typeof addr === 'string' 
         ? new PublicKey(addr)
         : addr;
         
-      const balance = await fetchTokenBalance(publicKey, selectedToken);
+      const balance = await fetchSolBalance(publicKey);
       setCurrentBalance(balance);
       
-      // For price, we can use the price from token info if available
-      if (selectedToken.price !== undefined) {
-        setCurrentTokenPrice(selectedToken.price);
-      }
-
       // Update last fetch reference
-      lastFetchRef.current = { wallet: walletAddrString, token: selectedToken };
+      lastFetchRef.current = { wallet: publicKey.toBase58() };
       
     } catch (error) {
-      console.error('Error fetching token balance:', error);
+      console.error('Error fetching SOL balance:', error);
       setCurrentBalance(0);
     } finally {
-      setLoadingTokenData(false);
+      // setLoadingTokenData(false); // Removed
       fetchingRef.current = false;
     }
   };
 
   const fetchMaxBalance = async () => {
-    console.log('[TransferBalanceButton] MAX clicked for token:', selectedToken?.symbol);
+    console.log('[TransferBalanceButton] MAX clicked for SOL');
     
-    if (!wallet || !selectedToken) {
-      Alert.alert('Error', 'Wallet or token not available');
+    if (!wallet) {
+      Alert.alert('Error', 'Wallet not available');
       return;
     }
 
@@ -390,28 +367,24 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
       }
 
       const publicKey = typeof addr === 'string' ? new PublicKey(addr) : addr;
-      const freshBalance = await fetchTokenBalance(publicKey, selectedToken);
+      const freshBalance = await fetchSolBalance(publicKey);
       
-      console.log('[TransferBalanceButton] MAX balance for', selectedToken.symbol, ':', freshBalance);
+      console.log('[TransferBalanceButton] MAX balance for SOL:', freshBalance);
       
       if (!freshBalance || freshBalance <= 0) {
-        Alert.alert('Insufficient Balance', `Your wallet does not have enough ${selectedToken.symbol} to transfer.`);
+        Alert.alert('Insufficient Balance', `Your wallet does not have enough SOL to transfer.`);
         setFetchingBalance(false);
         return;
       }
 
-      // Update the current balance state with fresh data
       setCurrentBalance(freshBalance);
       
       // For SOL, reserve some for fees
       let maxTransferAmount = freshBalance;
-      if (selectedToken.symbol === 'SOL' || 
-          selectedToken.address === 'So11111111111111111111111111111111111111112') {
-        maxTransferAmount = Math.max(0, freshBalance - 0.001); // Reserve 0.001 SOL for fees
-      }
+      maxTransferAmount = Math.max(0, freshBalance - 0.001); // Reserve 0.001 SOL for fees
       
       if (maxTransferAmount <= 0) {
-        Alert.alert('Insufficient Balance', `Your wallet does not have enough ${selectedToken.symbol} to transfer after fees.`);
+        Alert.alert('Insufficient Balance', `Your wallet does not have enough SOL to transfer after fees.`);
         setFetchingBalance(false);
         return;
       }
@@ -435,50 +408,20 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
     return typeof addr === 'string' ? addr : addr.toString();
   }, [wallet]);
 
-  // Fetch token balance when selected token or wallet address changes
+  // Fetch SOL balance when wallet address changes
   useEffect(() => {
-    if (!selectedToken || !walletAddress || fetchingRef.current) {
+    if (!walletAddress || fetchingRef.current) {
       return;
     }
 
-    // Prevent duplicate fetches for the same wallet/token combination
+    // Prevent duplicate fetches for the same wallet
     const lastFetch = lastFetchRef.current;
-    if (lastFetch.wallet === walletAddress && 
-        lastFetch.token?.address === selectedToken.address) {
+    if (lastFetch.wallet === walletAddress) {
       return;
     }
 
-    const fetchBalance = async () => {
-      try {
-        fetchingRef.current = true;
-        setLoadingTokenData(true);
-        
-        const publicKey = typeof walletAddress === 'string' 
-          ? new PublicKey(walletAddress)
-          : walletAddress;
-          
-        const balance = await fetchTokenBalance(publicKey, selectedToken);
-        setCurrentBalance(balance);
-        
-        // For price, we can use the price from token info if available
-        if (selectedToken.price !== undefined) {
-          setCurrentTokenPrice(selectedToken.price);
-        }
-
-        // Update last fetch reference
-        lastFetchRef.current = { wallet: walletAddress, token: selectedToken };
-        
-      } catch (error) {
-        console.error('[TransferBalanceButton] Error fetching token balance:', error);
-        setCurrentBalance(0);
-      } finally {
-        setLoadingTokenData(false);
-        fetchingRef.current = false;
-      }
-    };
-
-    fetchBalance();
-  }, [selectedToken?.address, walletAddress]); // Only depend on token address and wallet address
+    fetchSolBalanceData();
+  }, [walletAddress]);
 
   const showSendToWalletButton =
     (currentProvider === 'privy' ||
@@ -530,12 +473,11 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={modalOverlayStyles.scrollContent}
                   >
-                    <Text style={modalOverlayStyles.title}>Send {selectedToken.symbol}</Text>
+                    <Text style={modalOverlayStyles.title}>Send SOL</Text>
 
-                    {/* Token Selection Row */}
-                    <TouchableOpacity
+                    {/* Token Selection Row - Hardcoded for SOL */}
+                    <View
                       style={modalOverlayStyles.tokenRow}
-                      onPress={() => setShowSelectTokenModal(true)}
                     >
                       {selectedToken.logoURI ? (
                         <Image source={{ uri: selectedToken.logoURI }} style={modalOverlayStyles.tokenIcon} />
@@ -555,14 +497,9 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
                             Balance: {currentBalance.toFixed(6)} {selectedToken.symbol}
                           </Text>
                         )}
-                        {loadingTokenData && (
-                          <Text style={modalOverlayStyles.tokenBalance}>Loading balance...</Text>
-                        )}
+                        {/* Removed: loadingTokenData indicator as it's not needed */}
                       </View>
-                      <View style={modalOverlayStyles.changeTokenButton}>
-                        <Text style={modalOverlayStyles.changeTokenText}>Change</Text>
-                      </View>
-                    </TouchableOpacity>
+                    </View>
 
                     {showCustomWalletInput && (
                       <View style={modalOverlayStyles.inputContainer}>
@@ -649,7 +586,7 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
 
                     <View style={modalOverlayStyles.inputContainer}>
                       <View style={modalOverlayStyles.amountLabelRow}>
-                        <Text style={modalOverlayStyles.label}>Amount ({selectedToken.symbol})</Text>
+                        <Text style={modalOverlayStyles.label}>Amount (SOL)</Text>
                         <TouchableOpacity 
                           style={modalOverlayStyles.maxButton}
                           onPress={fetchMaxBalance}
@@ -663,8 +600,7 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
                         </TouchableOpacity>
                       </View>
 
-                      {selectedToken.symbol === 'SOL' && (
-                        <View style={modalOverlayStyles.presetButtonsRow}>
+                      <View style={modalOverlayStyles.presetButtonsRow}>
                           <TouchableOpacity
                             style={modalOverlayStyles.presetButton}
                             onPress={() => setAmountSol('1')}>
@@ -689,7 +625,6 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
                             </Text>
                           </TouchableOpacity>
                         </View>
-                      )}
 
                       <View style={modalOverlayStyles.amountControlContainer}>
                         <TouchableOpacity
@@ -763,13 +698,6 @@ const TransferBalanceButton: React.FC<TransferBalanceButtonProps> = ({
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-
-      {/* Token Selection Modal */}
-      <SelectTokenModal
-        visible={showSelectTokenModal}
-        onClose={() => setShowSelectTokenModal(false)}
-        onTokenSelected={handleTokenSelected}
-      />
     </View>
   );
 };

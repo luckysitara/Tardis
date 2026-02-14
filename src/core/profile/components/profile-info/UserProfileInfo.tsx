@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { findMentioned } from '@/shared/utils/common/findMentioned';
 import TransferBalanceButton from '../transfer-balance-button/transferBalanceButton';
-import BuyCard from '../buy-card/buyCard';
+// Removed: import BuyCard from '../buy-card/buyCard';
 import ProfileIcons from '../../../../assets/svgs/index';
 import { styles } from './UserProfileInfo.style';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
@@ -23,7 +23,7 @@ import { tokenModalStyles } from './profileInfoTokenModal.style';
 import COLORS from '../../../../assets/colors';
 import TYPOGRAPHY from '../../../../assets/typography';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
-import { AutoAvatar } from '@/shared/components/AutoAvatar';
+// Removed: import { AutoAvatar } from '@/shared/components/AutoAvatar'; // This component was removed.
 import { UserProfileInfoProps } from '../../types/index';
 // Using require as a fallback strategy for component import issues
 const ProfileEditDrawerComponent = require('../profile-edit-drawer/ProfileEditDrawer').default;
@@ -79,6 +79,7 @@ const InitialsProfilePic = memo(({ initials, size = 80 }: { initials: string, si
 
 /**
  * TokenAttachModal - Component for the token attachment modal
+ * This modal should be removed too, but will be handled in a separate pass.
  */
 const TokenAttachModal = memo(({
   visible,
@@ -220,41 +221,7 @@ const EditButton = memo(({ onPress, onTransferBalance, onLogout }: { onPress?: (
   </View>
 ));
 
-/**
- * TokenCard section with memoized content
- */
-const TokenCard = memo(({
-  attachmentData,
-  userWallet,
-  isOwnProfile,
-  onSelectToken,
-  onRemoveCoin
-}: {
-  attachmentData: UserProfileInfoProps['attachmentData'];
-  userWallet: string;
-  isOwnProfile: boolean;
-  onSelectToken: (token: any) => void;
-  onRemoveCoin: () => void;
-}) => (
-  <View style={{ marginTop: 12 }}>
-    <BuyCard
-      tokenName={attachmentData?.coin?.symbol || 'Pin your coin'}
-      description={
-        attachmentData?.coin?.name || 'Attach a token to your profile'
-      }
-      tokenImage={attachmentData?.coin?.image || null}
-      tokenDesc={attachmentData?.coin?.description || ''}
-      onBuyPress={() => { }}
-      tokenMint={attachmentData?.coin?.mint}
-      showDownArrow={isOwnProfile}
-      onArrowPress={undefined}
-      walletAddress={userWallet}
-      onSelectAsset={onSelectToken}
-      showRemoveButton={isOwnProfile && !!attachmentData?.coin}
-      onRemoveToken={onRemoveCoin}
-    />
-  </View>
-));
+// Removed: TokenCard component
 
 /**
  * Follow button section with memoized content
@@ -311,14 +278,15 @@ const ProfileHeader = memo(({
         style={[styles.profImgContainer, { backgroundColor: COLORS.background }]}
         onPress={onAvatarPress}
         disabled={!isOwnProfile}>
-        <AutoAvatar
-          userId={userWallet}
-          profilePicUrl={profilePicUrl}
-          username={username}
-          size={72}
-          style={styles.profImg}
-          showInitials={true}
-        />
+        {profilePicUrl ? (
+            <Image
+                source={getValidImageSource(profilePicUrl)}
+                style={styles.profImg}
+                defaultSource={require('@/assets/images/User.png')}
+            />
+        ) : (
+            <InitialsProfilePic initials={getInitials(username)} size={72} />
+        )}
       </TouchableOpacity>
 
       <View>
@@ -349,8 +317,6 @@ const ProfileHeader = memo(({
  * - Avatar, name, handle, bio
  * - Follower/following stats
  * - Edit/Follow button row
- * - If a coin is attached (attachmentData.coin), shows a BuyCard.
- * - If isOwnProfile, user can attach a token via the down arrow on BuyCard.
  */
 function UserProfileInfo({
   profilePicUrl,
@@ -369,7 +335,7 @@ function UserProfileInfo({
   followingCount = 0,
   onPressFollowers,
   onPressFollowing,
-  attachmentData = {},
+  // Removed: attachmentData = {}, // No longer needed as TokenCard is gone
 }: UserProfileInfoProps) {
   const dispatch = useAppDispatch();
   const { logout } = useAuth();
@@ -415,22 +381,12 @@ function UserProfileInfo({
     [isOwnProfile]
   );
 
-  const showBuyCard = useMemo(() =>
-    isOwnProfile || (attachmentData.coin && attachmentData.coin.mint),
-    [isOwnProfile, attachmentData.coin]
-  );
+  // Removed: showBuyCard useMemo
 
-  // Token attachment state
-  const [tokenDescription, setTokenDescription] = useState('');
-  const [showAttachDetailsModal, setShowAttachDetailsModal] = useState(false);
-  const [selectedToken, setSelectedToken] = useState<{
-    mintPubkey: string;
-    name?: string;
-    imageUrl?: string;
-    symbol?: string;
-    description?: string;
-    assetType?: 'token' | 'nft' | 'cnft' | 'collection';
-  } | null>(null);
+  // Removed: Token attachment state
+  // const [tokenDescription, setTokenDescription] = useState('');
+  // const [showAttachDetailsModal, setShowAttachDetailsModal] = useState(false);
+  // const [selectedToken, setSelectedToken] = useState<{ ... } | null>(null);
 
   // Profile edit drawer state
   const [showEditProfileDrawer, setShowEditProfileDrawer] = useState(false);
@@ -468,130 +424,12 @@ function UserProfileInfo({
     }
   }, [onAvatarPress, onEditProfile]);
 
-  /**
-   * Handle token selection from the portfolio modal
-   */
-  const handleSelectToken = useCallback((token: any) => {
-    setSelectedToken({
-      mintPubkey: token.id || token.mint,
-      name: token.name || 'Unknown',
-      imageUrl: token.image || '',
-      symbol: token.symbol || token.token_info?.symbol,
-      description: token.assetType === 'collection' ? token.metadata?.description : '',
-      assetType: token.assetType,
-    });
-    setTokenDescription(token.assetType === 'collection' ? (token.metadata?.description || '') : '');
-    console.log('LOG Setting selected token data:', token);
-  }, []); // No external dependencies needed
-
-  /**
-   * Use effect to show the modal *after* the selectedToken state is updated
-   * and the previous modal (portfolio modal) has presumably closed.
-   */
-  useEffect(() => {
-    if (selectedToken && !showAttachDetailsModal) {
-      // Check if assetType is token or collection (attach modal is relevant for these)
-      if (selectedToken.assetType === 'token' || selectedToken.assetType === 'collection') {
-        console.log('Selected token updated, scheduling attach details modal.');
-        // Add a small delay to allow the previous modal to fully dismiss
-        const timer = setTimeout(() => {
-          setShowAttachDetailsModal(true);
-        }, 100); // 100ms delay
-        return () => clearTimeout(timer); // Clear timeout if component unmounts or effect re-runs
-      } else {
-        // If it's an individual NFT, we might not need the description modal.
-        // For now, just attach it directly without asking for description.
-        console.log('Individual NFT selected, attempting direct attach.');
-        handleAttachCoinConfirm(true); // Pass a flag to indicate direct attach
-      }
-    }
-  }, [selectedToken, showAttachDetailsModal]); // Re-run when selectedToken changes
-
-  /**
-   * Confirm token attachment and dispatch to Redux
-   * Added skipModal parameter for direct NFT attachment
-   */
-  const handleAttachCoinConfirm = useCallback(async (skipModal = false) => {
-    if (!selectedToken || !isOwnProfile) {
-      if (!skipModal) setShowAttachDetailsModal(false);
-      setSelectedToken(null); // Reset selected token if confirmation fails or is skipped
-      return;
-    }
-    const { mintPubkey, name, imageUrl, symbol, assetType } = selectedToken;
-
-    // Use the state description if the modal was shown, otherwise use the one from selectedToken (for collections)
-    const finalDescription = skipModal ? (selectedToken.description || '') : tokenDescription.trim();
-
-    const coinData = {
-      mint: mintPubkey,
-      symbol: symbol || name || 'Unknown Asset',
-      name: name || 'Unknown Asset',
-      image: imageUrl || '',
-      description: finalDescription,
-      assetType: assetType || 'token', // Default to token if not set
-    };
-
-    try {
-      await dispatch(
-        attachCoinToProfile({
-          userId: userWallet,
-          attachmentData: { coin: coinData },
-        }),
-      ).unwrap();
-      Alert.alert(
-        'Success',
-        `${assetType === 'collection' ? 'Collection' : assetType === 'nft' ? 'NFT' : 'Token'} attached successfully!`,
-      );
-    } catch (err: any) {
-      Alert.alert('Error', err.message || `Failed to attach ${assetType}`);
-    } finally {
-      if (!skipModal) setShowAttachDetailsModal(false);
-      setSelectedToken(null); // Reset selected token after attempt
-      setTokenDescription(''); // Reset description field
-    }
-  }, [selectedToken, isOwnProfile, tokenDescription, userWallet, dispatch]); // dispatch is stable
-
-  /**
-   * Handle removing an attached coin
-   */
-  const handleRemoveCoin = useCallback(() => {
-    if (!isOwnProfile) return;
-
-    Alert.alert(
-      'Remove Coin',
-      'Are you sure you want to remove the attached coin?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await dispatch(
-                removeAttachedCoin({
-                  userId: userWallet,
-                }),
-              ).unwrap();
-              Alert.alert('Success', 'Coin removed from your profile');
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to remove coin');
-            }
-          },
-        },
-      ],
-    );
-  }, [isOwnProfile, userWallet]); // dispatch is stable
-
-  // Modal handlers with no dependencies
-  const handleCloseModal = useCallback(() => {
-    setShowAttachDetailsModal(false);
-    setSelectedToken(null); // Reset selected token when modal is closed
-    setTokenDescription(''); // Reset description field
-  }, []);
-  const handleDescriptionChange = useCallback((text: string) => setTokenDescription(text), []);
+  // Removed: handleSelectToken useCallback
+  // Removed: useEffect for selectedToken / showAttachDetailsModal
+  // Removed: handleAttachCoinConfirm useCallback
+  // Removed: handleRemoveCoin useCallback
+  // Removed: handleCloseModal useCallback
+  // Removed: handleDescriptionChange useCallback
 
   /**
    * Handle logout
@@ -653,16 +491,7 @@ function UserProfileInfo({
         onPressFollowing={onPressFollowing}
       />
 
-
-      {showBuyCard && (
-        <TokenCard
-          attachmentData={attachmentData}
-          userWallet={userWallet}
-          isOwnProfile={isOwnProfile}
-          onSelectToken={handleSelectToken}
-          onRemoveCoin={handleRemoveCoin}
-        />
-      )}
+      {/* Removed: TokenCard JSX block */}
 
       {/* Edit profile button (for own profile) */}
       {isOwnProfile && <EditButton
@@ -697,14 +526,14 @@ function UserProfileInfo({
         />
       )}
 
-      {/* Token attachment modal */}
-      <TokenAttachModal
+      {/* Removed: Token attachment modal */}
+      {/* <TokenAttachModal
         visible={showAttachDetailsModal}
         onClose={handleCloseModal}
         onConfirm={() => handleAttachCoinConfirm(false)}
         tokenDescription={tokenDescription}
         onChangeDescription={handleDescriptionChange}
-      />
+      /> */}
 
       {/* Profile Edit Drawer - new unified profile editor */}
       {isOwnProfile && (
@@ -740,25 +569,8 @@ function arePropsEqual(
   if (prevProps.followersCount !== nextProps.followersCount) return false;
   if (prevProps.followingCount !== nextProps.followingCount) return false;
 
-  // Check attachmentData only if needed
-  if (prevProps.attachmentData !== nextProps.attachmentData) {
-    // If one has coin and the other doesn't
-    const prevHasCoin = !!prevProps.attachmentData?.coin;
-    const nextHasCoin = !!nextProps.attachmentData?.coin;
-    if (prevHasCoin !== nextHasCoin) return false;
-
-    // If both have coins, compare important properties
-    if (prevHasCoin && nextHasCoin) {
-      const prevCoin = prevProps.attachmentData?.coin;
-      const nextCoin = nextProps.attachmentData?.coin;
-
-      if (prevCoin?.mint !== nextCoin?.mint) return false;
-      if (prevCoin?.symbol !== nextCoin?.symbol) return false;
-      if (prevCoin?.name !== nextCoin?.name) return false;
-      if (prevCoin?.image !== nextCoin?.image) return false;
-      if (prevCoin?.description !== nextCoin?.description) return false;
-    }
-  }
+  // Removed: Check attachmentData only if needed
+  // if (prevProps.attachmentData !== nextProps.attachmentData) { ... }
 
   // Check callbacks by reference
   if (prevProps.onAvatarPress !== nextProps.onAvatarPress) return false;
@@ -771,4 +583,4 @@ function arePropsEqual(
   return true;
 }
 
-export default React.memo(UserProfileInfo, arePropsEqual); 
+export default React.memo(UserProfileInfo, arePropsEqual);

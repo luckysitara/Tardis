@@ -1,46 +1,29 @@
 // File: src/config/index.ts
 
-import {
-  PRIVY_APP_ID,
-  PRIVY_CLIENT_ID,
-  DYNAMIC_ENVIRONMENT_ID,
-  TURNKEY_BASE_URL,
-  TURNKEY_RP_ID,
-  TURNKEY_RP_NAME,
-  TURNKEY_ORGANIZATION_ID,
-} from '@env';
+// Removed: All specific environment variable imports for Privy, Dynamic, Turnkey
+// import {
+//   PRIVY_APP_ID,
+//   PRIVY_CLIENT_ID,
+//   DYNAMIC_ENVIRONMENT_ID,
+//   TURNKEY_BASE_URL,
+//   TURNKEY_RP_ID,
+//   TURNKEY_RP_NAME,
+//   TURNKEY_ORGANIZATION_ID,
+// } from '@env';
 
 import {dummyProfileData} from '@/shared/mocks/profileInfoData';
 import {tweetsData} from '@/shared/mocks/tweets';
-import {allposts} from '@/shared/mocks/posts';
 import {dummyData} from '@/shared/mocks/users';
 
-/** Extended config for each auth provider */
-export interface PrivyConfig {
-  appId: string;
-  clientId: string;
-}
+// Removed: PrivyConfig, DynamicConfig, TurnkeyConfig interfaces
 
-export interface DynamicConfig {
-  environmentId: string;
-  appName: string;
-  appLogoUrl: string;
-}
-
-export interface TurnkeyConfig {
-  baseUrl: string;
-  rpId: string;
-  rpName: string;
-  organizationId: string;
-}
-
-/** The shape of our custom AuthProviderConfig */
+/** The shape of our custom AuthProviderConfig - Simplified for MWA only */
 export interface AuthProviderConfig {
-  provider: 'privy' | 'dynamic' | 'turnkey';
-  loginMethods: Array<'email' | 'sms' | 'google' | 'apple'>;
-  privy: PrivyConfig;
-  dynamic: DynamicConfig;
-  turnkey: TurnkeyConfig;
+  provider: 'mwa'; // Only MWA for Phase 1
+  // Removed: loginMethods: Array<'email' | 'sms' | 'google' | 'apple'>;
+  // Removed: privy: PrivyConfig;
+  // Removed: dynamic: DynamicConfig;
+  // Removed: turnkey: TurnkeyConfig;
 }
 
 /** Transaction config (unchanged) */
@@ -60,33 +43,16 @@ export interface TransactionProviderConfig {
 export interface MockDataConfig {
   profileData: typeof dummyProfileData;
   tweetsData: typeof tweetsData;
-  postsData: typeof allposts;
   usersData: typeof dummyData;
 }
 
-/** Provide default auth config, reading from env or fallback. */
+/** Provide default auth config - Simplified for MWA only. */
 export const DefaultAuthConfig: AuthProviderConfig = {
-  provider: 'privy', // or 'dynamic', 'turnkey', etc.
-  loginMethods: ['email', 'google', 'apple'],
-
-  privy: {
-    // Read from environment variables or fallback
-    appId: PRIVY_APP_ID || '',
-    clientId: PRIVY_CLIENT_ID || '',
-  },
-
-  dynamic: {
-    environmentId: DYNAMIC_ENVIRONMENT_ID || '',
-    appName: 'Solana App Kit',
-    appLogoUrl: 'https://solana.com/src/img/branding/solanaLogoMark.svg',
-  },
-
-  turnkey: {
-    baseUrl: TURNKEY_BASE_URL || '',
-    rpId: TURNKEY_RP_ID || '',
-    rpName: TURNKEY_RP_NAME || '',
-    organizationId: TURNKEY_ORGANIZATION_ID || '',
-  },
+  provider: 'mwa', // Only MWA for Phase 1
+  // Removed: loginMethods: [], // Not applicable for MWA
+  // Removed: privy: {},
+  // Removed: dynamic: {},
+  // Removed: turnkey: {},
 };
 
 /** Provide default transaction config. */
@@ -106,7 +72,6 @@ export const DefaultTransactionConfig: TransactionProviderConfig = {
 export const DefaultMockDataConfig: MockDataConfig = {
   profileData: dummyProfileData,
   tweetsData: tweetsData,
-  postsData: allposts,
   usersData: dummyData,
 };
 

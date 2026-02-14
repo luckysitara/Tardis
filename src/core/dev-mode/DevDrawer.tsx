@@ -13,20 +13,20 @@ import TYPOGRAPHY from '@/assets/typography';
 
 // Import specific environment variables needed for the frontend
 import {
-    PRIVY_APP_ID,
-    PRIVY_CLIENT_ID,
-    CLUSTER,
-    TURNKEY_BASE_URL,
-    TURNKEY_RP_ID,
-    TURNKEY_RP_NAME,
-    TURNKEY_ORGANIZATION_ID,
-    DYNAMIC_ENVIRONMENT_ID,
+    // PRIVY_APP_ID,
+    // PRIVY_CLIENT_ID,
+    // CLUSTER,
+    // TURNKEY_BASE_URL,
+    // TURNKEY_RP_ID,
+    // TURNKEY_RP_NAME,
+    // TURNKEY_ORGANIZATION_ID,
+    // DYNAMIC_ENVIRONMENT_ID,
     HELIUS_API_KEY,
     HELIUS_RPC_CLUSTER,
     SERVER_URL,
-    TENSOR_API_KEY,
-    COINGECKO_API_KEY,
-    BIRDEYE_API_KEY,
+    // TENSOR_API_KEY,
+    // COINGECKO_API_KEY,
+    // BIRDEYE_API_KEY,
     HELIUS_STAKED_URL,
     HELIUS_STAKED_API_KEY
 } from '@env';

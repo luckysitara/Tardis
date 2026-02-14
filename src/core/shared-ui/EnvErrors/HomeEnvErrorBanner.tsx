@@ -46,10 +46,10 @@ const HomeEnvErrorBanner = () => {
 
     // Group missing variables by feature domain to make it more understandable
     const groupedVars = {
-        'Wallet Connection': ['PRIVY_APP_ID', 'PRIVY_CLIENT_ID', 'TURNKEY_ORGANIZATION_ID', 'DYNAMIC_ENVIRONMENT_ID'],
-        'Blockchain': ['CLUSTER', 'HELIUS_API_KEY', 'HELIUS_RPC_CLUSTER', 'HELIUS_STAKED_URL', 'HELIUS_STAKED_API_KEY'],
-        'Market Data': ['PARA_API_KEY', 'TENSOR_API_KEY', 'COINGECKO_API_KEY', 'BIRDEYE_API_KEY'],
-        'Other': ['SERVER_URL', 'TURNKEY_BASE_URL', 'TURNKEY_RP_ID', 'TURNKEY_RP_NAME']
+        'Wallet Connection': [],//'PRIVY_APP_ID', 'PRIVY_CLIENT_ID', 'TURNKEY_ORGANIZATION_ID', 'DYNAMIC_ENVIRONMENT_ID'
+        'Blockchain': [],//'CLUSTER', 'HELIUS_API_KEY', 'HELIUS_RPC_CLUSTER', 'HELIUS_STAKED_URL', 'HELIUS_STAKED_API_KEY'],
+        'Market Data': [],//'PARA_API_KEY', 'TENSOR_API_KEY', 'COINGECKO_API_KEY', 'BIRDEYE_API_KEY'],
+        'Other': []//'SERVER_URL', 'TURNKEY_BASE_URL', 'TURNKEY_RP_ID', 'TURNKEY_RP_NAME']
     };
 
     // Find which features are affected

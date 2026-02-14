@@ -4,7 +4,7 @@
  */
 
 import COLORS from '@/assets/colors';
-import { Action, TransactionEvents } from '../types/index';
+import { Action } from '../types/index';
 
 /**
  * Format SOL amount from lamports
@@ -93,46 +93,11 @@ export function getTransactionTypeInfo(type: string): {
       label: 'Transfer',
     };
   }
-
-  if (lowerType.includes('swap')) {
-    return {
-      icon: 'sync-alt',
-      color: COLORS.brandBlue,
-      label: 'Swap',
-    };
-  }
-
-  if (lowerType.includes('buy')) {
-    return {
-      icon: 'shopping-cart',
-      color: COLORS.brandPrimary,
-      label: 'Buy',
-    };
-  }
-
-  if (lowerType.includes('sell')) {
-    return {
-      icon: 'tag',
-      color: COLORS.errorRed,
-      label: 'Sell',
-    };
-  }
-
-  if (lowerType.includes('stake')) {
-    return {
-      icon: 'certificate',
-      color: COLORS.brandBlue,
-      label: 'Stake',
-    };
-  }
-
-  if (lowerType.includes('nft')) {
-    return {
-      icon: 'image',
-      color: COLORS.brandPurple,
-      label: 'NFT',
-    };
-  }
+  // Removed: if (lowerType.includes('swap')) { ... }
+  // Removed: if (lowerType.includes('buy')) { ... }
+  // Removed: if (lowerType.includes('sell')) { ... }
+  // Removed: if (lowerType.includes('stake')) { ... }
+  // Removed: if (lowerType.includes('nft')) { ... }
 
   if (lowerType.includes('sol') && lowerType.includes('transfer')) {
     return {
@@ -211,4 +176,4 @@ export function getTimeAgo(timestampSeconds: number): string {
   if (months < 12) return `${months}mo ago`;
   const years = Math.floor(months / 12);
   return `${years}y ago`;
-} 
+}

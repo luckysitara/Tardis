@@ -3,10 +3,8 @@
  */
 
 // Import needed types
-import { AssetItem, PortfolioData } from '@/modules/data-module';
+// Removed: import { AssetItem, PortfolioData } from '@/modules/data-module';
 import { StyleProp, ViewStyle } from 'react-native';
-import { ThreadPost } from '../../thread/types';
-import { NftItem } from '@/modules/nft';
 
 // User profile data structure
 export interface UserProfileData {
@@ -47,10 +45,6 @@ export interface ProfileData {
 export interface ProfileProps {
   isOwnProfile?: boolean;
   user?: UserProfileData;
-  posts?: ThreadPost[];
-  nfts?: NftItem[];
-  loadingNfts?: boolean;
-  fetchNftsError?: string | null;
   containerStyle?: object;
   onGoBack?: () => void;
   isScreenLoading?: boolean;
@@ -61,10 +55,6 @@ export interface ProfileProps {
 export interface ProfileViewProps {
   isOwnProfile: boolean;
   user: UserProfileData;
-  myPosts: ThreadPost[];
-  myNFTs: NftItem[];
-  loadingNfts?: boolean;
-  fetchNftsError?: string | null;
   onAvatarPress?: () => void;
   onEditProfile?: () => void;
   onShareProfile?: () => void;
@@ -77,24 +67,21 @@ export interface ProfileViewProps {
   followingCount?: number;
   onPressFollowers?: () => void;
   onPressFollowing?: () => void;
-  onPressPost?: (post: ThreadPost) => void;
   containerStyle?: StyleProp<ViewStyle> | object;
   myActions?: any[];
   loadingActions?: boolean;
   fetchActionsError?: string | null;
-  // Portfolio related props
-  portfolioData?: PortfolioData;
-  onRefreshPortfolio?: () => void;
-  refreshingPortfolio?: boolean;
-  onAssetPress?: (asset: AssetItem) => void;
+  // Removed: Portfolio related props
+  // portfolioData?: PortfolioData;
+  // onRefreshPortfolio?: () => void;
+  // refreshingPortfolio?: boolean;
+  // onAssetPress?: (asset: AssetItem) => void;
   // New loading state prop to prevent flickering
   isLoading?: boolean;
-  onEditPost?: (post: ThreadPost) => void;
 }
 
 // Extended ProfileViewProps with optional share/logout callbacks
 export interface ExtendedProfileViewProps extends ProfileViewProps {
-  onEditPost?: (post: ThreadPost) => void;
   onShareProfile?: () => void;
   onLogout?: () => void;
 }
@@ -158,19 +145,14 @@ export interface UserProfileInfoProps {
 
 // Profile tabs component props
 export interface ProfileTabsProps {
-  myPosts: ThreadPost[];
-  myNFTs: NftItem[];
-  loadingNfts?: boolean;
-  fetchNftsError?: string | null;
   myActions: any[];
   loadingActions?: boolean;
   fetchActionsError?: string | null;
-  onPressPost?: (post: ThreadPost) => void;
-  portfolioData?: PortfolioData;
-  onRefreshPortfolio?: () => void;
-  refreshingPortfolio?: boolean;
-  onAssetPress?: (asset: AssetItem) => void;
-  onEditPost?: (post: ThreadPost) => void;
+  // Removed: Portfolio related props
+  // portfolioData?: PortfolioData;
+  // onRefreshPortfolio?: () => void;
+  // refreshingPortfolio?: boolean;
+  // onAssetPress?: (asset: AssetItem) => void;
 }
 
 // Actions page component props
@@ -221,24 +203,6 @@ export interface TokenDetail {
   rawTokenAmount: RawTokenAmount;
 }
 
-export interface SwapEvent {
-  tokenInputs?: TokenDetail[];
-  tokenOutputs?: TokenDetail[];
-  tokenFees?: TokenDetail[];
-  nativeInput?: {account: string; amount: string | number};
-  nativeOutput?: {account: string; amount: string | number};
-  nativeFees?: Array<{account: string; amount: string | number}>;
-  innerSwaps?: any[];
-}
-
-export interface TransactionEvents {
-  nft?: any;
-  swap?: SwapEvent;
-  compressed?: any;
-  distributeCompressionRewards?: {amount: number};
-  setAuthority?: any;
-}
-
 /**
  * Action data model representing a wallet transaction/activity
  * Combined from both profileActionsUtils.ts and profileActions.ts
@@ -254,7 +218,6 @@ export interface Action {
   symbol?: string;
   transactionType?: string;
   status?: 'success' | 'failed';
-  events?: TransactionEvents;
   source?: string;
   fee?: number;
   feePayer?: string;
@@ -284,11 +247,6 @@ export interface Action {
   enrichedData?: {
     direction: 'IN' | 'OUT' | 'NEUTRAL';
     counterparty?: string;
-    swapType?: string;
-    inputSymbol?: string;
-    outputSymbol?: string;
-    inputAmount?: number;
-    outputAmount?: number;
     transferType?: string;
     amount?: number;
     tokenSymbol?: string;

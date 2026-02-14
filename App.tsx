@@ -67,13 +67,13 @@ import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { PersistGate } from 'redux-persist/integration/react';
 
 
-import { TurnkeyProvider } from '@turnkey/sdk-react-native';
+// Removed: import { TurnkeyProvider } from '@turnkey/sdk-react-native';
 
-// Dynamic client initialization
-import {
-  getDynamicClient,
-  initDynamicClient,
-} from './src/modules/wallet-providers/services/walletProviders/dynamic';
+// Removed: Dynamic client initialization
+// import {
+//   getDynamicClient,
+//   initDynamicClient,
+// } from './src/modules/wallet-providers/services/walletProviders/dynamic';
 import TransactionNotification from './src/core/shared-ui/TransactionNotification';
 
 // Import DevMode components
@@ -131,39 +131,40 @@ const PersistLoading = () => (
 
 export default function App() {
   const config = DefaultCustomizationConfig;
-  const [dynamicInitialized, setDynamicInitialized] = useState(false);
+  // Removed: const [dynamicInitialized, setDynamicInitialized] = useState(false);
 
-  useEffect(() => {
-    if (config.auth.provider === 'dynamic') {
-      try {
-        initDynamicClient(
-          config.auth.dynamic.environmentId,
-          config.auth.dynamic.appName,
-          config.auth.dynamic.appLogoUrl,
-        );
-        setDynamicInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize Dynamic client:', error);
-      }
-    }
-  }, [config.auth.provider]);
+  // Removed: Dynamic initialization useEffect
+  // useEffect(() => {
+  //   if (config.auth.provider === 'dynamic') {
+  //     try {
+  //       initDynamicClient(
+  //         config.auth.dynamic.environmentId,
+  //         config.auth.dynamic.appName,
+  //         config.auth.dynamic.appLogoUrl,
+  //       );
+  //       setDynamicInitialized(true);
+  //     } catch (error) {
+  //       console.error('Failed to initialize Dynamic client:', error);
+  //     }
+  //   }
+  // }, [config.auth.provider]);
 
 
 
-  // Get Dynamic client after initialization is complete
-  const getDynamicWebView = () => {
-    if (!dynamicInitialized) return null;
+  // Removed: Get Dynamic client after initialization is complete
+  // const getDynamicWebView = () => {
+  //   if (!dynamicInitialized) return null;
 
-    try {
-      const client = getDynamicClient();
-      return client?.reactNative?.WebView ? (
-        <client.reactNative.WebView />
-      ) : null;
-    } catch (error) {
-      console.error('Error getting Dynamic WebView:', error);
-      return null;
-    }
-  };
+  //   try {
+  //     const client = getDynamicClient();
+  //     return client?.reactNative?.WebView ? (
+  //       <client.reactNative.WebView />
+  //     ) : null;
+  //   } catch (error) {
+  //     console.error('Error getting Dynamic WebView:', error);
+  //     return null;
+  //   }
+  // };
 
   // Component to render notification and any other global UI elements
   const GlobalUIElements = () => (
@@ -172,11 +173,11 @@ export default function App() {
     </>
   );
 
-  // Configure Turnkey session
-  const turnkeySessionConfig = {
-    apiBaseUrl: config.auth.turnkey.baseUrl,
-    organizationId: config.auth.turnkey.organizationId,
-  };
+  // Removed: Turnkey session config
+  // const turnkeySessionConfig = {
+  //   apiBaseUrl: config.auth.turnkey.baseUrl,
+  //   organizationId: config.auth.turnkey.organizationId,
+  // };
 
   // Wrap the app with EnvErrorProvider for global env variable error handling
   return (
@@ -188,7 +189,8 @@ export default function App() {
             <DevModeProvider>
               <EnvErrorProvider>
                 <View style={{ flex: 1, backgroundColor: COLORS.background }}>
- config.auth.provider === 'turnkey' ? (
+                  {/* Removed conditional rendering for turnkey */}
+                  {/* {config.auth.provider === 'turnkey' ? (
                     <TurnkeyProvider config={turnkeySessionConfig}>
                       <NavigationContainer ref={navigationRef}>
                         <RootNavigator />
@@ -196,15 +198,15 @@ export default function App() {
                       {getDynamicWebView()}
                       <GlobalUIElements />
                     </TurnkeyProvider>
-                  ) : (
+                  ) : ( */}
                     <>
                       <NavigationContainer ref={navigationRef}>
                         <RootNavigator />
                       </NavigationContainer>
-                      {getDynamicWebView()}
+                      {/* Removed Dynamic WebView */}
                       <GlobalUIElements />
                     </>
-                  )}
+                  {/* )} */}
 
                   {/* DevMode components will only render in dev mode */}
                   <DevModeComponents />
