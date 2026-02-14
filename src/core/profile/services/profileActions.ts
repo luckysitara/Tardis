@@ -6,7 +6,7 @@
 
 import { HELIUS_API_KEY, HELIUS_STAKED_API_KEY } from '@env';
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { Action, TokenTransfer, SwapEvent } from '../types/index';
+import { Action, TokenTransfer } from '../types/index';
 
 /**
  * Redux thunk for fetching wallet actions
@@ -129,80 +129,10 @@ export const enrichActionTransactions = async (actions: Action[], walletAddress:
     // Determine transaction type with more specificity
     let enrichedType = action.type || action.transactionType || 'UNKNOWN';
     
-    // Process swap transactions
-    if (action.events?.swap) {
-      enrichedType = 'SWAP';
-      
-      // Extract swap details if available
-      const swap = action.events.swap as SwapEvent;
-      const hasTokenInputs = swap.tokenInputs && swap.tokenInputs.length > 0;
-      const hasTokenOutputs = swap.tokenOutputs && swap.tokenOutputs.length > 0;
-      
-      if (hasTokenInputs && hasTokenOutputs && swap.tokenInputs && swap.tokenOutputs) {
-        // Extract token symbols if available
-        const inputToken = swap.tokenInputs[0];
-        const outputToken = swap.tokenOutputs[0];
-        
-        const inputAmount = inputToken.rawTokenAmount?.tokenAmount 
-          ? parseFloat(inputToken.rawTokenAmount.tokenAmount) / Math.pow(10, inputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        const outputAmount = outputToken.rawTokenAmount?.tokenAmount
-          ? parseFloat(outputToken.rawTokenAmount.tokenAmount) / Math.pow(10, outputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        // Add enriched info
-        action.enrichedData = {
-          swapType: 'TOKEN_TO_TOKEN',
-          inputSymbol: truncateAddress(inputToken.mint),
-          outputSymbol: truncateAddress(outputToken.mint),
-          inputAmount,
-          outputAmount,
-          direction: inputToken.userAccount === walletAddress ? 'OUT' : 'IN'
-        };
-      } else if (swap.nativeInput && hasTokenOutputs && swap.tokenOutputs) {
-        // SOL to token swap
-        const outputToken = swap.tokenOutputs[0];
-        const outputAmount = outputToken.rawTokenAmount?.tokenAmount
-          ? parseFloat(outputToken.rawTokenAmount.tokenAmount) / Math.pow(10, outputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        const nativeAmount = typeof swap.nativeInput.amount === 'string' 
-          ? parseFloat(swap.nativeInput.amount) 
-          : swap.nativeInput.amount;
-          
-        action.enrichedData = {
-          swapType: 'SOL_TO_TOKEN',
-          inputSymbol: 'SOL',
-          outputSymbol: truncateAddress(outputToken.mint),
-          inputAmount: nativeAmount / 1_000_000_000, // lamports to SOL
-          outputAmount,
-          direction: swap.nativeInput.account === walletAddress ? 'OUT' : 'IN'
-        };
-      } else if (hasTokenInputs && swap.nativeOutput && swap.tokenInputs) {
-        // Token to SOL swap
-        const inputToken = swap.tokenInputs[0];
-        const inputAmount = inputToken.rawTokenAmount?.tokenAmount
-          ? parseFloat(inputToken.rawTokenAmount.tokenAmount) / Math.pow(10, inputToken.rawTokenAmount.decimals || 0)
-          : 0;
-          
-        const nativeAmount = typeof swap.nativeOutput.amount === 'string' 
-          ? parseFloat(swap.nativeOutput.amount) 
-          : swap.nativeOutput.amount;
-          
-        action.enrichedData = {
-          swapType: 'TOKEN_TO_SOL',
-          inputSymbol: truncateAddress(inputToken.mint),
-          outputSymbol: 'SOL',
-          inputAmount,
-          outputAmount: nativeAmount / 1_000_000_000, // lamports to SOL
-          direction: inputToken.userAccount === walletAddress ? 'OUT' : 'IN'
-        };
-      }
-    }
+    // Removed: Process swap transactions
     
-    // Process transfer transactions
-    else if (action.nativeTransfers && action.nativeTransfers.length > 0) {
+    // Process native transfers
+    if (action.nativeTransfers && action.nativeTransfers.length > 0) {
       enrichedType = 'TRANSFER';
       const transfer = action.nativeTransfers[0];
       
@@ -246,4 +176,4 @@ export const enrichActionTransactions = async (actions: Action[], walletAddress:
 function truncateAddress(address: string): string {
   if (!address || address.length < 10) return address;
   return address.slice(0, 4) + '...' + address.slice(-4);
-} 
+}

@@ -7,11 +7,8 @@ if (typeof global.Buffer === 'undefined') {
   global.Buffer = Buffer;
 }
 
-/**
- * SNS TLD Public Keys
- * The .skr TLD is the hardware-attested registry for Solana Seeker owners.
- */
-const SKR_TLD_STATE = new PublicKey('679mS9sh9AbaHquv38A67tB9KeY6fV2fGZpnd9Y7L765');
+// Removed: SKR_TLD_STATE constant
+
 
 const getRpcUrl = () => {
   return process.env.HELIUS_STAKED_URL || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
@@ -21,7 +18,7 @@ const connection = new Connection(getRpcUrl());
 
 /**
  * Resolves a Solana public key to a TARDIS identity.
- * Priority: 1. .skr (Hardware Identity) -> 2. .sol (General Identity) -> 3. Abbreviation
+ * Priority: 1. .sol (General Identity) -> 2. Abbreviation
  * * @param publicKey String representation of the wallet address
  * @returns The resolved handle or abbreviated address
  */
@@ -30,20 +27,9 @@ export async function resolveTardisIdentity(publicKey: string): Promise<string> 
     const pubkey = new PublicKey(publicKey);
     const abbreviation = `${publicKey.substring(0, 4)}...${publicKey.substring(publicKey.length - 4)}`;
 
-    // 1. Try to resolve .skr handle first (The Seeker Priority)
-    try {
-      // We explicitly pass the SKR_TLD_STATE account
-      const skrDomain = await performReverseLookup(connection, pubkey, SKR_TLD_STATE);
-      if (skrDomain) {
-        console.log(`[Identity] Resolved .skr for ${publicKey}: ${skrDomain}.skr`);
-        return `${skrDomain}.skr`;
-      }
-    } catch (error) {
-      // Log for debugging but don't stop the flow
-      console.log(`[Identity] No .skr entry for ${publicKey}`);
-    }
+    // Removed: .skr lookup block
 
-    // 2. Fallback to .sol handle
+    // 1. Fallback to .sol handle
     try {
       // Default performReverseLookup checks the .sol TLD
       const solDomain = await performReverseLookup(connection, pubkey);
@@ -56,7 +42,7 @@ export async function resolveTardisIdentity(publicKey: string): Promise<string> 
       console.log(`[Identity] No .sol entry or buffer error for ${publicKey}`);
     }
 
-    // 3. Ultimate Fallback: Abbreviated Address
+    // 2. Ultimate Fallback: Abbreviated Address
     return abbreviation;
 
   } catch (criticalError) {

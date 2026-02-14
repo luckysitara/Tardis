@@ -266,6 +266,8 @@ const authSlice = createSlice({
         description?: string;
       }>,
     ) {
+      console.log('[AuthReducer] loginSuccess payload received:', JSON.stringify(action.payload, null, 2));
+      console.log('[AuthReducer] loginSuccess payload.username:', action.payload.username);
       // Preserve existing profile data if available and no new data provided
       state.provider = action.payload.provider;
       state.address = action.payload.address;

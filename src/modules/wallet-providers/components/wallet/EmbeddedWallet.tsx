@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, Platform, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, Platform, Image, StyleSheet } from 'react-native';
 import Icons from '@/assets/svgs';
 import { useAuth } from '@/modules/wallet-providers/hooks/useAuth';
-import styles from '@/screens/Common/login-screen/LoginScreen.styles';
+// Removed: import styles from '@/screens/Common/login-screen/LoginScreen.styles';
 import { useCustomization } from '@/shared/config/CustomizationProvider';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
@@ -82,10 +82,10 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
       console.log('User already authenticated with Dynamic, triggering callback and navigating');
       onWalletConnected({ provider: 'dynamic', address: user.id });
 
-      // Navigate to PlatformSelectionScreen after a short delay
+      // Navigate to Authenticated stack after a short delay
       // The delay ensures the onWalletConnected callback has time to complete
       setTimeout(() => {
-        navigation.navigate('MainTabs' as never);
+        navigation.navigate('Authenticated' as never);
       }, 100);
     }
   }, [authConfig.provider, status, user, onWalletConnected, navigation]);
@@ -149,9 +149,9 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
           address: base58Address,
         });
 
-        // Navigate to MainTabs after a short delay
+        // Navigate to Authenticated stack after a short delay
         setTimeout(() => {
-          navigation.navigate('MainTabs' as never);
+          navigation.navigate('Authenticated' as never);
         }, 100);
       } else {
         Alert.alert('Connection Error', 'No accounts found in wallet');
@@ -280,50 +280,101 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
     }
   };
 
-  // Arrow component for the right side of buttons
+  // Arrow component for the right side of buttons - Re-defined here
   const ArrowIcon = () => (
-    <View style={styles.arrowCircle}>
-      <Text style={styles.arrowText}>›</Text>
+    <View style={localStyles.arrowCircle}>
+      <Text style={localStyles.arrowText}>›</Text>
     </View>
   );
 
+  // Local styles for this component since LoginScreen.styles was removed
+  const localStyles = StyleSheet.create({
+    bottomButtonsContainer: {
+      width: '100%',
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      paddingBottom: 20,
+    },
+    loginButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: COLORS.brandBlue, // Changed from celestialBlue
+      borderRadius: 10,
+      paddingVertical: 15,
+      paddingHorizontal: 20,
+      marginBottom: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    buttonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    buttonText: {
+      color: COLORS.white,
+      fontSize: 16,
+      fontWeight: '600',
+      marginLeft: 15,
+      textAlign: 'left',
+    },
+    arrowCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: COLORS.lightBackground, // Changed from darkBlue
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    arrowText: {
+      color: COLORS.white,
+      fontSize: 16,
+      lineHeight: 20, // Adjust line height to center '›' vertically
+      fontWeight: 'bold',
+    },
+  });
+
   return (
-    <View style={styles.bottomButtonsContainer}>
+    <View style={localStyles.bottomButtonsContainer}>
       {Platform.OS === 'android' && transact && PublicKey && Buffer && (
-        <TouchableOpacity style={styles.loginButton} onPress={loginWithMWA}>
-          <View style={styles.buttonContent}>
+        <TouchableOpacity style={localStyles.loginButton} onPress={loginWithMWA}>
+          <View style={localStyles.buttonContent}>
             <Image 
               source={SolanaMobileImage} 
               style={{ width: 24, height: 24, borderRadius: 12 }} 
             />
-            <Text style={styles.buttonText}>Continue with MWA</Text>
+            <Text style={localStyles.buttonText}>Continue with MWA</Text>
           </View>
           <ArrowIcon />
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.loginButton} onPress={handleGoogleLogin}>
-        <View style={styles.buttonContent}>
+      <TouchableOpacity style={localStyles.loginButton} onPress={handleGoogleLogin}>
+        <View style={localStyles.buttonContent}>
           <Icons.Google width={24} height={24} />
-          <Text style={styles.buttonText}>Continue with Google</Text>
+          <Text style={localStyles.buttonText}>Continue with Google</Text>
         </View>
         <ArrowIcon />
       </TouchableOpacity>
 
       {Platform.OS === 'ios' && (
-        <TouchableOpacity style={styles.loginButton} onPress={handleAppleLogin}>
-          <View style={styles.buttonContent}>
+        <TouchableOpacity style={localStyles.loginButton} onPress={handleAppleLogin}>
+          <View style={localStyles.buttonContent}>
             <Icons.Apple width={24} height={24} fill={COLORS.white} />
-            <Text style={styles.buttonText}>Continue with Apple</Text>
+            <Text style={localStyles.buttonText}>Continue with Apple</Text>
           </View>
           <ArrowIcon />
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.loginButton} onPress={handleEmailLogin}>
-        <View style={styles.buttonContent}>
+      <TouchableOpacity style={localStyles.loginButton} onPress={handleEmailLogin}>
+        <View style={localStyles.buttonContent}>
           <Icons.Device width={24} height={24} stroke={COLORS.white} />
-          <Text style={styles.buttonText}>Continue with Email</Text>
+          <Text style={localStyles.buttonText}>Continue with Email</Text>
         </View>
         <ArrowIcon />
       </TouchableOpacity>

@@ -20,10 +20,7 @@ const ProfileTabsMemo = memo(ProfileTabs);
 function ProfileViewComponent({
   isOwnProfile,
   user,
-  myPosts,
-  myNFTs,
-  loadingNfts,
-  fetchNftsError,
+
   onAvatarPress,
   onEditProfile,
   onShareProfile,
@@ -35,17 +32,13 @@ function ProfileViewComponent({
   followingCount,
   onPressFollowers,
   onPressFollowing,
-  onPressPost,
+
   containerStyle,
   myActions,
   loadingActions,
   fetchActionsError,
-  portfolioData,
-  onRefreshPortfolio,
-  refreshingPortfolio,
-  onAssetPress,
+  // Removed portfolioData, onRefreshPortfolio, refreshingPortfolio, onAssetPress
   isLoading = false,
-  onEditPost,
   onLogout,
 }: ExtendedProfileViewProps) {
   // Add logging for component rendering
@@ -114,41 +107,20 @@ function ProfileViewComponent({
     onPressFollowing,
   ]);
 
-  // console.log('[ProfileView] profileInfoProps:', user.profilePicUrl);
-
   // Memoize props for ProfileTabs to prevent unnecessary re-renders
   const profileTabsProps = useMemo(() => ({
-    myPosts,
-    myNFTs,
-    loadingNfts,
-    fetchNftsError,
     myActions: myActions as WalletAction[],
     loadingActions,
     fetchActionsError,
-    onPressPost,
-    portfolioData,
-    onRefreshPortfolio,
-    refreshingPortfolio,
-    onAssetPress,
-    onEditPost,
+    // Removed portfolioData, onRefreshPortfolio, refreshingPortfolio, onAssetPress
   }), [
     // Content-related dependencies grouped together
-    myPosts,
-    myNFTs,
     myActions,
-    portfolioData,
     // Loading states grouped together
-    loadingNfts,
     loadingActions,
-    refreshingPortfolio,
     // Error states
-    fetchNftsError,
     fetchActionsError,
-    // Callback dependencies
-    onPressPost,
-    onRefreshPortfolio,
-    onAssetPress,
-    onEditPost,
+    // Removed callback dependencies
   ]);
 
   // Memoize container style to prevent re-renders
@@ -212,17 +184,15 @@ function arePropsEqual(prev: ExtendedProfileViewProps, next: ExtendedProfileView
   }
 
   // Reference comparisons for arrays
-  if (prev.myPosts !== next.myPosts) return false;
-  if (prev.myNFTs !== next.myNFTs) return false;
   if (prev.myActions !== next.myActions) return false;
-  if (prev.portfolioData !== next.portfolioData) return false;
+  // Removed portfolioData comparison
+  // if (prev.portfolioData !== next.portfolioData) return false;
 
   // Loading states comparison
-  if (prev.loadingNfts !== next.loadingNfts) return false;
-  if (prev.fetchNftsError !== next.fetchNftsError) return false;
   if (prev.loadingActions !== next.loadingActions) return false;
   if (prev.fetchActionsError !== next.fetchActionsError) return false;
-  if (prev.refreshingPortfolio !== next.refreshingPortfolio) return false;
+  // Removed refreshingPortfolio comparison
+  // if (prev.refreshingPortfolio !== next.refreshingPortfolio) return false;
 
   // Social state comparison
   if (prev.amIFollowing !== next.amIFollowing) return false;
@@ -231,9 +201,9 @@ function arePropsEqual(prev: ExtendedProfileViewProps, next: ExtendedProfileView
   if (prev.followingCount !== next.followingCount) return false;
 
   // Callbacks comparison (references only)
-  if (prev.onRefreshPortfolio !== next.onRefreshPortfolio) return false;
-  if (prev.onAssetPress !== next.onAssetPress) return false;
-  if (prev.onPressPost !== next.onPressPost) return false;
+  // Removed onRefreshPortfolio and onAssetPress comparison
+  // if (prev.onRefreshPortfolio !== next.onRefreshPortfolio) return false;
+  // if (prev.onAssetPress !== next.onAssetPress) return false;
   if (prev.onAvatarPress !== next.onAvatarPress) return false;
   if (prev.onEditProfile !== next.onEditProfile) return false;
   if (prev.onShareProfile !== next.onShareProfile) return false;

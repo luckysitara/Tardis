@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
 import { Colors } from '@/styles/theme'; // Import Colors from the newly created theme file
-import { useAppSelector } from '@/shared/hooks/useReduxHooks';
+// Removed: import { useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient'; // For background gradient
 
@@ -22,7 +22,7 @@ const { width, height } = Dimensions.get('window');
 const LandingScreen: React.FC = () => {
   const { connectSeekerWallet } = useTardisMobileWallet();
   const navigation = useAppNavigation();
-  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  // Removed: const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
 
   // Animation for pulsing icon
   const scale = useSharedValue(1);
@@ -40,12 +40,12 @@ const LandingScreen: React.FC = () => {
       true
     );
 
-    // If already authenticated, navigate away
-    if (isAuthenticated) {
-      // Small delay to allow initial render before navigation
-      setTimeout(() => navigation.navigate('Authenticated' as never), 100);
-    }
-  }, [isAuthenticated, navigation]);
+    // Removed: If already authenticated, navigate away
+    // if (isAuthenticated) {
+    //   // Small delay to allow initial render before navigation
+    //   setTimeout(() => navigation.navigate('Authenticated' as never), 100);
+    // }
+  }, [navigation]); // Removed isAuthenticated from dependency array
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

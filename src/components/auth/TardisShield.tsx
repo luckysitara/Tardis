@@ -49,7 +49,7 @@ const TardisShield: React.FC<TardisShieldProps> = ({ children }) => {
             const mint = unpackMint(mintPubkey, info, TOKEN_2022_PROGRAM_ID);
             const isAuthValid = mint.mintAuthority?.toBase58() === SGT_MINT_AUTHORITY;
             const groupMember = getTokenGroupMemberState(mint);
-            const isGroupValid = groupMember?.group.toBase58() === SGT_GROUP_ADDRESS;
+            const isGroupValid = groupMember?.group?.toBase58() === SGT_GROUP_ADDRESS;
 
             if (isAuthValid && isGroupValid) {
               console.log("✅ Verified Seeker Genesis Token Found!");

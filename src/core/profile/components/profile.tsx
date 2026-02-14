@@ -18,10 +18,9 @@ import { useAppSelector, useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import {
   fetchUserProfile,
 } from '@/shared/state/auth/reducer';
-import { fetchAllPosts } from '@/shared/state/thread/reducer';
 
-import { useFetchNFTs } from '@/modules/nft';
-import { NftItem } from '@/modules/nft/types';
+
+
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 import { useAuth } from '@/modules/wallet-providers/hooks/useAuth';
 import {
@@ -36,32 +35,29 @@ import { followUser, unfollowUser } from '@/shared/state/users/reducer';
 import COLORS from '@/assets/colors';
 
 // Import hooks, utils, and types from the modular structure
-import { flattenPosts, isUserWalletOwner } from '@/core/profile/utils/profileUtils';
+import { isUserWalletOwner } from '@/core/profile/utils/profileUtils';
 import { ProfileProps, UserProfileData } from '@/core/profile/types';
 
 import ProfileView from './ProfileView';
 import { styles } from './profile.style';
-import { ThreadPost } from '@/core/thread/types';
+
 import { useFetchPortfolio } from '@/modules/data-module/hooks/useFetchTokens';
 import { AssetItem } from '@/modules/data-module/types/assetTypes';
-import EditPostModal from '@/core/thread/components/EditPostModal';
+
 import Icons from '@/assets/svgs';
 import AccountSettingsDrawer from './AccountSettingsDrawer';
 
 export default function Profile({
   isOwnProfile = false,
   user,
-  posts = [],
-  nfts = [],
-  loadingNfts = false,
-  fetchNftsError,
+
   containerStyle,
   onGoBack,
   isScreenLoading,
   onDeleteAccountPress,
 }: ProfileProps) {
   const dispatch = useAppDispatch();
-  const allReduxPosts = useAppSelector(state => state.thread.allPosts);
+
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
   const { address: currentWalletAddress } = useWallet();
   const { logout } = useAuth();
@@ -92,14 +88,9 @@ export default function Profile({
   const [isFollowingLoading, setIsFollowingLoading] = useState(true);
   const [isFollowStatusLoading, setIsFollowStatusLoading] = useState(!isOwnProfile);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
-  const [editingPost, setEditingPost] = useState<ThreadPost | null>(null); // State for post being edited
 
-  // NFT fetch hook - use it only when nfts are not provided via props
-  const {
-    nfts: fetchedNfts,
-    loading: defaultNftLoading,
-    error: defaultNftError,
-  } = useFetchNFTs(userWallet || undefined);
+
+
 
   // Portfolio fetch hook
   const {
@@ -111,10 +102,7 @@ export default function Profile({
   // For refreshing the portfolio data
   const [refreshingPortfolio, setRefreshingPortfolio] = useState(false);
 
-  // Extract values with fallbacks
-  const resolvedNfts = nfts.length > 0 ? nfts : fetchedNfts;
-  const resolvedLoadingNfts = loadingNfts || defaultNftLoading;
-  const resolvedNftError = fetchNftsError || defaultNftError;
+
 
   // Get actions data from Redux
   const myActions = useMemo(() =>
@@ -362,35 +350,11 @@ export default function Profile({
     }, [userWallet, isOwnProfile, currentUserWallet])
   );
 
-  // --- Fetch posts if not provided ---
-  useEffect(() => {
-    if (!posts || posts.length === 0) {
-      dispatch(fetchAllPosts()).catch(err => {
-        console.error('Failed to fetch posts:', err);
-      });
-    }
-  }, [posts, dispatch]);
 
-  // --- Flatten & filter user posts ---
+
   const myPosts = useMemo(() => {
-    if (!userWallet) return [];
-
-    // Choose base posts from props or Redux
-    const base = posts && posts.length > 0 ? posts : allReduxPosts;
-
-    // Use flattenPosts to extract all posts including nested replies
-    const flat = flattenPosts(base);
-
-    // Filter for all posts where the user is the author
-    const userAll = flat.filter(
-      p => p.user.id.toLowerCase() === userWallet.toLowerCase(),
-    );
-
-    // Sort by most recent first
-    userAll.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
-
-    return userAll;
-  }, [userWallet, posts, allReduxPosts]);
+    return [];
+  }, []);
 
   // --- Refresh Portfolio handler ---
   const handleRefreshPortfolio = useCallback(async () => {
@@ -416,12 +380,9 @@ export default function Profile({
   // --- Asset press handler ---
   const handleAssetPress = useCallback((asset: AssetItem) => {
     console.log('Asset pressed:', asset);
-    // For NFTs, show detail view
-    if (asset.interface === 'V1_NFT' || asset.interface === 'ProgrammableNFT') {
-      // navigation.navigate('NFTDetail', { asset });
-    }
+
     // For tokens, show transaction history
-    else if (asset.interface === 'V1_TOKEN' || asset.token_info) {
+    if (asset.interface === 'V1_TOKEN' || asset.token_info) {
       // navigation.navigate('TokenDetail', { asset });
     }
   }, []);
@@ -498,14 +459,7 @@ export default function Profile({
     }
   }, [dispatch, userWallet]);
 
-  // --- Post edit handler ---
-  const handleEditPost = useCallback((postToEdit: ThreadPost) => {
-    if (isOwnProfile || postToEdit.user.id === currentUserWallet) {
-      setEditingPost(postToEdit);
-    } else {
-      Alert.alert("Permission Denied", "You cannot edit this post.");
-    }
-  }, [isOwnProfile, currentUserWallet]);
+
 
   // --- Follow navigation handlers ---
   const handlePressFollowers = useCallback(() => {
@@ -565,10 +519,7 @@ export default function Profile({
     [userWallet, profilePicUrl, localUsername, localDescription, customizationData],
   );
 
-  // Handle post navigation
-  const handlePostPress = useCallback((post: ThreadPost) => {
-    navigation.navigate('PostThread', { postId: post.id });
-  }, [navigation]);
+
 
   // This will clean up old action data periodically
   useEffect(() => {
@@ -652,7 +603,7 @@ export default function Profile({
           <Text style={styles.headerUsername} numberOfLines={1} ellipsizeMode="tail">
             {localUsername}
           </Text>
-          <Text style={styles.postCount}>{myPosts.length} posts</Text>
+
         </View>
 
         {isOwnProfile && (
@@ -667,35 +618,15 @@ export default function Profile({
         <ProfileView
           isOwnProfile={isOwnProfile}
           user={resolvedUser}
-          myPosts={myPosts}
-          myNFTs={resolvedNfts}
-          loadingNfts={resolvedLoadingNfts}
-          fetchNftsError={resolvedNftError}
-          onAvatarPress={() => handleProfileUpdated('image')}
-          onEditProfile={() => handleProfileUpdated('username')}
-          onShareProfile={() => { }}
-          onLogout={isOwnProfile ? handleLogoutAction : undefined}
-          {...memoizedFollowProps}
-          onPressPost={handlePostPress}
-          containerStyle={containerStyle}
-          myActions={myActions}
-          loadingActions={loadingActions}
-          fetchActionsError={fetchActionsError}
-          portfolioData={portfolio}
-          onRefreshPortfolio={handleRefreshPortfolio}
-          refreshingPortfolio={refreshingPortfolio}
-          onAssetPress={handleAssetPress}
+
+
+
+
           isLoading={isLoading}
-          onEditPost={handleEditPost}
         />
       </View>
 
-      {/* Edit Post Modal */}
-      <EditPostModal
-        isVisible={!!editingPost}
-        onClose={() => setEditingPost(null)}
-        post={editingPost}
-      />
+
 
       {/* Account Settings Drawer */}
       {isOwnProfile && (

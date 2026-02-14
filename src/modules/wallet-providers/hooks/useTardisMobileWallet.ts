@@ -84,15 +84,16 @@ export const useTardisMobileWallet = () => {
 
         console.log('Tardis MWA connection successful, address:', base58Address);
 
+        const usernameLabel = authorizationResult.accounts[0].label;
         dispatch(
           loginSuccess({
             provider: 'mwa',
             address: base58Address,
+            username: usernameLabel, // Pass the extracted label as username
           })
         );
 
         // Navigate to the main app after successful connection
-        // The navigation stack needs to be configured to handle this transition
         navigation.navigate('Authenticated' as never); // Navigate to the Authenticated stack
       } else {
         Alert.alert('Connection Error', 'No accounts found in your Seeker wallet.');
@@ -103,5 +104,44 @@ export const useTardisMobileWallet = () => {
     }
   }, [dispatch, navigation]);
 
-  return { connectSeekerWallet };
+  const signMessage = useCallback(async (message: string): Promise<string | null> => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Not Supported', 'Solana Seeker (MWA) is only available on Android devices.');
+      return null;
+    }
+
+    if (!transact || !Buffer) {
+      Alert.alert(
+        'Not Available',
+        'Mobile Wallet Adapter is not properly initialized. Please ensure your environment is set up correctly.'
+      );
+      return null;
+    }
+
+    try {
+      const messageUint8 = new TextEncoder().encode(message);
+      const result = await transact(async (wallet: Web3MobileWallet) => {
+        return await wallet.signMessages({
+          messages: [messageUint8],
+        });
+      });
+
+      // Ensure result and result.signatures are not null/undefined
+      const signatures = result?.signatures || [];
+
+      if (signatures.length > 0) {
+        // MWA returns Uint8Array, convert to base64 string
+        return Buffer.from(signatures[0]).toString('base64');
+      } else {
+        Alert.alert('Signing Error', 'No signature received from wallet or signing was cancelled.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Tardis MWA signMessage error:', error);
+      Alert.alert('Signing Error', 'Failed to sign message with your Seeker wallet.');
+      return null;
+    }
+  }, []);
+
+  return { connectSeekerWallet, signMessage };
 };

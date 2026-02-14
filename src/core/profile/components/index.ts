@@ -17,14 +17,11 @@ export { default as ProfileEditDrawer } from './profile-edit-drawer/ProfileEditD
 export { default as ActionsPage } from './actions/ActionsPage';
 export { default as ActionDetailModal } from './actions/ActionDetailModal';
 
-// Collectibles
-export { default as Collectibles } from './collectibles/collectibles';
 
-// Buy card
-export { default as BuyCard } from './buy-card/buyCard';
+
+
 
 // Transfer balance
 export { default as TransferBalanceButton } from './transfer-balance-button/transferBalanceButton';
 
-// Followers/Following
-export { default as FollowersFollowingListScreen } from './followers-following-listScreen/FollowersFollowingListScreen'; 
+ 

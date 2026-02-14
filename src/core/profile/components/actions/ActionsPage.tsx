@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  FlatList, // This can probably be removed if not used by anything generic. Keep for now.
   ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
@@ -28,52 +28,13 @@ import { styles } from './actions.style';
 import { format, isToday, isThisWeek, isThisMonth, isAfter, startOfMonth, endOfMonth } from 'date-fns';
 
 
-interface RawTokenAmount {
-  tokenAmount: string;
-  decimals: number;
-}
+// Removed: interface RawTokenAmount
+// Removed: interface TokenTransfer
+// Removed: interface NativeTransfer
+// Removed: interface TokenDetail
+// Removed: interface SwapEvent
+// Removed: interface TransactionEvents
 
-interface TokenTransfer {
-  fromUserAccount: string;
-  toUserAccount: string;
-  fromTokenAccount: string;
-  toTokenAccount: string;
-  tokenAmount: number;
-  mint: string;
-  tokenName?: string;
-  symbol?: string;
-}
-
-interface NativeTransfer {
-  fromUserAccount: string;
-  toUserAccount: string;
-  amount: number;
-}
-
-interface TokenDetail {
-  userAccount: string;
-  tokenAccount: string;
-  mint: string;
-  rawTokenAmount: RawTokenAmount;
-}
-
-interface SwapEvent {
-  tokenInputs?: TokenDetail[];
-  tokenOutputs?: TokenDetail[];
-  tokenFees?: TokenDetail[];
-  nativeInput?: { account: string; amount: string | number };
-  nativeOutput?: { account: string; amount: string | number };
-  nativeFees?: Array<{ account: string; amount: string | number }>;
-  innerSwaps?: any[];
-}
-
-interface TransactionEvents {
-  nft?: any;
-  swap?: SwapEvent;
-  compressed?: any;
-  distributeCompressionRewards?: { amount: number };
-  setAuthority?: any;
-}
 
 // Extend the Action interface to include blockTime and timeAgo properties
 interface ExtendedAction extends Action {
@@ -237,138 +198,8 @@ function getTransactionDetails(
     }
   }
 
-  // For swap events
-  if (action.events?.swap) {
-    const swap = action.events.swap;
-
-    // Check for SOL involved in swap
-    if (swap.nativeInput && swap.nativeInput.account === walletAddress) {
-      const amount =
-        typeof swap.nativeInput.amount === 'string'
-          ? parseInt(swap.nativeInput.amount, 10)
-          : swap.nativeInput.amount;
-
-      const outputSymbol =
-        swap.tokenOutputs && swap.tokenOutputs.length > 0
-          ? swap.tokenOutputs[0].rawTokenAmount.tokenAmount
-            ? `${formatTokenAmount(
-              parseFloat(swap.tokenOutputs[0].rawTokenAmount.tokenAmount),
-              parseInt(
-                String(swap.tokenOutputs[0].rawTokenAmount.decimals),
-                10,
-              ),
-            )} ${truncateAddress(swap.tokenOutputs[0].mint)}`
-            : truncateAddress(swap.tokenOutputs[0].mint)
-          : 'tokens';
-
-      return {
-        direction: 'out',
-        amount,
-        symbol: 'SOL',
-        counterparty: outputSymbol,
-        rawData: swap,
-      };
-    }
-
-    if (swap.nativeOutput && swap.nativeOutput.account === walletAddress) {
-      const amount =
-        typeof swap.nativeOutput.amount === 'string'
-          ? parseInt(swap.nativeOutput.amount, 10)
-          : swap.nativeOutput.amount;
-
-      const inputSymbol =
-        swap.tokenInputs && swap.tokenInputs.length > 0
-          ? swap.tokenInputs[0].rawTokenAmount.tokenAmount
-            ? `${formatTokenAmount(
-              parseFloat(swap.tokenInputs[0].rawTokenAmount.tokenAmount),
-              parseInt(
-                String(swap.tokenInputs[0].rawTokenAmount.decimals),
-                10,
-              ),
-            )} ${truncateAddress(swap.tokenInputs[0].mint)}`
-            : truncateAddress(swap.tokenInputs[0].mint)
-          : 'tokens';
-
-      return {
-        direction: 'in',
-        amount,
-        symbol: 'SOL',
-        counterparty: inputSymbol,
-        rawData: swap,
-      };
-    }
-
-    // Check for tokens involved in swap
-    if (swap.tokenInputs && swap.tokenInputs.length > 0) {
-      const input = swap.tokenInputs[0];
-      if (input.userAccount === walletAddress) {
-        const outputSymbol =
-          swap.tokenOutputs && swap.tokenOutputs.length > 0
-            ? swap.tokenOutputs[0].rawTokenAmount.tokenAmount
-              ? `${formatTokenAmount(
-                parseFloat(swap.tokenOutputs[0].rawTokenAmount.tokenAmount),
-                parseInt(
-                  String(swap.tokenOutputs[0].rawTokenAmount.decimals),
-                  10,
-                ),
-              )} ${truncateAddress(swap.tokenOutputs[0].mint)}`
-              : truncateAddress(swap.tokenOutputs[0].mint)
-            : 'tokens';
-
-        return {
-          direction: 'out',
-          amount: parseFloat(input.rawTokenAmount.tokenAmount),
-          symbol: truncateAddress(input.mint),
-          counterparty: outputSymbol,
-          rawData: {
-            input,
-            decimals: parseInt(String(input.rawTokenAmount.decimals), 10),
-          },
-        };
-      }
-    }
-
-    if (swap.tokenOutputs && swap.tokenOutputs.length > 0) {
-      const output = swap.tokenOutputs[0];
-      if (output.userAccount === walletAddress) {
-        const inputSymbol =
-          swap.tokenInputs && swap.tokenInputs.length > 0
-            ? swap.tokenInputs[0].rawTokenAmount.tokenAmount
-              ? `${formatTokenAmount(
-                parseFloat(swap.tokenInputs[0].rawTokenAmount.tokenAmount),
-                parseInt(
-                  String(swap.tokenInputs[0].rawTokenAmount.decimals),
-                  10,
-                ),
-              )} ${truncateAddress(swap.tokenInputs[0].mint)}`
-              : truncateAddress(swap.tokenInputs[0].mint)
-            : 'tokens';
-
-        return {
-          direction: 'in',
-          amount: parseFloat(output.rawTokenAmount.tokenAmount),
-          symbol: truncateAddress(output.mint),
-          counterparty: inputSymbol,
-          rawData: {
-            output,
-            decimals: parseInt(String(output.rawTokenAmount.decimals), 10),
-          },
-        };
-      }
-    }
-
-    // If we have a swap but couldn't determine direction
-    if (descriptionAmount) {
-      return {
-        direction: 'neutral',
-        amount: descriptionAmount.amount,
-        symbol: descriptionAmount.symbol,
-        rawData: swap,
-      };
-    }
-
-    return { direction: 'neutral', amount: 0, symbol: 'SWAP', rawData: swap };
-  }
+  // Removed: For swap events
+  // if (action.events?.swap) { ... }
 
   // Try to extract from description as last resort
   if (descriptionAmount) {
@@ -394,20 +225,8 @@ function getSimpleDescription(action: Action): string {
   if (action.enrichedData) {
     const { direction, counterparty } = action.enrichedData;
 
-    // For swap transactions
-    if (action.enrichedType === 'SWAP') {
-      const { swapType, inputSymbol, outputSymbol } = action.enrichedData;
-
-      if (swapType === 'TOKEN_TO_TOKEN') {
-        return `Swapped ${inputSymbol} → ${outputSymbol}`;
-      } else if (swapType === 'SOL_TO_TOKEN') {
-        return `Swapped SOL → ${outputSymbol}`;
-      } else if (swapType === 'TOKEN_TO_SOL') {
-        return `Swapped ${inputSymbol} → SOL`;
-      }
-
-      return 'Token Swap';
-    }
+    // Removed: For swap transactions
+    // if (action.enrichedType === 'SWAP') { ... }
 
     // For transfer transactions
     if (
@@ -428,10 +247,10 @@ function getSimpleDescription(action: Action): string {
   if (action.description) {
     const desc = action.description.toLowerCase();
     if (desc.includes('transfer')) return 'Transfer';
-    if (desc.includes('swap')) return 'Swap';
-    if (desc.includes('buy')) return 'Buy';
-    if (desc.includes('sell')) return 'Sell';
-    if (desc.includes('stake')) return 'Stake';
+    // Removed: if (desc.includes('swap')) return 'Swap';
+    // Removed: if (desc.includes('buy')) return 'Buy';
+    // Removed: if (desc.includes('sell')) return 'Sell';
+    // Removed: if (desc.includes('stake')) return 'Stake';
   }
 
   return 'Transaction';
@@ -458,23 +277,11 @@ function displayAmount(action: Action): {
     color =
       direction === 'IN' ? COLORS.brandPrimary : direction === 'OUT' ? COLORS.errorRed : COLORS.white;
 
-    // For swap transactions
-    if (action.enrichedType === 'SWAP') {
-      const { swapType, inputAmount, outputAmount, inputSymbol, outputSymbol } =
-        action.enrichedData;
-
-      // Display relevant amount based on direction (what user gained or lost)
-      if (direction === 'IN') {
-        amount = outputAmount ? outputAmount.toFixed(4) : '?';
-        symbol = outputSymbol || 'tokens';
-      } else {
-        amount = inputAmount ? inputAmount.toFixed(4) : '?';
-        symbol = inputSymbol || 'tokens';
-      }
-    }
+    // Removed: For swap transactions
+    // if (action.enrichedType === 'SWAP') { ... }
 
     // For transfer transactions
-    else if (
+    if (
       action.enrichedType === 'TRANSFER' ||
       action.enrichedType === 'TOKEN_TRANSFER'
     ) {

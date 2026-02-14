@@ -122,6 +122,9 @@ importers:
       sqlite3:
         specifier: ^5.1.7
         version: 5.1.7
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -5116,6 +5119,9 @@ packages:
 
   tunnel-agent@0.6.0:
     resolution: {integrity: sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w==}
+
+  tweetnacl@1.0.3:
+    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
 
   type-detect@4.0.8:
     resolution: {integrity: sha512-0fr/mIH1dlO+x7TlcMy+bIDqKPsw/70tVyeHW787goQjhmqaZe10uwLujubK9q9Lg6Fiho1KUKDYz0Z7k7g5/g==}
@@ -11679,6 +11685,8 @@ snapshots:
   tunnel-agent@0.6.0:
     dependencies:
       safe-buffer: 5.2.1
+
+  tweetnacl@1.0.3: {}
 
   type-detect@4.0.8: {}
 

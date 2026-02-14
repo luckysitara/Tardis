@@ -191,7 +191,7 @@ function addFeeToVersionedTransaction(
       const transferIx: MessageCompiledInstruction = {
         programIdIndex: systemProgramIndex,
         accountKeyIndexes: [payerIndex, recipientIndex],
-        data: Buffer.from([2, ...new Uint8Array(new Uint32Array([feeAmount]).buffer)])
+        data: new Uint8Array(Buffer.from([2, ...new Uint8Array(new Uint32Array([feeAmount]).buffer)]))
       };
       
       // Clone the message to avoid modifying the original

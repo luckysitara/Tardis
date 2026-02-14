@@ -11,7 +11,7 @@ import {
     Alert,
     ScrollView,
     ImageStyle,
-    FlatList,
+    // FlatList, // Removed as NFT list is gone
     InteractionManager,
     StyleSheet,
     Platform,
@@ -33,11 +33,11 @@ import { styles } from './ProfileEditDrawer.styles';
 import Icons from '@/assets/svgs';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 import COLORS from '@/assets/colors';
-import { NftItem } from '@/modules/nft/types';
-import { fetchWithRetries } from '@/modules/data-module/utils/fetch';
-import { ENDPOINTS } from '@/shared/config/constants';
-import { fixImageUrl } from '@/modules/nft/utils/imageUtils';
-import { TENSOR_API_KEY } from '@env';
+// Removed: import { NftItem } from '@/modules/nft/types';
+// Removed: import { fetchWithRetries } from '@/modules/data-module/utils/fetch';
+// Removed: import { ENDPOINTS } from '@/shared/config/constants';
+// Removed: import { fixImageUrl } from '@/modules/nft/utils/imageUtils';
+// Removed: import { TENSOR_API_KEY } from '@env';
 import TYPOGRAPHY from '@/assets/typography';
 
 interface ProfileEditDrawerProps {
@@ -52,11 +52,11 @@ interface ProfileEditDrawerProps {
     onProfileUpdated?: (field: 'image' | 'username' | 'description') => void;
 }
 
-// Drawer view states
+// Only PROFILE_EDIT view remains
 enum DrawerView {
     PROFILE_EDIT,
-    NFT_LIST,
-    NFT_CONFIRM,
+    // NFT_LIST, // Removed
+    // NFT_CONFIRM, // Removed
 }
 
 const LOG_TAG = "[ProfileEditDrawer]";
@@ -91,12 +91,12 @@ const ProfileEditDrawer = ({
     const [tempDescription, setTempDescription] = useState(profileData.description);
     const [localImageUri, setLocalImageUri] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [selectedSource, setSelectedSource] = useState<'library' | 'nft' | null>(null);
-    const [cachedNfts, setCachedNfts] = useState<NftItem[]>([]);
-    const [nftsLoading, setNftsLoading] = useState(false);
-    const [nftsError, setNftsError] = useState<string | null>(null);
-    const [isPreparingNfts, setIsPreparingNfts] = useState(false);
-    const [selectedNft, setSelectedNft] = useState<NftItem | null>(null);
+    const [selectedSource, setSelectedSource] = useState<'library' | null>(null); // Only 'library' source remains
+    // Removed: const [cachedNfts, setCachedNfts] = useState<NftItem[]>([]);
+    // Removed: const [nftsLoading, setNftsLoading] = useState(false);
+    // Removed: const [nftsError, setNftsError] = useState<string | null>(null);
+    // Removed: const [isPreparingNfts, setIsPreparingNfts] = useState(false);
+    // Removed: const [selectedNft, setSelectedNft] = useState<NftItem | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentView, setCurrentView] = useState<DrawerView>(DrawerView.PROFILE_EDIT);
     const [showAvatarOptions, setShowAvatarOptions] = useState(false);
@@ -109,14 +109,14 @@ const ProfileEditDrawer = ({
     const drawerTranslateY = useRef(new Animated.Value(windowHeight)).current;
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => currentView === DrawerView.PROFILE_EDIT,
+            onStartShouldSetPanResponder: () => true, // Always allow drag dismiss in PROFILE_EDIT
             onPanResponderMove: (_, { dy }) => {
-                if (currentView === DrawerView.PROFILE_EDIT && dy > 0) {
+                if (dy > 0) { // Only drag down
                     drawerTranslateY.setValue(dy);
                 }
             },
             onPanResponderRelease: (_, { dy, vy }) => {
-                if (currentView === DrawerView.PROFILE_EDIT && (dy > 150 || vy > 0.5)) {
+                if (dy > 150 || vy > 0.5) { // If dragged far enough or fast enough
                     Animated.timing(drawerTranslateY, {
                         toValue: windowHeight,
                         duration: 200,
@@ -172,16 +172,13 @@ const ProfileEditDrawer = ({
             setTempDescription(memoizedProfileData.description);
             setLocalImageUri(null);
             setSelectedSource(null);
-            setCachedNfts([]);
-            setNftsLoading(false);
-            setNftsError(null);
-            setIsPreparingNfts(false);
-            setSelectedNft(null);
+            // Removed: setCachedNfts([]);
+            // Removed: setNftsLoading(false);
+            // Removed: setNftsError(null);
+            // Removed: setIsPreparingNfts(false);
+            // Removed: setSelectedNft(null);
             setIsProcessing(false);
             setCurrentView(DrawerView.PROFILE_EDIT);
-
-            // Do not reset showAvatarOptions here - this is what's causing the menu to close
-            // if the user has clicked on avatar options
 
             isInitialized.current = true;
         } else if (!visible) {
@@ -192,75 +189,16 @@ const ProfileEditDrawer = ({
 
     // --- Callbacks --- 
 
-    // Fetch NFTs directly
-    const fetchNFTs = useCallback(async () => {
-        if (!isMounted.current) {
-            return [];
+    // Removed: fetchNFTs useCallback
+
+    // Confirm and upload selected image (only from Library now)
+    const handleConfirmImageUpload = useCallback(async (imageUri: string, source: 'library') => {
+        if (isUploading) { // isProcessing is removed from here for simplicity, handle globally
+            setIsProcessing(false);
+            return;
         }
 
-        setNftsLoading(true);
-        setNftsError(null);
-
-        try {
-            const url = `${ENDPOINTS.tensorFlowBaseUrl}/api/v1/user/portfolio?wallet=${profileData.userId}&includeUnverified=true&includeCompressed=true&includeFavouriteCount=true`;
-
-            const resp = await fetchWithRetries(url, {
-                method: 'GET',
-                headers: {
-                    accept: 'application/json',
-                    'x-tensor-api-key': TENSOR_API_KEY,
-                }
-            });
-
-            if (!resp.ok) {
-                throw new Error(`Fetch NFTs failed: ${resp.status}`);
-            }
-
-            const data = await resp.json();
-
-            if (!isMounted.current) {
-                return [];
-            }
-
-            const dataArray = Array.isArray(data) ? data : [];
-            const parsed = dataArray
-                .map((item: any) => {
-                    if (!item.setterMintMe) return null;
-                    return {
-                        mint: item.setterMintMe,
-                        name: item.name || 'Unnamed NFT',
-                        image: fixImageUrl(item.imageUri || ''),
-                        collection: item.slugDisplay || '',
-                        isCompressed: item.isCompressed || false
-                    } as NftItem;
-                })
-                .filter(Boolean) as NftItem[];
-
-            if (!isMounted.current) {
-                return [];
-            }
-
-            setCachedNfts(parsed);
-            setNftsError(null);
-            return parsed;
-        } catch (error: any) {
-            if (!isMounted.current) return [];
-            setNftsError('Failed to load NFTs. Please try again.');
-            setCachedNfts([]);
-            return [];
-        } finally {
-            if (isMounted.current) {
-                setNftsLoading(false);
-            }
-        }
-    }, [profileData.userId]);
-
-    // Confirm and upload selected image (from Library or NFT Confirm view)
-    const handleConfirmImageUpload = useCallback(async (imageUri?: string, source?: 'library' | 'nft') => {
-        const useImageUri = imageUri || localImageUri;
-        const useSource = source || selectedSource;
-
-        if (isUploading || !useImageUri) {
+        if (!imageUri) {
             setIsProcessing(false);
             return;
         }
@@ -272,7 +210,7 @@ const ProfileEditDrawer = ({
         }
 
         setIsUploading(true);
-        setIsProcessing(true);
+        setIsProcessing(true); // Set processing globally
         setUploadError(null);
 
         // Show progress bar overlay
@@ -299,7 +237,7 @@ const ProfileEditDrawer = ({
         });
 
         try {
-            const newUrl = await uploadProfileAvatar(profileData.userId, useImageUri);
+            const newUrl = await uploadProfileAvatar(profileData.userId, imageUri);
 
             // Animate to 100% quickly upon success
             Animated.timing(progressAnim, {
@@ -323,12 +261,9 @@ const ProfileEditDrawer = ({
             dispatch(updateProfilePic(newUrl));
             if (onProfileUpdated) onProfileUpdated('image');
 
-   
-
-            setSelectedNft(null);
             setLocalImageUri(null);
             setSelectedSource(null);
-            setCurrentView(DrawerView.PROFILE_EDIT);
+            setCurrentView(DrawerView.PROFILE_EDIT); // Always return to main edit view
         } catch (err: any) {
             // Handle error - stop animation and hide progress
             progressAnim.removeListener(progressListener);
@@ -344,7 +279,7 @@ const ProfileEditDrawer = ({
                 setIsProcessing(false);
             }
         }
-    }, [dispatch, profileData.userId, localImageUri, selectedSource, isUploading, onProfileUpdated, setCurrentView, progressAnim]);
+    }, [dispatch, profileData.userId, isUploading, onProfileUpdated, setCurrentView, progressAnim]);
 
     // Toggle Avatar Options visibility
     const handleToggleAvatarOptions = useCallback(() => {
@@ -357,20 +292,17 @@ const ProfileEditDrawer = ({
             return;
         }
 
-        // Use a direct state update with a specific timeout to ensure we don't get caught in 
-        // any re-render loops or other state updates
         setTimeout(() => {
             if (isMounted.current) {
                 console.log('[ProfileEditDrawer] Forcibly showing avatar options menu');
-                // Force it to true instead of toggling to prevent any race conditions
-                setShowAvatarOptions(true);
+                setShowAvatarOptions(true); // Always force to true, don't toggle
             }
         }, 50);
     }, [isProcessing, isUploading]);
 
     // Select Image from Library
     const handleSelectImageFromLibrary = useCallback(async () => {
-        if (isProcessing || isUploading || isPreparingNfts) {
+        if (isProcessing || isUploading) { // Removed isPreparingNfts
             return;
         }
 
@@ -394,6 +326,7 @@ const ProfileEditDrawer = ({
                 setLocalImageUri(result.assets[0].uri);
                 setSelectedSource('library');
 
+                // Call upload directly
                 handleConfirmImageUpload(result.assets[0].uri, 'library');
             } else {
                 setIsProcessing(false);
@@ -402,93 +335,14 @@ const ProfileEditDrawer = ({
             Alert.alert('Error picking image', error.message);
             setIsProcessing(false);
         }
-    }, [isProcessing, isUploading, isPreparingNfts, handleConfirmImageUpload]);
+    }, [isProcessing, isUploading, handleConfirmImageUpload]); // Removed isPreparingNfts
 
-    // Prepare NFT Selection
-    const handlePrepareAndShowNfts = useCallback(async () => {
-        if (isProcessing || isPreparingNfts || isUploading) {
-            return;
-        }
-
-        setIsProcessing(true);
-        setIsPreparingNfts(true);
-        setShowAvatarOptions(false);
-
-        await fetchNFTs();
-
-        if (!isMounted.current) {
-            setIsPreparingNfts(false);
-            setIsProcessing(false);
-            return;
-        }
-
-        setCurrentView(DrawerView.NFT_LIST);
-        setIsPreparingNfts(false);
-        setIsProcessing(false);
-    }, [fetchNFTs, isPreparingNfts, isProcessing, isUploading, setCurrentView]);
-
-    // Handle NFT selection from list
-    const handleSelectNft = useCallback((nft: NftItem) => {
-        if (isProcessing || isUploading) {
-            return;
-        }
-
-        if (!nft.image) {
-            Alert.alert('Invalid NFT', 'This NFT does not have a valid image.');
-            return;
-        }
-
-        setSelectedNft(nft);
-        setLocalImageUri(nft.image);
-        setSelectedSource('nft');
-
-        setCurrentView(DrawerView.NFT_CONFIRM);
-    }, [isProcessing, isUploading, setCurrentView]);
-
-    // Cancel NFT selection (from confirm view back to list)
-    const handleCancelNftSelection = useCallback(() => {
-        if (isProcessing || isUploading) {
-            return;
-        }
-
-        setSelectedNft(null);
-        setLocalImageUri(null);
-        setSelectedSource(null);
-
-        setCurrentView(DrawerView.NFT_LIST);
-    }, [isProcessing, isUploading, setCurrentView]);
-
-    // Cancel NFT flow entirely (from list or confirm back to profile edit)
-    const handleCancelNftFlow = useCallback(() => {
-        if (isProcessing || isUploading) {
-            return;
-        }
-
-        setSelectedNft(null);
-        setLocalImageUri(null);
-        setSelectedSource(null);
-        setCachedNfts([]);
-        setNftsError(null);
-        setNftsLoading(false);
-
-        setCurrentView(DrawerView.PROFILE_EDIT);
-    }, [isProcessing, isUploading, setCurrentView]);
-
-    // Confirm the selected NFT (Calls handleConfirmImageUpload)
-    const handleConfirmNft = useCallback(() => {
-        if (isProcessing || isUploading || !selectedNft || !selectedNft.image) {
-            return;
-        }
-        handleConfirmImageUpload(selectedNft.image, 'nft');
-    }, [selectedNft, isProcessing, isUploading, handleConfirmImageUpload]);
-
-    // Retry loading NFTs
-    const handleRetryNftLoad = useCallback(() => {
-        if (nftsLoading || isProcessing || isUploading) {
-            return;
-        }
-        fetchNFTs();
-    }, [fetchNFTs, nftsLoading, isProcessing, isUploading]);
+    // Removed: handlePrepareAndShowNfts useCallback
+    // Removed: handleSelectNft useCallback
+    // Removed: handleCancelNftSelection useCallback
+    // Removed: handleCancelNftFlow useCallback
+    // Removed: handleConfirmNft useCallback
+    // Removed: handleRetryNftLoad useCallback
 
     // Update profile (username, description)
     const handleUpdateProfileDetails = useCallback(async () => {
@@ -528,7 +382,6 @@ const ProfileEditDrawer = ({
             }
 
             if (changesMade) {
-                // Alert.alert('Profile Updated', 'Your profile has been updated successfully');
                 onClose();
             }
         } catch (err: any) {
@@ -553,57 +406,9 @@ const ProfileEditDrawer = ({
     ]);
 
     // --- Render Helpers --- 
-    const EmptyNftList = useCallback(() => (
-        <View style={styles.emptyListContainer}>
-            <Text style={styles.emptyListText}>
-                You have no NFTs in this wallet.
-            </Text>
-        </View>
-    ), []);
-
-    const keyExtractor = useCallback((item: NftItem) =>
-        item.mint || `nft-${Math.random().toString(36).substring(2, 9)}`,
-        []);
-
-    const renderNftItem = useCallback(({ item }: { item: NftItem }) => (
-        <TouchableOpacity
-            style={styles.nftListItem}
-            onPress={() => handleSelectNft(item)}
-            disabled={isProcessing || isUploading}
-            activeOpacity={0.7}>
-
-            <View style={styles.nftListImageContainer}>
-                {item.image ? (
-                    <Image
-                        source={{ uri: item.image }}
-                        style={styles.nftListImage}
-                        defaultSource={require('@/assets/images/User.png')}
-                        onError={(e) => console.warn(`${LOG_TAG} Failed to load NFT image ${item.mint}: ${e.nativeEvent.error}`)}
-                    />
-                ) : (
-                    <View style={styles.nftListPlaceholder}>
-                        <Text style={styles.nftListPlaceholderText}>No Image</Text>
-                    </View>
-                )}
-            </View>
-
-            <View style={styles.nftListInfo}>
-                <Text style={styles.nftListName} numberOfLines={1}>{item.name || 'Unnamed NFT'}</Text>
-                {item.collection ? (
-                    <Text style={styles.nftListCollection} numberOfLines={1}>{item.collection}</Text>
-                ) : null}
-                {item.mint && (
-                    <Text style={styles.nftListMint} numberOfLines={1}>
-                        {item.mint.slice(0, 6)}...{item.mint.slice(-4)}
-                    </Text>
-                )}
-            </View>
-
-            <View style={styles.nftListSelectIconContainer}>
-                <Text style={styles.nftListSelectIcon}>⟩</Text>
-            </View>
-        </TouchableOpacity>
-    ), [handleSelectNft, isProcessing, isUploading]);
+    // Removed: EmptyNftList
+    // Removed: keyExtractor for NftItem
+    // Removed: renderNftItem
 
     // Add isChanged() function to check if any profile data has changed
     const isChanged = useCallback(() => {
@@ -613,293 +418,150 @@ const ProfileEditDrawer = ({
         );
     }, [tempUsername, tempDescription, profileData.username, profileData.description]);
 
-    // Render content based on currentView state
+    // Render content (simplified to only PROFILE_EDIT view)
     const renderContent = () => {
-        switch (currentView) {
-            case DrawerView.NFT_LIST:
-                return (
-                    <View style={styles.nftListContainer}>
-                        <View style={styles.viewHeader}>
-                            <TouchableOpacity
-                                style={styles.viewHeaderButton}
-                                onPress={handleCancelNftFlow}
-                                disabled={isProcessing || isUploading || nftsLoading}>
-                                <Text style={styles.viewHeaderButtonText}>{'←'}</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.viewHeaderTitle}>Choose an NFT</Text>
-                            <View style={styles.viewHeaderButton} />
-                        </View>
+        return (
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={styles.keyboardAvoidingContainer}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+            >
+                <ScrollView
+                    style={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContentContainer}
+                >
+                    <View style={styles.imageSection}>
+                        <TouchableOpacity
+                            onPress={(event) => {
+                                console.log('[ProfileEditDrawer] Image container pressed');
+                                event.stopPropagation?.();
+                                handleToggleAvatarOptions();
+                            }}
+                            style={styles.imageContainer}
+                            activeOpacity={0.8}
+                            disabled={isProcessing || isUploading}>
+                            <IPFSAwareImage
+                                style={styles.profileImage as ImageStyle}
+                                source={
+                                    localImageUri
+                                        ? { uri: localImageUri }
+                                        : profileData.profilePicUrl
+                                            ? getValidImageSource(profileData.profilePicUrl)
+                                            : require('@/assets/images/User.png')
+                                }
+                                defaultSource={require('@/assets/images/User.png')}
+                            />
 
-                        <View style={styles.nftInstructionsContainer}>
-                            <Text style={styles.nftInstructionsText}>
-                                Select an NFT from your collection to use as your profile picture
+                            <View style={styles.profileImageOverlay}>
+                                <View style={styles.profileImageEditIconContainer}>
+                                    <Icons.EditIcon width={20} height={20} color={COLORS.white} />
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={(event) => {
+                                console.log('[ProfileEditDrawer] Edit picture button pressed');
+                                event.stopPropagation?.();
+                                handleToggleAvatarOptions();
+                            }}
+                            activeOpacity={0.7}
+                            disabled={isProcessing || isUploading}
+                            style={styles.editPictureButton}>
+                            <Text style={styles.editPictureText}>Edit picture</Text>
+                        </TouchableOpacity>
+
+                        {showAvatarOptions && (
+                            <View
+                                style={{
+                                    borderRadius: 16,
+                                    padding: 12,
+                                    flexDirection: 'row',
+                                    justifyContent: 'space-around',
+                                    alignItems: 'center',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                    marginHorizontal: 16,
+                                }}
+                            >
+                                <TouchableOpacity
+                                    style={[styles.avatarOptionButton, styles.avatarOptionButtonWithMargin]}
+                                    onPress={(e) => {
+                                        console.log('[ProfileEditDrawer] Library button pressed');
+                                        e.stopPropagation();
+                                        handleSelectImageFromLibrary();
+                                    }}
+                                    disabled={isProcessing || isUploading}
+                                    activeOpacity={0.7}>
+                                    <Icons.GalleryIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
+                                    <Text style={styles.avatarOptionText}>Library</Text>
+                                </TouchableOpacity>
+                                {/* Removed: NFT button */}
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={styles.inputSection}>
+                        <View style={styles.inputLabelContainer}>
+                            <Text style={styles.inputLabel}>Display name</Text>
+                            <Text style={styles.characterCount}>{tempUsername.length}/50</Text>
+                        </View>
+                        <TextInput
+                            style={[
+                                styles.textInput,
+                                tempUsername.length >= 50 && styles.textInputAtLimit
+                            ]}
+                            value={tempUsername}
+                            onChangeText={setTempUsername}
+                            placeholder="Enter your display name"
+                            placeholderTextColor={COLORS.greyMid}
+                            maxLength={50}
+                            editable={!isProcessing && !isUploading}
+                        />
+                        <Text style={styles.inputHelperText}>This is the name that will be displayed to others</Text>
+                    </View>
+
+                    <View style={styles.inputSection}>
+                        <Text style={styles.inputLabel}>Wallet address</Text>
+                        <TextInput
+                            style={[styles.textInput, styles.disabledInput]}
+                            value={`@${profileData.userId.substring(0, 6)}...${profileData.userId.slice(-4)}`}
+                            editable={false}
+                        />
+                        <Text style={styles.inputHelperText}>Your wallet address cannot be changed</Text>
+                    </View>
+
+                    <View style={styles.inputSection}>
+                        <View style={styles.inputLabelContainer}>
+                            <Text style={styles.inputLabel}>Bio</Text>
+                            <Text style={[
+                                styles.characterCount,
+                                tempDescription.length > 150 && styles.characterCountWarning
+                            ]}>
+                                {tempDescription.length}/160
                             </Text>
                         </View>
-
-                        {nftsLoading ? (
-                            <View style={styles.centeredMessageContainer}>
-                                <ActivityIndicator size="large" color={COLORS.brandPrimary} />
-                                <Text style={styles.loadingText}>Loading your NFTs...</Text>
-                            </View>
-                        ) : nftsError ? (
-                            <View style={styles.centeredMessageContainer}>
-                                <Text style={styles.errorText}>{nftsError}</Text>
-                                <TouchableOpacity
-                                    style={styles.retryButton}
-                                    onPress={handleRetryNftLoad}
-                                    disabled={nftsLoading || isProcessing || isUploading}
-                                    activeOpacity={0.7}>
-                                    <Text style={styles.retryButtonText}>Retry</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <>
-                                {cachedNfts.length > 0 ? (
-                                    <FlatList
-                                        data={cachedNfts}
-                                        keyExtractor={keyExtractor}
-                                        renderItem={renderNftItem}
-                                        style={styles.flatListStyle}
-                                        ListEmptyComponent={EmptyNftList}
-                                        contentContainerStyle={styles.flatListContentContainer}
-                                        initialNumToRender={10}
-                                        maxToRenderPerBatch={10}
-                                        windowSize={11}
-                                        removeClippedSubviews={true}
-                                        showsVerticalScrollIndicator={false}
-                                    />
-                                ) : (
-                                    <EmptyNftList />
-                                )}
-                            </>
-                        )}
+                        <TextInput
+                            style={[
+                                styles.textInput,
+                                styles.bioInput,
+                                tempDescription.length >= 160 && styles.textInputAtLimit
+                            ]}
+                            value={tempDescription}
+                            onChangeText={setTempDescription}
+                            placeholder="Write a short bio about yourself"
+                            placeholderTextColor={COLORS.greyMid}
+                            multiline
+                            maxLength={160}
+                            editable={!isProcessing && !isUploading}
+                        />
+                        <Text style={styles.inputHelperText}>Tell others about yourself in a few words</Text>
                     </View>
-                );
-
-            case DrawerView.NFT_CONFIRM:
-                return (
-                    <View style={styles.nftConfirmContainer}>
-                        <View style={styles.viewHeader}>
-                            <TouchableOpacity
-                                style={styles.viewHeaderButton}
-                                onPress={handleCancelNftSelection}
-                                disabled={isProcessing || isUploading}>
-                                <Text style={styles.viewHeaderButtonText}>{'←'}</Text>
-                            </TouchableOpacity>
-                            <Text style={styles.viewHeaderTitle}>Confirm Selection</Text>
-                            <View style={styles.viewHeaderButton} />
-                        </View>
-
-                        {selectedNft && selectedNft.image ? (
-                            <View style={styles.nftConfirmContent}>
-                                <View style={styles.nftConfirmImageContainer}>
-                                    <Image
-                                        source={{ uri: selectedNft.image }}
-                                        style={styles.nftConfirmImage}
-                                        defaultSource={require('@/assets/images/User.png')}
-                                        onError={() => {
-                                            Alert.alert('Image Load Error', 'Failed to load the selected NFT image');
-                                        }}
-                                    />
-                                </View>
-                                <Text style={styles.nftConfirmName}>{selectedNft.name}</Text>
-                                {selectedNft.collection && (
-                                    <Text style={styles.nftConfirmCollection}>{selectedNft.collection}</Text>
-                                )}
-
-                                <Text style={styles.nftConfirmInstructions}>
-                                    This NFT will be used as your profile picture
-                                </Text>
-                            </View>
-                        ) : (
-                            <Text style={styles.centeredMessageText}>No NFT selected or image missing</Text>
-                        )}
-
-                        <View style={styles.nftConfirmActions}>
-                            <TouchableOpacity
-                                style={[styles.actionButton, styles.cancelButton]}
-                                onPress={handleCancelNftSelection}
-                                disabled={isProcessing || isUploading}
-                                activeOpacity={0.7}>
-                                <Text style={styles.actionButtonText}>Back</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.actionButton, styles.confirmButton]}
-                                onPress={handleConfirmNft}
-                                disabled={isProcessing || isUploading || !selectedNft?.image}
-                                activeOpacity={0.7}>
-                                {isUploading ? (
-                                    <ActivityIndicator size="small" color={COLORS.white} />
-                                ) : (
-                                    <Text style={styles.actionButtonText}>Use as Profile</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                );
-
-            case DrawerView.PROFILE_EDIT:
-            default:
-                return (
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === "ios" ? "padding" : "height"}
-                        style={styles.keyboardAvoidingContainer}
-                        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
-                    >
-                        <ScrollView
-                            style={styles.scrollContent}
-                            keyboardShouldPersistTaps="handled"
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.scrollContentContainer}
-                        >
-                            <View style={styles.imageSection}>
-                                <TouchableOpacity
-                                    onPress={(event) => {
-                                        console.log('[ProfileEditDrawer] Image container pressed');
-                                        // Prevent event from reaching overlay
-                                        event.stopPropagation?.();
-                                        handleToggleAvatarOptions();
-                                    }}
-                                    style={styles.imageContainer}
-                                    activeOpacity={0.8}
-                                    disabled={isProcessing || isUploading}>
-                                    <IPFSAwareImage
-                                        style={styles.profileImage as ImageStyle}
-                                        source={
-                                            localImageUri
-                                                ? { uri: localImageUri }
-                                                : profileData.profilePicUrl
-                                                    ? getValidImageSource(profileData.profilePicUrl)
-                                                    : require('@/assets/images/User.png')
-                                        }
-                                        defaultSource={require('@/assets/images/User.png')}
-                                    />
-
-                                    <View style={styles.profileImageOverlay}>
-                                        <View style={styles.profileImageEditIconContainer}>
-                                            <Icons.EditIcon width={20} height={20} color={COLORS.white} />
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    onPress={(event) => {
-                                        console.log('[ProfileEditDrawer] Edit picture button pressed');
-                                        // Prevent event from reaching overlay
-                                        event.stopPropagation?.();
-                                        handleToggleAvatarOptions();
-                                    }}
-                                    activeOpacity={0.7}
-                                    disabled={isProcessing || isUploading}
-                                    style={styles.editPictureButton}>
-                                    <Text style={styles.editPictureText}>Edit picture</Text>
-                                </TouchableOpacity>
-
-                                {showAvatarOptions && (
-                                    <View
-                                        style={{
-                                            borderRadius: 16,
-                                            padding: 12,
-                                            flexDirection: 'row',
-                                            justifyContent: 'space-around',
-                                            alignItems: 'center',
-                                            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                                            marginHorizontal: 16,
-                                        }}
-                                    >
-                                        <TouchableOpacity
-                                            style={[styles.avatarOptionButton, styles.avatarOptionButtonWithMargin]}
-                                            onPress={(e) => {
-                                                console.log('[ProfileEditDrawer] Library button pressed');
-                                                e.stopPropagation();
-                                                handleSelectImageFromLibrary();
-                                            }}
-                                            disabled={isProcessing || isUploading || isPreparingNfts}
-                                            activeOpacity={0.7}>
-                                            <Icons.GalleryIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
-                                            <Text style={styles.avatarOptionText}>Library</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.avatarOptionButton}
-                                            onPress={(e) => {
-                                                console.log('[ProfileEditDrawer] NFT button pressed');
-                                                e.stopPropagation();
-                                                handlePrepareAndShowNfts();
-                                            }}
-                                            disabled={isProcessing || isUploading || isPreparingNfts}
-                                            activeOpacity={0.7}>
-                                            {isPreparingNfts ? (
-                                                <ActivityIndicator size="small" color={COLORS.white} style={styles.activityIndicatorMargin} />
-                                            ) : (
-                                                <Icons.NftIcon width={20} height={20} color={COLORS.white} style={{ marginRight: 8 }} />
-                                            )}
-                                            <Text style={styles.avatarOptionText}>My NFTs</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
-
-                            <View style={styles.inputSection}>
-                                <View style={styles.inputLabelContainer}>
-                                    <Text style={styles.inputLabel}>Display name</Text>
-                                    <Text style={styles.characterCount}>{tempUsername.length}/50</Text>
-                                </View>
-                                <TextInput
-                                    style={[
-                                        styles.textInput,
-                                        tempUsername.length >= 50 && styles.textInputAtLimit
-                                    ]}
-                                    value={tempUsername}
-                                    onChangeText={setTempUsername}
-                                    placeholder="Enter your display name"
-                                    placeholderTextColor={COLORS.greyMid}
-                                    maxLength={50}
-                                    editable={!isProcessing && !isUploading}
-                                />
-                                <Text style={styles.inputHelperText}>This is the name that will be displayed to others</Text>
-                            </View>
-
-                            <View style={styles.inputSection}>
-                                <Text style={styles.inputLabel}>Wallet address</Text>
-                                <TextInput
-                                    style={[styles.textInput, styles.disabledInput]}
-                                    value={`@${profileData.userId.substring(0, 6)}...${profileData.userId.slice(-4)}`}
-                                    editable={false}
-                                />
-                                <Text style={styles.inputHelperText}>Your wallet address cannot be changed</Text>
-                            </View>
-
-                            <View style={styles.inputSection}>
-                                <View style={styles.inputLabelContainer}>
-                                    <Text style={styles.inputLabel}>Bio</Text>
-                                    <Text style={[
-                                        styles.characterCount,
-                                        tempDescription.length > 150 && styles.characterCountWarning
-                                    ]}>
-                                        {tempDescription.length}/160
-                                    </Text>
-                                </View>
-                                <TextInput
-                                    style={[
-                                        styles.textInput,
-                                        styles.bioInput,
-                                        tempDescription.length >= 160 && styles.textInputAtLimit
-                                    ]}
-                                    value={tempDescription}
-                                    onChangeText={setTempDescription}
-                                    placeholder="Write a short bio about yourself"
-                                    placeholderTextColor={COLORS.greyMid}
-                                    multiline
-                                    maxLength={160}
-                                    editable={!isProcessing && !isUploading}
-                                />
-                                <Text style={styles.inputHelperText}>Tell others about yourself in a few words</Text>
-                            </View>
-                            <View style={styles.bottomSpacerView} />
-                        </ScrollView>
-                    </KeyboardAvoidingView>
-                );
-        }
+                    <View style={styles.bottomSpacerView} />
+                </ScrollView>
+            </KeyboardAvoidingView>
+        );
     };
 
     // --- Main Render ---
@@ -910,13 +572,8 @@ const ProfileEditDrawer = ({
             animationType="slide"
             onRequestClose={() => {
                 if (isProcessing || isUploading) return;
-                if (currentView === DrawerView.NFT_LIST) {
-                    handleCancelNftFlow();
-                } else if (currentView === DrawerView.NFT_CONFIRM) {
-                    handleCancelNftSelection();
-                } else {
-                    onClose();
-                }
+                // Simplified: only close the drawer
+                onClose();
             }}
         >
             <TouchableWithoutFeedback onPress={(event) => {
@@ -946,59 +603,52 @@ const ProfileEditDrawer = ({
             <Animated.View
                 style={[
                     styles.drawerContainer,
-                    currentView === DrawerView.PROFILE_EDIT && { transform: [{ translateY: drawerTranslateY }] },
+                    // No more currentView === DrawerView.PROFILE_EDIT conditional logic for transform
+                    { transform: [{ translateY: drawerTranslateY }] },
                 ]}
+                {...panResponder.panHandlers}
             >
-                {/* Drag handle only in PROFILE_EDIT view */}
-                {currentView === DrawerView.PROFILE_EDIT && (
-                    <View
-                        style={{
-                            width: 40,
-                            height: 5,
-                            borderRadius: 2.5,
-                            backgroundColor: COLORS.borderDarkColor,
-                            alignSelf: 'center',
-                            marginTop: 10,
-                            marginBottom: 10,
-                            opacity: 0.7,
+                {/* Drag handle always present */}
+                <View
+                    style={{
+                        width: 40,
+                        height: 5,
+                        borderRadius: 2.5,
+                        backgroundColor: COLORS.borderDarkColor,
+                        alignSelf: 'center',
+                        marginTop: 10,
+                        marginBottom: 10,
+                        opacity: 0.7,
+                    }}
+                />
+                <View style={styles.headerContainer}>
+                    <TouchableOpacity
+                        onPress={(e) => {
+                            e.stopPropagation?.();
+                            onClose();
                         }}
-                        {...panResponder.panHandlers}
-                    />
-                )}
-                {currentView === DrawerView.PROFILE_EDIT && (
-                    <View style={styles.headerContainer}>
-                        <TouchableOpacity
-                            onPress={(e) => {
-                                e.stopPropagation?.();
-                                onClose();
-                            }}
-                            style={styles.backButton}
-                            disabled={isProcessing || isUploading}>
-                            <Text style={styles.backButtonText}>✕</Text>
-                        </TouchableOpacity>
+                        style={styles.backButton}
+                        disabled={isProcessing || isUploading}>
+                        <Text style={styles.backButtonText}>✕</Text>
+                    </TouchableOpacity>
 
-                        <Text style={styles.headerTitle}>Edit Profile</Text>
+                    <Text style={styles.headerTitle}>Edit Profile</Text>
 
-                        <TouchableOpacity
-                            style={[
-                                styles.saveButton,
-                                (isChanged()) ? styles.saveButtonActive : styles.saveButtonInactive
-                            ]}
-                            onPress={handleUpdateProfileDetails}
-                            disabled={isProcessing || isUploading || !isChanged()}>
-                            <Text style={[
-                                styles.saveButtonText,
-                                (isChanged()) ? styles.saveButtonTextActive : styles.saveButtonTextInactive
-                            ]}>
-                                {isProcessing ? 'Saving...' : 'Save'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-                {currentView !== DrawerView.PROFILE_EDIT && (
-                    // NFT_LIST and NFT_CONFIRM keep their header as before
-                    null
-                )}
+                    <TouchableOpacity
+                        style={[
+                            styles.saveButton,
+                            (isChanged()) ? styles.saveButtonActive : styles.saveButtonInactive
+                        ]}
+                        onPress={handleUpdateProfileDetails}
+                        disabled={isProcessing || isUploading || !isChanged()}>
+                        <Text style={[
+                            styles.saveButtonText,
+                            (isChanged()) ? styles.saveButtonTextActive : styles.saveButtonTextInactive
+                        ]}>
+                            {isProcessing ? 'Saving...' : 'Save'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
                 {renderContent()}
                 {showUploadProgress && (
                     <View style={styles.uploadProgressOverlay}>
@@ -1061,4 +711,4 @@ const MemoizedProfileEditDrawer = memo(ProfileEditDrawer, (prevProps, nextProps)
     );
 });
 
-export default MemoizedProfileEditDrawer; 
+export default MemoizedProfileEditDrawer;
