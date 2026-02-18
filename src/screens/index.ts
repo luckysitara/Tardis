@@ -4,3 +4,8 @@
 // Tardis Specific Screens
 export { default as LandingScreen } from './auth/LandingScreen';
 export { default as TownSquareScreen } from './TownSquareScreen';
+export { default as CommsListScreen } from './CommsListScreen';
+export { default as CommunitiesScreen } from './CommunitiesScreen';
+export { default as ProfileScreen } from './ProfileScreen';
+export { default as EditProfileScreen } from './EditProfileScreen';
+export { default as CreatePostScreen } from './CreatePostScreen';

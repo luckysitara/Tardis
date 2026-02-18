@@ -6,6 +6,8 @@ import CommunitiesIcon from './CommunitiesIcon.svg';
 import CommunitiesIconSelected from './CommunitiesIconSelected.svg';
 import SeekerIcon from './SeekerIcon.svg';
 import SeekerIconSelected from './SeekerIconSelected.svg';
+import PlusCircleIcon from './plus-circle-icon.svg';
+import GalleryIcon from './GalleryIcon';
 
 export default {
   TownSquareIcon,
@@ -16,4 +18,6 @@ export default {
   CommunitiesIconSelected,
   SeekerIcon,
   SeekerIconSelected,
+  PlusCircleIcon,
+  GalleryIcon,
 };
