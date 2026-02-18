@@ -2,18 +2,30 @@ import React, { useEffect } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
-
-
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 
+// Import our new MainTabs component
+import MainTabs from './MainTabs';
 
-import { LandingScreen, TownSquareScreen } from '@/screens'; // Import LandingScreen and TownSquareScreen
-import TardisShield from '@/components/auth/TardisShield'; // Import TardisShield
+// Import the new screens that are part of the main navigation flow
+import { LandingScreen } from '@/screens';
+import TownSquareScreen from '../../screens/TownSquareScreen';
+import CommsListScreen from '../../screens/CommsListScreen';
+import CommunitiesScreen from '../../screens/CommunitiesScreen';
+import ProfileScreen from '../../screens/ProfileScreen';
+import EditProfileScreen from '../../screens/EditProfileScreen';
+
+import TardisShield from '@/components/auth/TardisShield';
 
 export type RootStackParamList = {
   LandingScreen: undefined;
   Authenticated: undefined;
-  TownSquareScreen: undefined; // Add this line
+  MainTabs: undefined; // New: Main tab navigator
+  TownSquare: undefined; // New: Keeping explicit type for TownSquare if needed for direct navigation outside tabs
+  Comms: undefined;
+  Communities: undefined;
+  Profile: undefined;
+  EditProfile: undefined; // New: Edit profile screen
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -23,12 +35,19 @@ const AuthenticatedStack: React.FC = () => {
   return (
     <TardisShield>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="TownSquareScreen" component={TownSquareScreen} />
+        {/* The MainTabs component contains the bottom tab navigation */}
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        {/* Register other screens that might be navigated to from within MainTabs or directly */}
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        {/* Keeping explicit registration for these if they can be accessed outside of MainTabs hierarchy */}
+        <Stack.Screen name="TownSquare" component={TownSquareScreen} />
+        <Stack.Screen name="Comms" component={CommsListScreen} />
+        <Stack.Screen name="Communities" component={CommunitiesScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Navigator>
     </TardisShield>
   );
 };
-
 
 export default function RootNavigator() {
   const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
@@ -39,8 +58,6 @@ export default function RootNavigator() {
   useEffect(() => {
     console.log(`[RootNavigator] isLoggedIn state changed: ${isLoggedIn}`);
   }, [isLoggedIn]);
-
-
 
   return (
     <Stack.Navigator
