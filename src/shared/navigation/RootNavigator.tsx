@@ -8,12 +8,15 @@ import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import MainTabs from './MainTabs';
 
 // Import the new screens that are part of the main navigation flow
-import { LandingScreen } from '@/screens';
-import TownSquareScreen from '../../screens/TownSquareScreen';
-import CommsListScreen from '../../screens/CommsListScreen';
-import CommunitiesScreen from '../../screens/CommunitiesScreen';
-import ProfileScreen from '../../screens/ProfileScreen';
-import EditProfileScreen from '../../screens/EditProfileScreen';
+import { 
+  LandingScreen, 
+  TownSquareScreen, 
+  CommsListScreen, 
+  CommunitiesScreen, 
+  ProfileScreen, 
+  EditProfileScreen,
+  CreatePostScreen
+} from '@/screens';
 
 import TardisShield from '@/components/auth/TardisShield';
 
@@ -26,6 +29,7 @@ export type RootStackParamList = {
   Communities: undefined;
   Profile: undefined;
   EditProfile: undefined; // New: Edit profile screen
+  CreatePost: undefined; // New: Create Post screen
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -39,6 +43,14 @@ const AuthenticatedStack: React.FC = () => {
         <Stack.Screen name="MainTabs" component={MainTabs} />
         {/* Register other screens that might be navigated to from within MainTabs or directly */}
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen 
+          name="CreatePost" 
+          component={CreatePostScreen} 
+          options={{ 
+            presentation: 'modal',
+            headerShown: false,
+          }} 
+        />
         {/* Keeping explicit registration for these if they can be accessed outside of MainTabs hierarchy */}
         <Stack.Screen name="TownSquare" component={TownSquareScreen} />
         <Stack.Screen name="Comms" component={CommsListScreen} />

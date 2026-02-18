@@ -122,10 +122,12 @@
     "solana-agent-kit": "^2.0.2",
     "stream-browserify": "^3.0.0",
     "tailwind-merge": "^3.2.0",
+    "@shopify/flash-list": "^2.2.2",
     "text-encoding": "^0.7.0",
     "viem": "^2.22.23",
     "web-streams-polyfill": "^4.1.0",
-    "zod": "^3.25.57"
+    "zod": "^3.25.57",
+    "@shopify/flash-list": "^1.6.0"
   },
   "resolutions": {
     "@dynamic-labs/utils": "4.0.0-alpha.52",
