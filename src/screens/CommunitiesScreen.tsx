@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import COLORS from '@/assets/colors';
 
-const TownSquareScreen = () => {
+const CommunitiesScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Town Square Screen - Welcome to the Feed!</Text>
+      <Text style={styles.text}>Communities Screen - Discover Gated Communities</Text>
     </View>
   );
 };
@@ -23,4 +23,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TownSquareScreen;
+export default CommunitiesScreen;
