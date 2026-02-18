@@ -119,5 +119,92 @@ postsRouter.delete('/:id', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/posts/:id/like - Like a post
+postsRouter.post('/:id/like', async (req: Request, res: Response) => {
+    try {
+        const { id: post_id } = req.params;
+        const { user_wallet_address, signature, timestamp } = req.body;
+
+        if (!post_id || !user_wallet_address || !signature || !timestamp) {
+            return res.status(400).json({ success: false, error: 'Missing required fields for like.' });
+        }
+
+        // REAL PRODUCTION: Verify off-chain engagement signature
+        const signedMessage = JSON.stringify({ post_id, user_wallet_address, timestamp });
+        const isSignatureValid = verifySignature(signedMessage, signature, user_wallet_address);
+        
+        if (!isSignatureValid) {
+            return res.status(401).json({ success: false, error: 'Invalid engagement signature.' });
+        }
+
+        // Check if already liked
+        const existingLike = await knex('likes').where({ post_id, user_wallet_address }).first();
+        if (existingLike) {
+            // Unlike if already liked (toggle behavior)
+            await knex('likes').where({ post_id, user_wallet_address }).del();
+            await knex('posts').where({ id: post_id }).decrement('like_count', 1);
+            return res.json({ success: true, liked: false });
+        }
+
+        // Insert like
+        await knex('likes').insert({
+            id: uuidv4(),
+            post_id,
+            user_wallet_address,
+            timestamp: new Date(timestamp)
+        });
+
+        // Increment post like count
+        await knex('posts').where({ id: post_id }).increment('like_count', 1);
+
+        return res.json({ success: true, liked: true });
+    } catch (error: any) {
+        console.error('[POST /api/posts/:id/like] Error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/posts/:id/repost - Repost a post
+postsRouter.post('/:id/repost', async (req: Request, res: Response) => {
+    try {
+        const { id: original_post_id } = req.params;
+        const { reposter_wallet_address, signature, timestamp } = req.body;
+
+        if (!original_post_id || !reposter_wallet_address || !signature || !timestamp) {
+            return res.status(400).json({ success: false, error: 'Missing required fields for repost.' });
+        }
+
+        // REAL PRODUCTION: Verify off-chain engagement signature
+        const signedMessage = JSON.stringify({ original_post_id, reposter_wallet_address, timestamp });
+        const isSignatureValid = verifySignature(signedMessage, signature, reposter_wallet_address);
+        
+        if (!isSignatureValid) {
+            return res.status(401).json({ success: false, error: 'Invalid engagement signature.' });
+        }
+
+        // Check if already reposted
+        const existingRepost = await knex('reposts').where({ original_post_id, reposter_wallet_address }).first();
+        if (existingRepost) {
+            return res.status(400).json({ success: false, error: 'Already reposted.' });
+        }
+
+        // Insert repost
+        await knex('reposts').insert({
+            id: uuidv4(),
+            original_post_id,
+            reposter_wallet_address,
+            timestamp: new Date(timestamp),
+            created_at: new Date()
+        });
+
+        // Increment post repost count
+        await knex('posts').where({ id: original_post_id }).increment('repost_count', 1);
+
+        return res.json({ success: true });
+    } catch (error: any) {
+        console.error('[POST /api/posts/:id/repost] Error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 export default postsRouter;

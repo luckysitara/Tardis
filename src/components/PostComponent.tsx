@@ -1,72 +1,141 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/shared/state/store';
+import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 
 type PostProps = {
   id: string;
-  username: string; // .skr username
+  author_wallet_address: string;
+  author_skr_username: string;
   content: string;
-  mediaUri?: string; // Optional: URL for image/video thumbnail
+  mediaUri?: string;
   timestamp: string;
-  isSigned: boolean; // Indicates hardware-signed post
-  likes: number;
-  reposts: number;
+  signature: string; // Original post signature
+  like_count: number;
+  repost_count: number;
 };
 
 const PostComponent: React.FC<PostProps> = ({
   id,
-  username,
+  author_wallet_address,
+  author_skr_username,
   content,
   mediaUri,
   timestamp,
-  isSigned,
-  likes: initialLikes,
-  reposts: initialReposts,
+  signature,
+  like_count: initialLikes,
+  repost_count: initialReposts,
 }) => {
   const [likes, setLikes] = useState(initialLikes);
   const [reposts, setReposts] = useState(initialReposts);
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
+  const [userHasLiked, setUserHasLiked] = useState(false);
 
-  // Simulated off-chain signing function for engagement
-  const simulateOffChainEngagementSigning = async (action: 'like' | 'repost', postId: string) => {
-    console.log(`Simulating off-chain signing for ${action} on post ${postId}`);
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const signedEngagement = `SIGNED_ENGAGEMENT_${action.toUpperCase()}_POST_${postId}_BY_SEED_VAULT_${Date.now()}`;
-        console.log(`Off-chain signing complete for ${action}. Signed engagement:`, signedEngagement);
-        resolve(signedEngagement);
-      }, 1000); // Simulate network delay for signing
-    });
-  };
+  const { signMessage } = useTardisMobileWallet();
+  const userId = useSelector((state: RootState) => state.auth.address);
+  const SERVER_BASE_URL = SERVER_URL || 'http://localhost:3000';
 
   const handleLike = async () => {
-    if (isLiking || isReposting) return; // Prevent multiple simultaneous actions
+    if (!userId) {
+      Alert.alert("Authentication Required", "Please connect your wallet to like posts.");
+      return;
+    }
+    if (isLiking || isReposting) return;
+
     setIsLiking(true);
     try {
-      const signedEngagement = await simulateOffChainEngagementSigning('like', id);
-      console.log(`Sending signed like to backend for post ${id}:`, signedEngagement);
-      // In a real app, you would make an API call to record the like.
-      // Assuming success, update UI:
-      setLikes(prev => prev + 1);
+      const timestamp = new Date().toISOString();
+      // REAL PRODUCTION: Message structure matches backend expectation
+      const messageToSign = JSON.stringify({
+        post_id: id,
+        user_wallet_address: userId,
+        timestamp: timestamp,
+      });
+
+      console.log("[PostComponent] Requesting MWA signature for Like:", messageToSign);
+      const engagementSignature = await signMessage(messageToSign);
+
+      if (!engagementSignature) {
+        setIsLiking(false);
+        return;
+      }
+
+      const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_wallet_address: userId,
+          signature: engagementSignature,
+          timestamp: timestamp,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setLikes(prev => result.liked ? prev + 1 : prev - 1);
+        setUserHasLiked(result.liked);
+      } else {
+        Alert.alert("Error", result.error || "Failed to like post.");
+      }
     } catch (error) {
       console.error("Error liking post:", error);
+      Alert.alert("Error", "An unexpected error occurred.");
     } finally {
       setIsLiking(false);
     }
   };
 
   const handleRepost = async () => {
-    if (isLiking || isReposting) return; // Prevent multiple simultaneous actions
+    if (!userId) {
+      Alert.alert("Authentication Required", "Please connect your wallet to repost.");
+      return;
+    }
+    if (isLiking || isReposting) return;
+
     setIsReposting(true);
     try {
-      const signedEngagement = await simulateOffChainEngagementSigning('repost', id);
-      console.log(`Sending signed repost to backend for post ${id}:`, signedEngagement);
-      // In a real app, you would make an API call to record the repost.
-      // Assuming success, update UI:
-      setReposts(prev => prev + 1);
+      const timestamp = new Date().toISOString();
+      // REAL PRODUCTION: Message structure matches backend expectation
+      const messageToSign = JSON.stringify({
+        original_post_id: id,
+        reposter_wallet_address: userId,
+        timestamp: timestamp,
+      });
+
+      console.log("[PostComponent] Requesting MWA signature for Repost:", messageToSign);
+      const engagementSignature = await signMessage(messageToSign);
+
+      if (!engagementSignature) {
+        setIsReposting(false);
+        return;
+      }
+
+      const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/repost`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reposter_wallet_address: userId,
+          signature: engagementSignature,
+          timestamp: timestamp,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setReposts(prev => prev + 1);
+        Alert.alert("Success", "Post hardware-reposted!");
+      } else {
+        Alert.alert("Error", result.error || "Failed to repost.");
+      }
     } catch (error) {
       console.error("Error reposting post:", error);
+      Alert.alert("Error", "An unexpected error occurred.");
     } finally {
       setIsReposting(false);
     }
@@ -74,37 +143,41 @@ const PostComponent: React.FC<PostProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* User Info and Signed Badge */}
       <View style={styles.header}>
         <Image
-          source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${username}` }} // Placeholder avatar
+          source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
           style={styles.avatar}
         />
         <View>
-          <Text style={styles.username}>{username}</Text>
-          {isSigned && (
-            <Text style={styles.signedBadge}>✅ Hardware Signed</Text>
-          )}
+          <Text style={styles.username}>{author_skr_username}</Text>
+          <Text style={styles.signedBadge}>✅ Hardware Signed</Text>
         </View>
       </View>
 
-      {/* Post Content */}
       <Text style={styles.content}>{content}</Text>
 
-      {/* Media */}
       {mediaUri && (
         <Image source={{ uri: mediaUri }} style={styles.media} resizeMode="cover" />
       )}
 
-      {/* Engagement Buttons */}
       <View style={styles.actions}>
         <TouchableOpacity onPress={handleLike} style={styles.actionButton} disabled={isLiking || isReposting}>
-          {isLiking ? <ActivityIndicator size="small" color={COLORS.brandPrimary} /> : <Text style={styles.actionText}>❤️ {likes}</Text>}
+          {isLiking ? (
+            <ActivityIndicator size="small" color={COLORS.brandPrimary} />
+          ) : (
+            <Text style={[styles.actionText, userHasLiked && { color: COLORS.brandPink }]}>
+              {userHasLiked ? '❤️' : '🤍'} {likes}
+            </Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity onPress={handleRepost} style={styles.actionButton} disabled={isLiking || isReposting}>
-          {isReposting ? <ActivityIndicator size="small" color={COLORS.brandPrimary} /> : <Text style={styles.actionText}>🔄 {reposts}</Text>}
+          {isReposting ? (
+            <ActivityIndicator size="small" color={COLORS.brandPrimary} />
+          ) : (
+            <Text style={styles.actionText}>🔄 {reposts}</Text>
+          )}
         </TouchableOpacity>
-        <Text style={styles.timestamp}>{new Date(timestamp).toLocaleString()}</Text>
+        <Text style={styles.timestamp}>{new Date(timestamp).toLocaleDateString()}</Text>
       </View>
     </View>
   );
@@ -169,15 +242,14 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   actionText: {
-    color: COLORS.gray,
+    color: COLORS.greyMid || '#B7B7B7',
     fontSize: 14,
     marginLeft: 5,
   },
   timestamp: {
-    color: COLORS.gray,
+    color: COLORS.greyMid || '#B7B7B7',
     fontSize: 12,
   },
 });
 
 export default PostComponent;
-

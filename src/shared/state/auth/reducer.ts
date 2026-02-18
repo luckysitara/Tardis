@@ -4,6 +4,7 @@ import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
 export interface AuthState {
   provider: 'privy' | 'dynamic' | 'turnkey' | 'mwa' |  null;
   address: string | null;
+  authToken: string | null; // Added for MWA reauthorization
   isLoggedIn: boolean;
   profilePicUrl: string | null;
   username: string | null; // storing user's chosen display name
@@ -21,6 +22,7 @@ export interface AuthState {
 const initialState: AuthState = {
   provider: null,
   address: null,
+  authToken: null,
   isLoggedIn: false,
   profilePicUrl: null,
   username: null,
@@ -261,6 +263,7 @@ const authSlice = createSlice({
       action: PayloadAction<{
         provider: 'privy' | 'dynamic' | 'turnkey' | 'mwa';
         address: string;
+        authToken?: string | null; // Added for MWA reauthorization
         profilePicUrl?: string;
         username?: string;
         description?: string;
@@ -271,6 +274,7 @@ const authSlice = createSlice({
       // Preserve existing profile data if available and no new data provided
       state.provider = action.payload.provider;
       state.address = action.payload.address;
+      state.authToken = action.payload.authToken || state.authToken;
       state.isLoggedIn = true;
       
       // Only update these if they are provided or we don't have them
@@ -301,6 +305,7 @@ const authSlice = createSlice({
       console.log('[AuthReducer] logoutSuccess: Resetting state.');
       state.provider = null;
       state.address = null;
+      state.authToken = null;
       state.isLoggedIn = false;
       state.profilePicUrl = null;
       state.username = null;
