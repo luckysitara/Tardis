@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Keyboard,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -17,8 +16,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { RootState } from '@/shared/state/store';
-import { createRootPostAsync } from '@/shared/state/thread/reducer';
-import { ThreadSection } from '@/core/thread/components/thread.types';
+import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { fetchAllPosts } from '@/shared/state/thread/reducer';
+import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
@@ -29,9 +29,10 @@ const CreatePostScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
-  const userId = useSelector((state: RootState) => state.auth.address);
-
-  // ... (rest of the logic remains the same)
+  const { signMessage } = useTardisMobileWallet();
+  const authState = useSelector((state: RootState) => state.auth);
+  const userId = authState.address;
+  const username = authState.username || 'Anonymous';
 
   const handlePost = async () => {
     if (!postContent.trim()) return;
@@ -41,29 +42,54 @@ const CreatePostScreen = ({ navigation }) => {
       return;
     }
 
-    setIsPosting(true);
     try {
-      const sections: ThreadSection[] = [
-        {
-          id: null,
-          type: 'TEXT_ONLY',
-          text: postContent.trim(),
-        }
-      ];
+      const timestamp = new Date().toISOString();
+      const messageToSign = JSON.stringify({
+        content: postContent.trim(),
+        timestamp: timestamp,
+      });
 
-      // Dispatch the action to create a post
-      // In a real MWA app, we might trigger signing here before sending to backend
-      const resultAction = await dispatch(createRootPostAsync({
-        userId: userId,
-        sections: sections,
-      }));
+      console.log("[CreatePost] Requesting MWA signature for:", messageToSign);
+      
+      // Request signature immediately on user interaction
+      const signature = await signMessage(messageToSign);
 
-      if (createRootPostAsync.fulfilled.match(resultAction)) {
+      if (!signature) {
+        console.warn("[CreatePost] No signature received.");
+        return;
+      }
+
+      // Now set loading state for backend submission
+      setIsPosting(true);
+      console.log("[CreatePost] Signature received, publishing...");
+
+      // REAL PRODUCTION: Send signed hardware post to backend
+      const postData = {
+        author_wallet_address: userId,
+        author_skr_username: username,
+        content: postContent.trim(),
+        media_urls: [],
+        signature: signature,
+        timestamp: timestamp,
+      };
+
+      const SERVER_BASE_URL = SERVER_URL || 'http://localhost:3000';
+      const response = await fetch(`${SERVER_BASE_URL}/api/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        Alert.alert("Success", "Hardware-signed post published!");
         setPostContent('');
+        // Refresh posts in the global state
+        dispatch(fetchAllPosts(undefined));
         navigation.goBack();
       } else {
-        const error = resultAction.payload as string || 'Failed to publish post';
-        Alert.alert("Error", error);
+        Alert.alert("Publishing Error", result.error || "Failed to publish post.");
       }
     } catch (error) {
       console.error("Post error:", error);
@@ -134,7 +160,6 @@ const CreatePostScreen = ({ navigation }) => {
              <TouchableOpacity style={styles.iconButton} disabled={isPosting}>
                 <Icons.GalleryIcon width={24} height={24} color={COLORS.brandPrimary} />
              </TouchableOpacity>
-             {/* Add more icons as needed */}
           </View>
           
           <View style={styles.rightToolbar}>
