@@ -1,23 +1,28 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native'; // Keep FlatList for type inference, FlashList extends it
+import React, { useEffect, useCallback, useState } from 'react';
+import { View, Text, StyleSheet, RefreshControl } from 'react-native';
 import { FlashList } from "@shopify/flash-list";
 import COLORS from '@/assets/colors';
-import PostComponent from '../components/PostComponent'; // Import the PostComponent
-
-// Dummy data for posts, updated to match PostProps
-const DUMMY_POSTS = Array.from({ length: 50 }).map((_, i) => ({
-  id: String(i),
-  username: `seeker${i + 1}.skr`,
-  content: `This is post number ${i + 1} in the Town Square. It is cryptographically signed by my Seed Vault! #Tardis`,
-  mediaUri: i % 3 === 0 ? `https://picsum.photos/id/${i + 10}/400/200` : undefined, // Add some dummy media
-  timestamp: new Date(Date.now() - i * 3600 * 1000).toISOString(), // Vary timestamp
-  isSigned: true, // All posts are signed in Tardis
-  likes: Math.floor(Math.random() * 100),
-  reposts: Math.floor(Math.random() * 20),
-}));
+import PostComponent from '../components/PostComponent';
+import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
+import { fetchAllPosts } from '@/shared/state/thread/reducer';
+import type { ThreadPost } from '@/core/thread/components/thread.types';
 
 const TownSquareScreen = () => {
-  const renderItem = ({ item }: { item: typeof DUMMY_POSTS[0] }) => (
+  const dispatch = useAppDispatch();
+  const { allPosts, loading } = useAppSelector(state => state.thread);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchAllPosts(undefined));
+  }, [dispatch]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await dispatch(fetchAllPosts(undefined));
+    setRefreshing(false);
+  }, [dispatch]);
+
+  const renderItem = ({ item }: { item: ThreadPost }) => (
     <PostComponent {...item} />
   );
 
@@ -25,11 +30,23 @@ const TownSquareScreen = () => {
     <View style={styles.container}>
       <Text style={styles.header}>Town Square</Text>
       <FlashList
-        data={DUMMY_POSTS}
+        data={allPosts}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        estimatedItemSize={250} // Adjust based on average post height with media
+        estimatedItemSize={150}
         contentContainerStyle={styles.flashListContentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || (loading && allPosts.length === 0)}
+            onRefresh={onRefresh}
+            tintColor={COLORS.brandPrimary}
+          />
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <Text style={styles.emptyText}>No posts yet. Be the first to post!</Text>
+          ) : null
+        }
       />
     </View>
   );
@@ -53,6 +70,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
   },
+  emptyText: {
+    color: COLORS.gray,
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+  }
 });
 
 export default TownSquareScreen;

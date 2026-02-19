@@ -16,12 +16,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { RootState } from '@/shared/state/store';
-import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 import { fetchAllPosts } from '@/shared/state/thread/reducer';
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
+import { Buffer } from 'buffer';
 
 const CreatePostScreen = ({ navigation }) => {
   const [postContent, setPostContent] = useState('');
@@ -29,9 +30,8 @@ const CreatePostScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
-  const { signMessage } = useTardisMobileWallet();
+  const { signMessage, address: userId } = useWallet();
   const authState = useSelector((state: RootState) => state.auth);
-  const userId = authState.address;
   const username = authState.username || 'Anonymous';
 
   const handlePost = async () => {
@@ -44,20 +44,22 @@ const CreatePostScreen = ({ navigation }) => {
 
     try {
       const timestamp = new Date().toISOString();
-      const messageToSign = JSON.stringify({
-        content: postContent.trim(),
-        timestamp: timestamp,
-      });
+      // DETERMINISTIC: Keys must be in this exact order for backend verification
+      const messageToSign = `{"content":"${postContent.trim()}","timestamp":"${timestamp}"}`;
+      const messageUint8 = new Uint8Array(Buffer.from(messageToSign, 'utf8'));
 
       console.log("[CreatePost] Requesting MWA signature for:", messageToSign);
       
       // Request signature immediately on user interaction
-      const signature = await signMessage(messageToSign);
+      const signature = await signMessage(messageUint8);
 
       if (!signature) {
         console.warn("[CreatePost] No signature received.");
         return;
       }
+
+      // Convert Uint8Array signature to base64 for backend
+      const signatureBase64 = Buffer.from(signature).toString('base64');
 
       // Now set loading state for backend submission
       setIsPosting(true);
@@ -69,11 +71,13 @@ const CreatePostScreen = ({ navigation }) => {
         author_skr_username: username,
         content: postContent.trim(),
         media_urls: [],
-        signature: signature,
+        signature: signatureBase64,
         timestamp: timestamp,
       };
 
-      const SERVER_BASE_URL = SERVER_URL || 'http://localhost:3000';
+      const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
+      console.log(`[CreatePost] Publishing to: ${SERVER_BASE_URL}/api/posts`);
+      
       const response = await fetch(`${SERVER_BASE_URL}/api/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

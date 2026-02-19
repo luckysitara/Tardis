@@ -6,29 +6,27 @@ import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardi
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 
-type PostProps = {
-  id: string;
-  author_wallet_address: string;
-  author_skr_username: string;
-  content: string;
-  mediaUri?: string;
-  timestamp: string;
-  signature: string; // Original post signature
-  like_count: number;
-  repost_count: number;
-};
+import type { ThreadPost } from '@/core/thread/components/thread.types';
 
-const PostComponent: React.FC<PostProps> = ({
+const PostComponent: React.FC<ThreadPost> = ({
   id,
-  author_wallet_address,
-  author_skr_username,
-  content,
-  mediaUri,
-  timestamp,
-  signature,
-  like_count: initialLikes,
-  repost_count: initialReposts,
+  user,
+  sections,
+  createdAt,
+  like_count,
+  repost_count,
+  reactionCount,
+  retweetCount,
 }) => {
+  // Map fields from either direct props (ThreadPost) or backend format
+  const author_wallet_address = user?.id;
+  const author_skr_username = user?.username || 'Seeker User';
+  const content = sections?.[0]?.text || '';
+  const mediaUri = sections?.[0]?.imageUrl; // Extract from section if exists
+  const timestamp = createdAt;
+  const initialLikes = reactionCount || like_count || 0;
+  const initialReposts = retweetCount || repost_count || 0;
+
   const [likes, setLikes] = useState(initialLikes);
   const [reposts, setReposts] = useState(initialReposts);
   const [isLiking, setIsLiking] = useState(false);
@@ -37,7 +35,7 @@ const PostComponent: React.FC<PostProps> = ({
 
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = SERVER_URL || 'http://localhost:3000';
+  const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
 
   const handleLike = async () => {
     if (!userId) {
@@ -49,12 +47,8 @@ const PostComponent: React.FC<PostProps> = ({
     setIsLiking(true);
     try {
       const timestamp = new Date().toISOString();
-      // REAL PRODUCTION: Message structure matches backend expectation
-      const messageToSign = JSON.stringify({
-        post_id: id,
-        user_wallet_address: userId,
-        timestamp: timestamp,
-      });
+      // DETERMINISTIC: Keys must be in this exact order for backend verification
+      const messageToSign = `{"post_id":"${id}","user_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
 
       console.log("[PostComponent] Requesting MWA signature for Like:", messageToSign);
       const engagementSignature = await signMessage(messageToSign);
@@ -64,12 +58,14 @@ const PostComponent: React.FC<PostProps> = ({
         return;
       }
 
+      const signatureBase64 = Buffer.from(engagementSignature).toString('base64');
+
       const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_wallet_address: userId,
-          signature: engagementSignature,
+          signature: signatureBase64,
           timestamp: timestamp,
         }),
       });
@@ -100,12 +96,8 @@ const PostComponent: React.FC<PostProps> = ({
     setIsReposting(true);
     try {
       const timestamp = new Date().toISOString();
-      // REAL PRODUCTION: Message structure matches backend expectation
-      const messageToSign = JSON.stringify({
-        original_post_id: id,
-        reposter_wallet_address: userId,
-        timestamp: timestamp,
-      });
+      // DETERMINISTIC: Keys must be in this exact order for backend verification
+      const messageToSign = `{"original_post_id":"${id}","reposter_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
 
       console.log("[PostComponent] Requesting MWA signature for Repost:", messageToSign);
       const engagementSignature = await signMessage(messageToSign);
@@ -115,12 +107,14 @@ const PostComponent: React.FC<PostProps> = ({
         return;
       }
 
+      const signatureBase64 = Buffer.from(engagementSignature).toString('base64');
+
       const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/repost`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reposter_wallet_address: userId,
-          signature: engagementSignature,
+          signature: signatureBase64,
           timestamp: timestamp,
         }),
       });

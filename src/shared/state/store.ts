@@ -4,6 +4,7 @@ import transactionReducer from './transaction/reducer';
 import usersReducer from './users/reducer';
 import notificationReducer from './notification/reducer';
 import profileReducer from './profile/reducer';
+import threadReducer from './thread/reducer';
 
 // Redux persist imports
 import { persistStore, persistReducer } from 'redux-persist';
@@ -25,6 +26,7 @@ const rootReducer = combineReducers({
   users: usersReducer,
   notification: notificationReducer,
   profile: profileReducer,
+  thread: threadReducer,
 });
 
 
