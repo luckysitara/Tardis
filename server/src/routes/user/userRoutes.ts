@@ -292,6 +292,44 @@ profileImageRouter.post('/updateProfilePic', async (req: any, res: any) => {
   }
 });
 
+/**
+ * ------------------------------------------
+ *  NEW: Register user's public encryption key
+ * ------------------------------------------
+ */
+profileImageRouter.post('/register-key', async (req: any, res: any) => {
+  try {
+    const { userId, publicKey } = req.body;
+    if (!userId || !publicKey) {
+      return res.status(400).json({ success: false, error: 'Missing userId or publicKey' });
+    }
+
+    console.log(`[register-key] Registering public key for userId: ${userId}`);
+
+    const existingUser = await knex('users').where({ id: userId }).first();
+    if (!existingUser) {
+      await knex('users').insert({
+        id: userId,
+        username: userId.slice(0, 6),
+        handle: '@' + userId.slice(0, 6),
+        public_encryption_key: publicKey,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    } else {
+      await knex('users').where({ id: userId }).update({
+        public_encryption_key: publicKey,
+        updated_at: new Date(),
+      });
+    }
+
+    return res.json({ success: true, message: 'Encryption key registered successfully' });
+  } catch (error: any) {
+    console.error('[register-key error]', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Simple authentication middleware for delete-account route
 const requireAuthForDelete = async (req: any, res: any, next: NextFunction) => {
   try {

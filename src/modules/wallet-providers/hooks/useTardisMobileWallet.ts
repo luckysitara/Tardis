@@ -177,5 +177,12 @@ export const useTardisMobileWallet = () => {
     }
   }, [authToken, dispatch]);
 
-  return React.useMemo(() => ({ connectSeekerWallet, signMessage }), [connectSeekerWallet, signMessage]);
+  const getEncryptionSeed = useCallback(async (): Promise<Uint8Array | null> => {
+    // Constant string to derive a unique but stable encryption seed for this device/app
+    const derivationMessage = "Tardis_E2EE_Seed_v1";
+    console.log('[Tardis MWA] Deriving encryption seed from hardware...');
+    return await signMessage(derivationMessage);
+  }, [signMessage]);
+
+  return React.useMemo(() => ({ connectSeekerWallet, signMessage, getEncryptionSeed }), [connectSeekerWallet, signMessage, getEncryptionSeed]);
 };

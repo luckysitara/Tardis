@@ -284,6 +284,16 @@ export function useWallet() {
     }
   }, [wallet, solanaWallet]);
 
+  const getEncryptionSeed = useCallback(async () => {
+    const availableWallet = getWallet();
+    if (!availableWallet) throw new Error('Wallet not connected');
+    if ('getEncryptionSeed' in availableWallet && typeof availableWallet.getEncryptionSeed === 'function') {
+      return availableWallet.getEncryptionSeed();
+    } else {
+      throw new Error('Connected wallet does not support hardware encryption derivation');
+    }
+  }, [wallet, solanaWallet]);
+
   return useMemo(() => ({
     wallet: currentWallet,    // The best available wallet (from any provider)
     solanaWallet,             // Legacy wallet (for backward compatibility)
@@ -297,6 +307,7 @@ export function useWallet() {
     signTransaction,          // Expose signTransaction
     signAllTransactions,      // Expose signAllTransactions
     signMessage,              // Expose signMessage
+    getEncryptionSeed,        // Expose encryption seed derivation
     isDynamic: isDynamic(),                // Check if using Dynamic
     isPrivy: isPrivy(),                  // Check if using Privy
     isMWA: isMWA(),                    // Check if using MWA
@@ -314,5 +325,6 @@ export function useWallet() {
     signTransaction,
     signAllTransactions,
     signMessage,
+    getEncryptionSeed,
   ]);
 } 

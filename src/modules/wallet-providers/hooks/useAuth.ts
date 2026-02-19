@@ -25,7 +25,7 @@ export function useAuth() {
   const dispatch = useDispatch();
   const navigation = useAppNavigation();
   const authState = useAppSelector(state => state.auth);
-  const { signMessage } = useTardisMobileWallet();
+  const { signMessage, getEncryptionSeed } = useTardisMobileWallet();
 
   // Get wallet address and provider from Redux state
   const storedAddress = authState.address;
@@ -57,6 +57,9 @@ export function useAuth() {
         signTransaction: async (transaction: any) => {
           Alert.alert("Not Implemented", "Transaction signing via MWA is being finalized.");
           throw new Error('Transaction signing not yet implemented for MWA');
+        },
+        getEncryptionSeed: async () => {
+          return await getEncryptionSeed();
         }
       };
 
@@ -68,7 +71,8 @@ export function useAuth() {
         }],
         getProvider: mwaWallet.getProvider,
         signMessage: mwaWallet.signMessage,
-        signTransaction: mwaWallet.signTransaction
+        signTransaction: mwaWallet.signTransaction,
+        getEncryptionSeed: mwaWallet.getEncryptionSeed
       };
 
       const logout = async () => {

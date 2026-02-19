@@ -18,7 +18,8 @@ function mapPost(post: any): any {
             id: post.author_wallet_address,
             username: post.author_skr_username,
             handle: post.author_handle || post.author_skr_username,
-            avatar: post.profile_picture_url || 'https://tardis.xyz/Tardis.png', // Fallback avatar
+            avatar: post.profile_picture_url || 'https://api.dicebear.com/7.x/initials/png?seed=' + post.author_skr_username,
+            publicEncryptionKey: post.public_encryption_key,
             verified: true
         },
         sections: [
@@ -94,7 +95,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         // Fetch the inserted post with user details
         const savedPost = await knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle')
+            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle', 'users.public_encryption_key')
             .where('posts.id', postId)
             .first();
 
@@ -114,7 +115,7 @@ postsRouter.get('/', async (req: Request, res: Response) => {
 
         const posts = await knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle')
+            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle', 'users.public_encryption_key')
             .orderBy('timestamp', 'desc')
             .limit(Number(limit))
             .offset(Number(offset));

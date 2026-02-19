@@ -110,6 +110,14 @@ const HOST = '0.0.0.0'; // Critical for App Runner health checks
         console.error(`Error executing statement: ${statement.substring(0, 50)}...`, stmtError.message);
       }
     }
+
+    // Migration: Add public_encryption_key to users if it doesn't exist
+    try {
+      await knex.raw('ALTER TABLE users ADD COLUMN public_encryption_key TEXT NULL;');
+      console.log('✅ Added public_encryption_key column to users table.');
+    } catch (e) {
+      // Ignore if column already exists
+    }
     
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');
