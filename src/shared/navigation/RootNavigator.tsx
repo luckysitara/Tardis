@@ -3,6 +3,10 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
+import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
+import { registerEncryptionKey } from '@/shared/state/auth/reducer';
+import { deriveEncryptionSeed, getKeypairFromSeed } from '@/shared/utils/crypto';
+import { Buffer } from 'buffer';
 
 // Import our new MainTabs component
 import MainTabs from './MainTabs';
@@ -64,12 +68,36 @@ const AuthenticatedStack: React.FC = () => {
 export default function RootNavigator() {
   const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
   const userId = useSelector((state: RootState) => state.auth.address);
+  const publicEncryptionKey = useSelector((state: RootState) => state.auth.publicEncryptionKey);
+  const { getEncryptionSeed } = useWallet();
 
   const dispatch = useAppDispatch();
 
   useEffect(() => {
     console.log(`[RootNavigator] isLoggedIn state changed: ${isLoggedIn}`);
-  }, [isLoggedIn]);
+    
+    const initEncryption = async () => {
+      if (isLoggedIn && userId && !publicEncryptionKey) {
+        try {
+          console.log('[RootNavigator] Initializing E2EE keys from hardware...');
+          const hardwareSignature = await getEncryptionSeed();
+          if (hardwareSignature) {
+            const seed = await deriveEncryptionSeed(hardwareSignature);
+            const keypair = getKeypairFromSeed(seed);
+            const publicKeyBase64 = Buffer.from(keypair.publicKey).toString('base64');
+            
+            console.log('[RootNavigator] Registering E2EE public key...');
+            await dispatch(registerEncryptionKey({ userId, publicKey: publicKeyBase64 })).unwrap();
+            console.log('[RootNavigator] E2EE initialized successfully.');
+          }
+        } catch (error: any) {
+          console.error('[RootNavigator] Failed to init E2EE:', error.message);
+        }
+      }
+    };
+
+    initEncryption();
+  }, [isLoggedIn, userId, publicEncryptionKey, dispatch, getEncryptionSeed]);
 
   return (
     <Stack.Navigator

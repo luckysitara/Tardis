@@ -10,8 +10,20 @@ CREATE TABLE IF NOT EXISTS users (
     handle VARCHAR(255) NOT NULL,
     profile_picture_url VARCHAR(255) NULL,
     description TEXT NULL,
+    public_encryption_key TEXT NULL, -- X25519 Public Key for E2EE
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    sender_id VARCHAR(255) NOT NULL,
+    recipient_id VARCHAR(255) NOT NULL,
+    ciphertext TEXT NOT NULL, -- AES-GCM Encrypted content
+    nonce TEXT NOT NULL,      -- Nonce used for encryption
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS posts (

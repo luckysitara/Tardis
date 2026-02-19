@@ -5,6 +5,7 @@ export interface AuthState {
   provider: 'privy' | 'dynamic' | 'turnkey' | 'mwa' |  null;
   address: string | null;
   authToken: string | null; // Added for MWA reauthorization
+  publicEncryptionKey: string | null; // X25519 Public Key
   isLoggedIn: boolean;
   profilePicUrl: string | null;
   username: string | null; // storing user's chosen display name
@@ -23,6 +24,7 @@ const initialState: AuthState = {
   provider: null,
   address: null,
   authToken: null,
+  publicEncryptionKey: null,
   isLoggedIn: false,
   profilePicUrl: null,
   username: null,
@@ -35,6 +37,29 @@ const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
 // Debug environment variable loading
 console.log('[Auth Reducer] SERVER_URL from @env:', SERVER_URL);
 console.log('[Auth Reducer] SERVER_BASE_URL resolved to:', SERVER_BASE_URL);
+
+/**
+ * Register the user's public encryption key on the server.
+ */
+export const registerEncryptionKey = createAsyncThunk(
+  'auth/registerEncryptionKey',
+  async ({ userId, publicKey }: { userId: string; publicKey: string }, thunkAPI) => {
+    try {
+      const response = await fetch(`${SERVER_BASE_URL}/api/profile/register-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, publicKey }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        return thunkAPI.rejectWithValue(data.error || 'Failed to register encryption key');
+      }
+      return publicKey;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(error.message || 'Error registering encryption key');
+    }
+  }
+);
 
 /**
  * Fetch the user's profile from the server, including profile pic URL, username,
@@ -381,6 +406,10 @@ const authSlice = createSlice({
     builder.addCase(deleteAccountAction.rejected, (state, action) => {
       // Optional: Handle rejected state, e.g., display a global error
       console.error('[AuthSlice] deleteAccountAction rejected:', action.payload || action.error.message);
+    });
+
+    builder.addCase(registerEncryptionKey.fulfilled, (state, action) => {
+      state.publicEncryptionKey = action.payload;
     });
   },
 });
