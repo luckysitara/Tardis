@@ -1,7 +1,7 @@
 import { useAuth } from './useAuth';
 import { useTransactionService } from '../services/transaction/transactionService';
 import { Connection, Transaction, VersionedTransaction, PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { Platform } from 'react-native';
 import { fetchUserProfile } from '@/shared/state/auth/reducer';
@@ -79,52 +79,22 @@ export function useWallet() {
     }
   }, [authState.isLoggedIn, authState.address, authState.username, authState.profilePicUrl, dispatch]);
 
-  // Create a standardized wallet object for MWA if needed
-  const mwaWallet = useMemo(() => {
-    // Only create MWA wallet on Android
-    if (authState.provider === 'mwa' && authState.address && Platform.OS === 'android') {
-      return {
-        provider: 'mwa' as const,
-        address: authState.address,
-        publicKey: authState.address,
-        rawWallet: { address: authState.address },
-        getWalletInfo: () => ({
-          walletType: 'MWA',
-          address: authState.address,
-        }),
-        // For MWA, we don't have a provider as transactions are handled by the Phantom app
-        getProvider: async () => {
-          // Now we don't immediately throw, but return a special MWA provider
-          return {
-            type: 'mwa',
-            provider: 'mwa',
-            address: authState.address,
-            // This will be used by transactionService
-            isMWAProvider: true
-          };
-        }
-      } as StandardWallet;
-    }
-    return null;
-  }, [authState.provider, authState.address]);
-
-  // Get the best available wallet - prefer StandardWallet but fall back to mwaWallet if available
-  const getWallet = () => {
+  // Get the best available wallet - prefer StandardWallet from useAuth
+  const getWallet = useCallback(() => {
     if (wallet) return wallet;
-    if (mwaWallet) return mwaWallet;
     if (solanaWallet) return solanaWallet;
     return null;
-  };
+  }, [wallet, solanaWallet]);
 
   // Get the wallet that is currently in use
   const currentWallet = useMemo(() => {
     return getWallet();
-  }, [wallet, mwaWallet, solanaWallet]);
+  }, [getWallet]);
 
   /**
    * Signs and sends a transaction using the current wallet
    */
-  const sendTransaction = async (
+  const sendTransaction = useCallback(async (
     transaction: Transaction | VersionedTransaction,
     connection: Connection,
     options?: { confirmTransaction?: boolean; statusCallback?: (status: string) => void }
@@ -145,12 +115,12 @@ export function useWallet() {
       availableWallet,
       { connection, ...options }
     );
-  };
+  }, [getWallet, signAndSendTransaction]);
 
   /**
    * Signs and sends a transaction from instructions using the current wallet
    */
-  const sendInstructions = async (
+  const sendInstructions = useCallback(async (
     instructions: TransactionInstruction[],
     feePayer: PublicKey,
     connection: Connection,
@@ -174,12 +144,12 @@ export function useWallet() {
       connection,
       options
     );
-  };
+  }, [getWallet, signAndSendInstructions]);
 
   /**
    * Signs and sends a base64-encoded transaction using the current wallet
    */
-  const sendBase64Transaction = async (
+  const sendBase64Transaction = useCallback(async (
     base64Tx: string,
     connection: Connection,
     options?: { confirmTransaction?: boolean; statusCallback?: (status: string) => void }
@@ -201,7 +171,7 @@ export function useWallet() {
       connection,
       options
     );
-  };
+  }, [getWallet, signAndSendBase64]);
 
   // Helper to check if we're using Dynamic wallet
   const isDynamic = (): boolean => {
@@ -281,7 +251,7 @@ export function useWallet() {
   }, [wallet, solanaWallet, authState.address]);
 
   // Signing functions from the connected wallet (required by SolanaAgentKit)
-  const signTransaction = async (transaction: Transaction | VersionedTransaction) => {
+  const signTransaction = useCallback(async (transaction: Transaction | VersionedTransaction) => {
     const availableWallet = getWallet();
     if (!availableWallet) throw new Error('Wallet not connected');
     // Check if the wallet has the signTransaction method before calling it
@@ -290,9 +260,9 @@ export function useWallet() {
     } else {
       throw new Error('Connected wallet does not support signTransaction');
     }
-  };
+  }, [wallet, solanaWallet]);
 
-  const signAllTransactions = async (transactions: (Transaction | VersionedTransaction)[]) => {
+  const signAllTransactions = useCallback(async (transactions: (Transaction | VersionedTransaction)[]) => {
     const availableWallet = getWallet();
     if (!availableWallet) throw new Error('Wallet not connected');
     // Check if the wallet has the signAllTransactions method before calling it
@@ -301,9 +271,9 @@ export function useWallet() {
     } else {
       throw new Error('Connected wallet does not support signAllTransactions');
     }
-  };
+  }, [wallet, solanaWallet]);
 
-  const signMessage = async (message: Uint8Array) => {
+  const signMessage = useCallback(async (message: Uint8Array) => {
     const availableWallet = getWallet();
     if (!availableWallet) throw new Error('Wallet not connected');
     // Check if the wallet has the signMessage method before calling it
@@ -312,9 +282,9 @@ export function useWallet() {
     } else {
       throw new Error('Connected wallet does not support signMessage');
     }
-  };
+  }, [wallet, solanaWallet]);
 
-  return {
+  return useMemo(() => ({
     wallet: currentWallet,    // The best available wallet (from any provider)
     solanaWallet,             // Legacy wallet (for backward compatibility)
     publicKey,
@@ -327,8 +297,22 @@ export function useWallet() {
     signTransaction,          // Expose signTransaction
     signAllTransactions,      // Expose signAllTransactions
     signMessage,              // Expose signMessage
-    isDynamic,                // Check if using Dynamic
-    isPrivy,                  // Check if using Privy
-    isMWA,                    // Check if using MWA
-  };
+    isDynamic: isDynamic(),                // Check if using Dynamic
+    isPrivy: isPrivy(),                  // Check if using Privy
+    isMWA: isMWA(),                    // Check if using MWA
+  }), [
+    currentWallet, 
+    solanaWallet, 
+    publicKey, 
+    address, 
+    connected, 
+    sendTransaction, 
+    sendInstructions, 
+    sendBase64Transaction, 
+    currentProvider, 
+    authState.provider,
+    signTransaction,
+    signAllTransactions,
+    signMessage,
+  ]);
 } 

@@ -31,13 +31,18 @@ const CreatePost: React.FC = () => {
     setIsSigning(true);
     let signatureString: string | undefined;
     try {
-      // Ensure TextEncoder is available in the environment (React Native often requires polyfills)
-      const encoder = new TextEncoder();
-      const message = encoder.encode(content); // Convert string to Uint8Array
+      // Use Buffer for consistent UTF-8 encoding across environments
+      const message = new Uint8Array(Buffer.from(content, 'utf8'));
       const signature = await signMessage(message); // Sign the message
-      signatureString = base58.encode(signature); // Encode signature to base58 for storage
       
-      console.log('Post content signed successfully:', signatureString);
+      if (!signature) {
+        throw new Error('No signature received');
+      }
+
+      // Convert Uint8Array to base64 for the server
+      signatureString = Buffer.from(signature).toString('base64');
+      
+      console.log('Post content signed successfully (base64):', signatureString);
     } catch (error: any) {
       Alert.alert('Signing Failed', `Could not sign your post: ${error.message || 'Unknown error'}`);
       setIsSigning(false);

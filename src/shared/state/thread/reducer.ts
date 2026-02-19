@@ -7,7 +7,7 @@ import type {
 import {allposts as fallbackPosts} from '../../mocks/posts';
 import {SERVER_URL} from '@env';
 
-const SERVER_BASE_URL = SERVER_URL || 'http://localhost:3000';
+const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
 
 // Debug environment variable loading
 console.log('[Thread Reducer] SERVER_URL from @env:', SERVER_URL);
@@ -26,7 +26,10 @@ export const fetchAllPosts = createAsyncThunk(
       if (!data.success) {
         return rejectWithValue(data.error || 'Failed to fetch posts');
       }
-      return data.data.length > 0 ? data.data : fallbackPosts;
+      
+      // Use 'posts' or 'data' field, and ensure it's an array
+      const posts = data.posts || data.data || [];
+      return posts.length > 0 ? posts : fallbackPosts;
     } catch (error: any) {
       console.error('Fetch posts error, using fallback posts:', error.message);
       return fallbackPosts;

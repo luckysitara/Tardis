@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS posts (
     author_wallet_address VARCHAR(255) NOT NULL,
     author_skr_username VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    media_urls JSON DEFAULT '[]', -- Store as JSON array of URLs
+    media_urls TEXT DEFAULT '[]', -- Store as stringified JSON array
     signature TEXT NOT NULL,
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     like_count INTEGER DEFAULT 0,

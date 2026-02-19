@@ -7,8 +7,39 @@ import { v4 as uuidv4 } from 'uuid'; // For generating UUIDs for posts
 
 const postsRouter = Router();
 
+/**
+ * Helper to map database post rows to the ThreadPost structure expected by the frontend.
+ */
+function mapPost(post: any): any {
+    return {
+        id: post.id,
+        parentId: post.parentId || null,
+        user: {
+            id: post.author_wallet_address,
+            username: post.author_skr_username,
+            handle: post.author_handle || post.author_skr_username,
+            avatar: post.profile_picture_url || 'https://tardis.xyz/Tardis.png', // Fallback avatar
+            verified: true
+        },
+        sections: [
+            {
+                id: uuidv4(),
+                type: 'TEXT_ONLY',
+                text: post.content
+            }
+        ],
+        createdAt: post.timestamp || post.created_at,
+        replies: [],
+        reactionCount: post.like_count || 0,
+        retweetCount: post.repost_count || 0,
+        quoteCount: 0,
+        reactions: {}
+    };
+}
+
 // POST /api/posts - Create a new post
 postsRouter.post('/', async (req: Request, res: Response) => {
+    console.log('[POST /api/posts] Incoming request body:', JSON.stringify(req.body, null, 2));
     try {
         const {
             author_wallet_address,
@@ -24,9 +55,8 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Missing required post fields.' });
         }
 
-        // Reconstruct the message that was signed
-        // The message structure must match what the client signed
-        const signedMessage = JSON.stringify({ content, timestamp });
+        // DETERMINISTIC: Reconstruct the message that was signed
+        const signedMessage = `{"content":"${content}","timestamp":"${timestamp}"}`;
 
         const isSignatureValid = verifySignature(signedMessage, signature, author_wallet_address);
         if (!isSignatureValid) {
@@ -34,12 +64,20 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         }
         console.log(`[PostsRouter] Signature verification result: ${isSignatureValid}`);
 
+        // Ensure user exists (JIT creation) to satisfy Foreign Key constraint
+        await knex('users').insert({
+            id: author_wallet_address,
+            username: author_skr_username,
+            handle: author_skr_username,
+            created_at: new Date(),
+            updated_at: new Date()
+        }).onConflict('id').ignore();
 
         // Generate a UUID for the new post
         const postId = uuidv4();
 
         // Store post in database
-        const [newPost] = await knex('posts').insert({
+        await knex('posts').insert({
             id: postId,
             author_wallet_address,
             author_skr_username,
@@ -51,9 +89,16 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             repost_count: 0,
             created_at: new Date(),
             updated_at: new Date()
-        }).returning('*');
+        });
 
-        return res.status(201).json({ success: true, post: newPost });
+        // Fetch the inserted post with user details
+        const savedPost = await knex('posts')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle')
+            .where('posts.id', postId)
+            .first();
+
+        return res.status(201).json({ success: true, post: mapPost(savedPost) });
 
     } catch (error: any) {
         console.error('[POST /api/posts] Error creating post:', error);
@@ -63,15 +108,20 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 
 // GET /api/posts - Retrieve a list of posts
 postsRouter.get('/', async (req: Request, res: Response) => {
+    console.log('[GET /api/posts] Fetching posts with query:', req.query);
     try {
         const { limit = 20, offset = 0 } = req.query;
 
         const posts = await knex('posts')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle')
             .orderBy('timestamp', 'desc')
             .limit(Number(limit))
             .offset(Number(offset));
 
-        return res.json({ success: true, posts });
+        const mappedPosts = posts.map(mapPost);
+
+        return res.json({ success: true, posts: mappedPosts });
     } catch (error: any) {
         console.error('[GET /api/posts] Error retrieving posts:', error);
         return res.status(500).json({ success: false, error: error.message });
@@ -129,8 +179,8 @@ postsRouter.post('/:id/like', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Missing required fields for like.' });
         }
 
-        // REAL PRODUCTION: Verify off-chain engagement signature
-        const signedMessage = JSON.stringify({ post_id, user_wallet_address, timestamp });
+        // DETERMINISTIC: Reconstruct the message that was signed
+        const signedMessage = `{"post_id":"${post_id}","user_wallet_address":"${user_wallet_address}","timestamp":"${timestamp}"}`;
         const isSignatureValid = verifySignature(signedMessage, signature, user_wallet_address);
         
         if (!isSignatureValid) {
@@ -174,8 +224,8 @@ postsRouter.post('/:id/repost', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, error: 'Missing required fields for repost.' });
         }
 
-        // REAL PRODUCTION: Verify off-chain engagement signature
-        const signedMessage = JSON.stringify({ original_post_id, reposter_wallet_address, timestamp });
+        // DETERMINISTIC: Reconstruct the message that was signed
+        const signedMessage = `{"original_post_id":"${original_post_id}","reposter_wallet_address":"${reposter_wallet_address}","timestamp":"${timestamp}"}`;
         const isSignatureValid = verifySignature(signedMessage, signature, reposter_wallet_address);
         
         if (!isSignatureValid) {

@@ -27,6 +27,9 @@ export interface StandardWallet {
     walletType: string;
     address: string | null;
   };
+  signMessage?: (message: Uint8Array) => Promise<Uint8Array>;
+  signTransaction?: (transaction: any) => Promise<any>;
+  signAllTransactions?: (transactions: any[]) => Promise<any[]>;
 }
 
 /**

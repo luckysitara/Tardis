@@ -1,6 +1,8 @@
-import {useCallback} from 'react';
+import {useCallback, useMemo} from 'react';
 import {useDispatch} from 'react-redux';
+import {Alert} from 'react-native';
 import {loginSuccess, logoutSuccess} from '@/shared/state/auth/reducer';
+import {useTardisMobileWallet} from './useTardisMobileWallet';
 // Removed: import {usePrivyWalletLogic} from '../services/walletProviders/privy';
 import {useCustomization} from '@/shared/config/CustomizationProvider';
 import {useAppNavigation} from '@/shared/hooks/useAppNavigation';
@@ -23,94 +25,96 @@ export function useAuth() {
   const dispatch = useDispatch();
   const navigation = useAppNavigation();
   const authState = useAppSelector(state => state.auth);
+  const { signMessage } = useTardisMobileWallet();
 
   // Get wallet address and provider from Redux state
   const storedAddress = authState.address;
   const storedProvider = authState.provider;
 
   // Only MWA case is handled now
-  if (selectedProvider === 'mwa' || (storedProvider === 'mwa' && storedAddress)) {
-    console.log('[useAuth] Using MWA logic.');
-    // Create standardized wallet object for MWA
-    const mwaWallet: StandardWallet = {
-      provider: 'mwa',
-      address: storedAddress || '', // Use storedAddress or empty string
-      publicKey: storedAddress || '', // Use storedAddress or empty string
-      rawWallet: { address: storedAddress || '' },
-      getWalletInfo: () => ({
-        walletType: 'MWA',
+  const result = useMemo(() => {
+    if (selectedProvider === 'mwa' || (storedProvider === 'mwa' && storedAddress)) {
+      console.log('[useAuth] Using MWA logic.');
+      
+      // Create standardized wallet object for MWA
+      const mwaWallet: StandardWallet = {
+        provider: 'mwa',
         address: storedAddress || '',
-      }),
-      getProvider: async () => {
-        // Throw error with useful message about MWA not having a provider
-        throw new Error('MWA uses external wallet for signing. This is expected behavior.');
-      }
-    };
-
-    // Create a solanaWallet object for backward compatibility
-    const solanaWallet = {
-      wallets: [{
         publicKey: storedAddress || '',
-        address: storedAddress || ''
-      }],
-      // Same behavior as the standardized wallet
-      getProvider: mwaWallet.getProvider
-    };
+        rawWallet: { address: storedAddress || '' },
+        getWalletInfo: () => ({
+          walletType: 'MWA',
+          address: storedAddress || '',
+        }),
+        getProvider: async () => {
+          throw new Error('MWA uses external wallet for signing. Use signMessage or signTransaction directly.');
+        },
+        signMessage: async (message: Uint8Array) => {
+          const res = await signMessage(message);
+          if (!res) throw new Error('Message signing failed or was cancelled');
+          return res;
+        },
+        signTransaction: async (transaction: any) => {
+          Alert.alert("Not Implemented", "Transaction signing via MWA is being finalized.");
+          throw new Error('Transaction signing not yet implemented for MWA');
+        }
+      };
 
-    const logout = useCallback(async () => {
-      console.log('[useAuth] Attempting MWA logout (dispatching Redux action only)...');
-      try {
-        // For MWA, just clean up Redux state since there's no SDK to log out from
-        console.log('[useAuth] Dispatching logoutSuccess for MWA.');
-        dispatch(logoutSuccess());
-        console.log('[useAuth] Redux logout dispatched for MWA. Resetting navigation.');
-        
-        // Use setTimeout to allow React to process state changes before navigation
-        setTimeout(() => {
-          try {
-            // Reset navigation to the initial route of the logged-out stack
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'LandingScreen' }],
-            });
-          } catch (navError) {
-            console.error('[useAuth] Error during navigation reset:', navError);
-          }
-        }, 50);
-      } catch (error) {
-        console.error('[useAuth] Error during MWA logout dispatch:', error);
-      }
-    }, [dispatch, navigation]);
+      // Create a solanaWallet object for backward compatibility
+      const solanaWallet = {
+        wallets: [{
+          publicKey: storedAddress || '',
+          address: storedAddress || ''
+        }],
+        getProvider: mwaWallet.getProvider,
+        signMessage: mwaWallet.signMessage,
+        signTransaction: mwaWallet.signTransaction
+      };
 
-    // Simplified auth methods to reflect MWA-only for now
-    const loginWithGoogle = async () => Alert.alert("Login Error", "Google login not configured for MWA.");
-    const loginWithApple = async () => Alert.alert("Login Error", "Apple login not configured for MWA.");
-    const loginWithEmail = async () => Alert.alert("Login Error", "Email login not configured for MWA.");
-    const loginWithSMS = async () => Alert.alert("Login Error", "SMS login not configured for MWA.");
-    const initEmailOtpLogin = async () => {};
-    const verifyEmailOtp = async () => {};
+      const logout = async () => {
+        console.log('[useAuth] Attempting MWA logout...');
+        try {
+          dispatch(logoutSuccess());
+          setTimeout(() => {
+            try {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'LandingScreen' }],
+              });
+            } catch (navError) {
+              console.error('[useAuth] Error during navigation reset:', navError);
+            }
+          }, 50);
+        } catch (error) {
+          console.error('[useAuth] Error during MWA logout:', error);
+        }
+      };
 
-    return {
-      status: storedAddress ? 'authenticated' : '', // Simplified status for MWA
-      logout,
-      user: storedAddress ? { id: storedAddress } : null,
-      solanaWallet,
-      wallet: mwaWallet,
-      loginWithGoogle,
-      loginWithApple,
-      loginWithEmail,
-      loginWithSMS,
-      initEmailOtpLogin,
-      verifyEmailOtp,
-      loading: false, // MWA login handled by external app, no loading state here
-      otpResponse: null,
-      isAuthenticated: !!storedAddress, // Simplified isAuthenticated
-      connected: !!storedAddress, // Simplified connected
-    };
-  }
+      return {
+        status: (storedAddress ? 'authenticated' : '') as any,
+        logout,
+        user: storedAddress ? { id: storedAddress } : null,
+        solanaWallet,
+        wallet: mwaWallet,
+        loginWithGoogle: async () => Alert.alert("Login Error", "Google login not configured for MWA."),
+        loginWithApple: async () => Alert.alert("Login Error", "Apple login not configured for MWA."),
+        loginWithEmail: async () => Alert.alert("Login Error", "Email login not configured for MWA."),
+        loginWithSMS: async () => Alert.alert("Login Error", "SMS login not configured for MWA."),
+        initEmailOtpLogin: async () => {},
+        verifyEmailOtp: async () => {},
+        loading: false,
+        otpResponse: null,
+        isAuthenticated: !!storedAddress,
+        connected: !!storedAddress,
+      };
+    }
+    return null;
+  }, [selectedProvider, storedProvider, storedAddress, signMessage, dispatch, navigation]);
+
+  if (result) return result;
 
   // Fallback if no MWA provider or stored address
-  console.warn('[useAuth] No MWA provider selected or wallet not stored. Returning empty auth methods.');
+  console.warn('[useAuth] No MWA provider selected or wallet not stored.');
   
   const safeLogout = async () => { 
     console.warn('[useAuth] Logout called but no provider active.');

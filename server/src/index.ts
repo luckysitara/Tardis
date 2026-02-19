@@ -96,9 +96,22 @@ const HOST = '0.0.0.0'; // Critical for App Runner health checks
   try {
     await testDbConnection();
     console.log('Initializing database schema...');
-    await knex.raw(createTablesSQL);
-    console.log('✅ Database schema initialized successfully (or already existed).');
-
+    
+    // Split the multi-statement SQL into individual statements
+    const statements = createTablesSQL
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+    
+    for (const statement of statements) {
+      try {
+        await knex.raw(statement);
+      } catch (stmtError: any) {
+        console.error(`Error executing statement: ${statement.substring(0, 50)}...`, stmtError.message);
+      }
+    }
+    
+    console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');
   } catch (error) {
     console.error('⚠️ Database setup failed, but server is running:', error);
