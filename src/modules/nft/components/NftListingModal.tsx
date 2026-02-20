@@ -14,7 +14,7 @@ import {
     Pressable,
     Animated,
 } from 'react-native';
-import Icons from '../../../assets/svgs';
+import { cross, arrowRIght, tensor, listedNft } from '../../../assets/svgs';
 import { TENSOR_API_KEY } from '@env';
 import { DEFAULT_IMAGES } from '../../../config/constants';
 import { useWallet } from '../../wallet-providers/hooks/useWallet';
@@ -344,14 +344,14 @@ const NftListingModal = ({
                                 <TouchableOpacity
                                     onPress={handleClose}
                                     style={modalStyles.listingCloseButton}>
-                                    <Icons.cross width={24} height={24} color={COLORS.white} />
+                                    {cross && <cross width={24} height={24} color={COLORS.white} />}
                                 </TouchableOpacity>
                             </View>
                         ) : (
                             // Complex header for tensor with cross, search bar, and arrow
                             <View style={modalStyles.tensorHeader}>
                                 <TouchableOpacity onPress={handleClose} style={modalStyles.headerButton}>
-                                    <Icons.cross width={24} height={24} color={COLORS.white} />
+                                    {cross && <cross width={24} height={24} color={COLORS.white} />}
                                 </TouchableOpacity>
 
                                 <View style={modalStyles.searchContainer}>
@@ -368,7 +368,7 @@ const NftListingModal = ({
                                 <TouchableOpacity
                                     style={modalStyles.headerButton}
                                     onPress={handleSearchCollections}>
-                                    <Icons.arrowRIght width={20} height={20} color={COLORS.white} />
+                                    {arrowRIght && <arrowRIght width={20} height={20} color={COLORS.white} />}
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -442,11 +442,13 @@ const NftListingModal = ({
                                 selectedOption === 1 && modalStyles.selectedOption
                             ]}
                             onPress={() => setSelectedOption(1)}>
-                            <Icons.tensor
-                                width={26}
-                                height={26}
-                                color={selectedOption === 1 ? COLORS.white : COLORS.greyMid}
-                            />
+                            {tensor ? (
+                                <tensor
+                                    width={26}
+                                    height={26}
+                                    color={selectedOption === 1 ? COLORS.white : COLORS.greyMid}
+                                />
+                            ) : null}
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -455,11 +457,13 @@ const NftListingModal = ({
                                 selectedOption === 2 && modalStyles.selectedOption
                             ]}
                             onPress={() => setSelectedOption(2)}>
-                            <Icons.listedNft
-                                width={26}
-                                height={26}
-                                color={selectedOption === 2 ? COLORS.white : COLORS.greyMid}
-                            />
+                            {listedNft ? (
+                                <listedNft
+                                    width={26}
+                                    height={26}
+                                    color={selectedOption === 2 ? COLORS.white : COLORS.greyMid}
+                                />
+                            ) : null}
                         </TouchableOpacity>
                     </View>
                 </Animated.View>

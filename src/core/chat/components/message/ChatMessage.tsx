@@ -1,10 +1,13 @@
-import React, { useMemo } from 'react';
-import { View, Pressable, GestureResponderEvent, Text, TextStyle } from 'react-native';
+import React, { useMemo, useEffect, useRef } from 'react';
+import { View, Pressable, GestureResponderEvent, Text, TextStyle, Animated } from 'react-native';
 import { ChatMessageProps } from './message.types';
 import { getMessageBaseStyles } from './message.styles';
 import { mergeStyles } from '@/core/thread/utils';
 import MessageBubble from './MessageBubble';
 import MessageHeader from './MessageHeader';
+import { useAppSelector } from '@/shared/hooks/useReduxHooks';
+import { decryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
+import { Buffer } from 'buffer';
 
 // Update ChatMessageProps to include onLongPress
 interface ExtendedChatMessageProps extends ChatMessageProps {
@@ -14,10 +17,15 @@ interface ExtendedChatMessageProps extends ChatMessageProps {
 /**
  * Formats a timestamp into a readable format
  */
-const formatTime = (timestamp: Date | string | undefined): string => {
+const formatTime = (timestamp: Date | string | number | undefined): string => {
   if (!timestamp) return '';
-  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
 };
 
 function ChatMessage({
@@ -30,6 +38,18 @@ function ChatMessage({
   showHeader = true,
   showFooter = false, // Change default to false since we're showing timestamp in the bubble
 }: ExtendedChatMessageProps) {
+  const encryptionSeed = useAppSelector(state => state.auth.encryptionSeed);
+  const chats = useAppSelector(state => state.chat.chats);
+  const materializeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(materializeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, [materializeAnim]);
+
   // Determine if this message is from the current user
   const isCurrentUser = useMemo(() => {
     // Check multiple properties for sender ID consistency
@@ -39,6 +59,56 @@ function ChatMessage({
       ('senderId' in message && message.senderId === currentUser.id)
     );
   }, [message, currentUser.id]);
+
+  // Decrypt content if message is encrypted
+  const decryptedContent = useMemo(() => {
+    // Cast message as any for E2EE fields
+    const msg = message as any;
+    
+    if (msg.is_encrypted && msg.nonce && encryptionSeed) {
+      try {
+        const currentChat = chats.find(c => c.id === msg.chat_room_id);
+        if (currentChat && currentChat.type === 'direct') {
+          // In E2EE (NaCl Box), Alice SK + Bob PK == Shared Secret.
+          // To decrypt a message Alice sent to Bob, Alice uses Her SK + Bob PK.
+          // To decrypt a message Bob sent to Alice, Alice uses Her SK + Bob PK.
+          // Thus, in a direct chat, always use the OTHER person's public key.
+          const otherParticipant = currentChat.participants.find(p => p.id !== currentUser.id);
+          
+          if (otherParticipant && otherParticipant.public_encryption_key) {
+            const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
+            const keypair = getKeypairFromSeed(seedUint8);
+            
+            console.log(`[ChatMessage] Secure Decrypt attempt. Msg: ${msg.id.substring(0, 8)}, I am sender: ${isCurrentUser}`);
+            
+            const decrypted = decryptMessage(
+              msg.content,
+              msg.nonce,
+              otherParticipant.public_encryption_key,
+              keypair.secretKey
+            );
+            
+            if (decrypted) {
+              return decrypted;
+            } else {
+              console.warn('[ChatMessage] Secure Decrypt failed. Key mismatch or data corrupted.');
+              return '[Decryption failed]';
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ChatMessage] Decryption error:', err);
+        return '[Decryption error]';
+      }
+    }
+    return message.content;
+  }, [message, encryptionSeed, chats, currentUser.id, isCurrentUser]);
+
+  // Create message object for bubble with potentially decrypted content
+  const displayMessage = useMemo(() => ({
+    ...message,
+    content: decryptedContent
+  }), [message, decryptedContent]);
 
   // Get base styles
   const baseStyles = getMessageBaseStyles();
@@ -119,7 +189,7 @@ function ChatMessage({
 
   // Extend MessageBubble props to include timestamp
   const messageBubbleProps = {
-    message,
+    message: displayMessage,
     isCurrentUser,
     themeOverrides,
     styleOverrides: {
@@ -147,9 +217,18 @@ function ChatMessage({
       )}
 
       {/* Message bubble with width constraints */}
-      <View style={[
+      <Animated.View style={[
         {
           maxWidth: '85%',
+          opacity: materializeAnim,
+          transform: [
+            { 
+              translateY: materializeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [10, 0]
+              }) 
+            }
+          ]
         },
         isCurrentUser
           ? { alignSelf: 'flex-end' }
@@ -191,7 +270,7 @@ function ChatMessage({
             )}
           </View>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }

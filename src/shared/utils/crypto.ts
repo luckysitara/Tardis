@@ -7,11 +7,16 @@ import { Buffer } from 'buffer';
  * This seed is used to generate stable X25519 keypairs for E2EE.
  */
 export async function deriveEncryptionSeed(signature: Uint8Array): Promise<Uint8Array> {
-  const hash = await Crypto.digestUint8ArrayAsync(
+  // Convert signature to Base64 string for digestStringAsync
+  const signatureBase64 = Buffer.from(signature).toString('base64');
+  
+  const hashHex = await Crypto.digestStringAsync(
     Crypto.CryptoDigestAlgorithm.SHA256,
-    signature
+    signatureBase64
   );
-  return hash;
+  
+  // Convert hex hash back to Uint8Array (32 bytes)
+  return new Uint8Array(Buffer.from(hashHex, 'hex'));
 }
 
 /**
@@ -59,6 +64,12 @@ export function decryptMessage(
   try {
     const ciphertext = new Uint8Array(Buffer.from(ciphertextBase64, 'base64'));
     const nonce = new Uint8Array(Buffer.from(nonceBase64, 'base64'));
+    
+    if (nonce.length !== nacl.box.nonceLength) {
+      console.warn(`[Crypto] Invalid nonce length: ${nonce.length}. Expected ${nacl.box.nonceLength}`);
+      return null;
+    }
+
     const senderPublicKey = new Uint8Array(Buffer.from(senderPublicKeyBase64, 'base64'));
 
     const decrypted = nacl.box.open(

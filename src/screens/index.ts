@@ -9,3 +9,5 @@ export { default as CommunitiesScreen } from './CommunitiesScreen';
 export { default as ProfileScreen } from './ProfileScreen';
 export { default as EditProfileScreen } from './EditProfileScreen';
 export { default as CreatePostScreen } from './CreatePostScreen';
+export { default as ChatScreen } from './ChatScreen';
+export { default as StartChatScreen } from './StartChatScreen';

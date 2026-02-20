@@ -1,11 +1,14 @@
 // File: src/index.ts
 import express, { Request, Response } from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 import { PublicKey } from '@solana/web3.js';
 import knex from './db/knex'; // Keep knex for direct schema creation/interaction
 
 import profileImageRouter from './routes/user/userRoutes'; // Keep profile router for user management
 import postsRouter from './routes/postsRoutes'; // Add this import
+import { chatRouter } from './routes/chat/chatRoutes'; // Add this import
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -14,6 +17,15 @@ import { createTablesSQL } from './db/schema'; // Add this import
 
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+  path: '/socket.io/',
+});
+
 app.use(express.json({ limit: '10mb' }));
 
 // Set trust proxy for App Engine environment
@@ -76,6 +88,48 @@ app.get('/health', (req, res) => {
 // Use the routes
 app.use('/api/profile', profileImageRouter);
 app.use('/api/posts', postsRouter); // Add this line
+app.use('/api/chat', chatRouter); // Add this line
+
+// Socket.io handlers
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  socket.on('authenticate', ({ userId }) => {
+    console.log(`Socket ${socket.id} authenticated for user ${userId}`);
+    socket.join(`user:${userId}`);
+    socket.data.userId = userId;
+    socket.emit('authenticated', { success: true });
+  });
+
+  socket.on('join_chat', ({ chatId }) => {
+    console.log(`Socket ${socket.id} joining chat ${chatId}`);
+    socket.join(`chat:${chatId}`);
+  });
+
+  socket.on('leave_chat', ({ chatId }) => {
+    console.log(`Socket ${socket.id} leaving chat ${chatId}`);
+    socket.leave(`chat:${chatId}`);
+  });
+
+  socket.on('send_message', (message) => {
+    console.log(`Message received from ${socket.id} for chat ${message.chatId}`);
+    // Broadcast to all participants in the chat room EXCEPT the sender
+    // The sender already has the message in their UI from the API response
+    socket.to(`chat:${message.chatId}`).emit('new_message', message);
+  });
+
+  socket.on('typing', ({ chatId, isTyping }) => {
+    socket.to(`chat:${chatId}`).emit('user_typing', {
+      chatId,
+      userId: socket.data.userId,
+      isTyping,
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 // Removed: app.use('/api/auth', turnkeyAuthRouter);
 // Removed: app.use('/api/auth', adminAuthRouter);
 
@@ -86,7 +140,7 @@ const HOST = '0.0.0.0'; // Critical for App Runner health checks
 
 (async function startServer() {
   // Start server immediately for health checks - critical for App Runner
-  app.listen(PORT, HOST, () => {
+  httpServer.listen(PORT, HOST, () => {
     console.log(`Server listening on ${HOST}:${PORT}`);
     console.log(`Server started at: ${new Date().toISOString()}`);
     console.log(`Health checks available at: http://${HOST}:${PORT}/health`);

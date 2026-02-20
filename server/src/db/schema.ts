@@ -61,4 +61,44 @@ CREATE TABLE IF NOT EXISTS reposts (
     FOREIGN KEY (reposter_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (original_post_id, reposter_wallet_address) -- A user can only repost an original post once
 );
+
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    type VARCHAR(20) NOT NULL, -- direct, group, global
+    name VARCHAR(255) NULL, -- For group chats
+    meta_data TEXT NULL, -- For additional info
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chat_participants (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    chat_room_id CHAR(36) NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (chat_room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    chat_room_id CHAR(36) NOT NULL,
+    sender_id VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    image_url VARCHAR(255) NULL,
+    additional_data TEXT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    nonce TEXT NULL, -- For E2EE (NACL box)
+    is_encrypted BOOLEAN DEFAULT FALSE, -- Flag for E2EE
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(chat_room_id);
 `;

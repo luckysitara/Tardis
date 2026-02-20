@@ -330,6 +330,47 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
   }
 });
 
+/**
+ * ------------------------------------------
+ *  DEV ONLY: Create test users
+ * ------------------------------------------
+ */
+profileImageRouter.post('/seed-test-users', async (req: any, res: any) => {
+  try {
+    const testUsers = [
+      {
+        id: 'SeekeR1111111111111111111111111111111111111',
+        username: 'Rose Tyler',
+        handle: 'rose.skr',
+        description: 'The Bad Wolf.',
+        public_encryption_key: 'rose_test_key_base64_placeholder',
+      },
+      {
+        id: 'SeekeR2222222222222222222222222222222222222',
+        username: 'Captain Jack',
+        handle: 'jack.skr',
+        description: 'Face of Boe.',
+        public_encryption_key: 'jack_test_key_base64_placeholder',
+      }
+    ];
+
+    for (const user of testUsers) {
+      const existing = await knex('users').where({ id: user.id }).first();
+      if (!existing) {
+        await knex('users').insert({
+          ...user,
+          created_at: new Date(),
+          updated_at: new Date(),
+        });
+      }
+    }
+
+    return res.json({ success: true, message: 'Test users seeded successfully' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Simple authentication middleware for delete-account route
 const requireAuthForDelete = async (req: any, res: any, next: NextFunction) => {
   try {

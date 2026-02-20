@@ -89,7 +89,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
     if (!source) return '';
     return ('sections' in source && source.sections)
       ? source.sections.map((section: any) => section.text).join('\n')
-      : ('text' in source ? source.text : '') || '';
+      : (source.text || source.content || '');
   };
 
   const messageText = getMessageText(postToDisplay);
@@ -268,7 +268,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
       case 'text':
       default:
         // Ensure text is accessed safely from the correct source
-        const textToShow = ('text' in source) ? source.text : ('text' in post ? post.text : '');
+        const textToShow = source.text || source.content || post.text || post.content || '';
         return <Text style={textStyle}>{textToShow}</Text>;
     }
     return null; // Add default return null

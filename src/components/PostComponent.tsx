@@ -5,25 +5,55 @@ import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
+import { Buffer } from 'buffer';
 
 import type { ThreadPost } from '@/core/thread/components/thread.types';
 
-const PostComponent: React.FC<ThreadPost> = ({
-  id,
-  user,
-  sections,
-  createdAt,
-  like_count,
-  repost_count,
-  reactionCount,
-  retweetCount,
-}) => {
+const PostComponent: React.FC<ThreadPost> = (props) => {
+  const {
+    id,
+    user,
+    sections,
+    createdAt,
+    like_count,
+    repost_count,
+    reactionCount,
+    retweetCount,
+  } = props;
+
   // Map fields from either direct props (ThreadPost) or backend format
-  const author_wallet_address = user?.id;
-  const author_skr_username = user?.username || 'Seeker User';
-  const content = sections?.[0]?.text || '';
-  const mediaUri = sections?.[0]?.imageUrl; // Extract from section if exists
-  const timestamp = createdAt;
+  const author_wallet_address = user?.id || (props as any).author_wallet_address;
+  const author_skr_username = user?.username || (props as any).author_skr_username || 'Seeker User';
+  
+  // Content extraction logic
+  const getContent = () => {
+    if (sections && sections.length > 0) {
+      const textSection = sections.find(s => s.type === 'TEXT_ONLY' || s.text);
+      if (textSection) return textSection.text;
+    }
+    return (props as any).content || '';
+  };
+
+  const getMedia = () => {
+    if (sections && sections.length > 0) {
+      const imageSection = sections.find(s => s.type === 'TEXT_IMAGE' || s.imageUrl);
+      if (imageSection) return imageSection.imageUrl;
+    }
+    const media_urls = (props as any).media_urls;
+    if (media_urls) {
+      try {
+        const parsed = typeof media_urls === 'string' ? JSON.parse(media_urls) : media_urls;
+        return Array.isArray(parsed) ? parsed[0] : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const content = getContent();
+  const mediaUri = getMedia();
+  const timestamp = createdAt || (props as any).timestamp || new Date().toISOString();
   const initialLikes = reactionCount || like_count || 0;
   const initialReposts = retweetCount || repost_count || 0;
 
