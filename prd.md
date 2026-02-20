@@ -35,12 +35,15 @@
 
 
 
-#### **Phase 4: Gated Communities**
+#### **Phase 4: Gated Communities (The Galactic Map)**
 
-* **User Story:** *As a community lead, I want to restrict my group to specific token holders or verified Seeker owners to maintain high-signal discussions.*
+* **User Story:** *As a community lead, I want to restrict my group to specific token holders or verified Seeker owners to maintain high-signal discussions and conduct on-chain governance directly in chat.*
 * **Features:**
-* **Token/NFT Gating:** Sub-communities restricted by SPL tokens or Genesis status.
-* **Governance Blinks:** Integrated "Solana Actions" for voting within community chats.
+    * **Community Discovery Hub:** High-fidelity "Galactic Map" UI featuring glassmorphic cards for public and gated groups.
+    * **Server-Side Gating Engine:** Robust backend verification of SPL Token balances, NFT ownership, and Seeker Genesis status via Solana RPC.
+    * **Temporal Gates:** Multi-step creation wizard for setting membership requirements (e.g., "Must hold 100 $TARDIS" or "Seeker Genesis Only").
+    * **Governance Blinks:** Deep integration with **Dialect Solana Actions** to allow interactive voting, staking, and tipping directly within community chat bubbles.
+    * **Community Metadata:** Support for high-resolution banners, avatars, and rich descriptions to establish unique group identities.
 
 
 

@@ -169,9 +169,17 @@ const HOST = '0.0.0.0'; // Critical for App Runner health checks
     try {
       await knex.raw('ALTER TABLE users ADD COLUMN public_encryption_key TEXT NULL;');
       console.log('✅ Added public_encryption_key column to users table.');
-    } catch (e) {
-      // Ignore if column already exists
-    }
+    } catch (e) {}
+
+    // Migration: Add community columns to chat_rooms if they don't exist
+    try {
+      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN description TEXT NULL;');
+      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN avatar_url TEXT NULL;');
+      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN banner_url TEXT NULL;');
+      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN is_public BOOLEAN DEFAULT FALSE;');
+      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN creator_id TEXT NULL;');
+      console.log('✅ Added community columns to chat_rooms table.');
+    } catch (e) {}
     
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');
