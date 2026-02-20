@@ -21,6 +21,9 @@ import Icons from '@/assets/svgs';
 import ChatComposer from '@/core/chat/components/chat-composer/ChatComposer';
 import ChatMessage from '@/core/chat/components/message/ChatMessage';
 import socketService from '@/shared/services/socketService';
+import { ActionConfigProvider } from '@dialectlabs/blinks-react-native';
+import { Connection } from '@solana/web3.js';
+import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 
 const ChatScreen = () => {
   const route = useRoute<any>();
@@ -29,6 +32,7 @@ const ChatScreen = () => {
   const { chatId, title } = route.params;
 
   const { address: userId, username, profilePicUrl, encryptionSeed } = useAppSelector(state => state.auth);
+  const { wallet } = useWallet();
   const { messages, chats, loadingMessages } = useAppSelector(state => state.chat);
   const chatMessages = messages[chatId] || [];
   const currentChat = chats.find(c => c.id === chatId);
@@ -123,32 +127,37 @@ const ChatScreen = () => {
       <StatusBar barStyle="light-content" />
       {renderHeader()}
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-        {loadingMessages && chatMessages.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.brandPrimary} />
-            <Text style={styles.loadingText}>Materializing history...</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={chatMessages}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <ChatMessage
-                message={{
-                  ...item,
-                  user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
-                } as any}
-                currentUser={currentUser}
-              />
-            )}
-            contentContainerStyle={styles.messageList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          />
-        )}
-      </Animated.View>
+      <ActionConfigProvider 
+        connection={new Connection('https://api.mainnet-beta.solana.com')}
+        adapter={wallet as any}
+      >
+        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+          {loadingMessages && chatMessages.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.brandPrimary} />
+              <Text style={styles.loadingText}>Materializing history...</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={chatMessages}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => (
+                <ChatMessage
+                  message={{
+                    ...item,
+                    user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
+                  } as any}
+                  currentUser={currentUser}
+                />
+              )}
+              contentContainerStyle={styles.messageList}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+              onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            />
+          )}
+        </Animated.View>
+      </ActionConfigProvider>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

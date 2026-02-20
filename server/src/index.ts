@@ -9,6 +9,7 @@ import knex from './db/knex'; // Keep knex for direct schema creation/interactio
 import profileImageRouter from './routes/user/userRoutes'; // Keep profile router for user management
 import postsRouter from './routes/postsRoutes'; // Add this import
 import { chatRouter } from './routes/chat/chatRoutes'; // Add this import
+import { communityRouter } from './routes/chat/communityRoutes'; // Add this import
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -89,6 +90,7 @@ app.get('/health', (req, res) => {
 app.use('/api/profile', profileImageRouter);
 app.use('/api/posts', postsRouter); // Add this line
 app.use('/api/chat', chatRouter); // Add this line
+app.use('/api/communities', communityRouter); // Add this line
 
 // Socket.io handlers
 io.on('connection', (socket) => {

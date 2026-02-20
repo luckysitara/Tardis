@@ -38,6 +38,7 @@ export type RootStackParamList = {
   CreatePost: undefined; // New: Create Post screen
   ChatScreen: { chatId: string; title?: string };
   StartChatScreen: undefined;
+  CreateCommunityScreen: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -68,6 +69,11 @@ const AuthenticatedStack: React.FC = () => {
         <Stack.Screen 
           name="StartChatScreen" 
           component={StartChatScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen 
+          name="CreateCommunityScreen" 
+          component={CreateCommunityScreen}
           options={{ presentation: 'modal' }}
         />
       </Stack.Navigator>

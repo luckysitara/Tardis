@@ -10,6 +10,7 @@ import COLORS from '@/assets/colors';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import Icons from '@/assets/svgs';
 import { ThreadPost } from '@/core/thread/components/thread.types';
+import BlinkMessage from './BlinkMessage';
 
 // Custom Retweet icon since it doesn't exist in the Icons object
 const RetweetIcon = ({ width = 14, height = 14, color = COLORS.greyLight }) => (
@@ -269,7 +270,16 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
       default:
         // Ensure text is accessed safely from the correct source
         const textToShow = source.text || source.content || post.text || post.content || '';
-        return <Text style={textStyle}>{textToShow}</Text>;
+        
+        // Detect Solana Action URL
+        const solanaActionUrl = textToShow.match(/(solana-action:https?:\/\/\S+)|(https?:\/\/actions\.dialect\.to\/\S+)/)?.[0];
+
+        return (
+          <View>
+            <Text style={textStyle}>{textToShow}</Text>
+            {solanaActionUrl && <BlinkMessage url={solanaActionUrl} />}
+          </View>
+        );
     }
     return null; // Add default return null
   };
