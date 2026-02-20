@@ -66,10 +66,28 @@ CREATE TABLE IF NOT EXISTS chat_rooms (
     id CHAR(36) PRIMARY KEY NOT NULL,
     type VARCHAR(20) NOT NULL, -- direct, group, global
     name VARCHAR(255) NULL, -- For group chats
+    description TEXT NULL,
+    avatar_url VARCHAR(255) NULL,
+    banner_url VARCHAR(255) NULL,
+    is_public BOOLEAN DEFAULT FALSE,
+    creator_id VARCHAR(255) NULL,
     meta_data TEXT NULL, -- For additional info
     is_active BOOLEAN DEFAULT TRUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_room_gates (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    chat_room_id CHAR(36) NOT NULL,
+    gate_type VARCHAR(20) NOT NULL, -- TOKEN, NFT, GENESIS
+    mint_address VARCHAR(255) NULL,
+    min_balance VARCHAR(255) DEFAULT '1',
+    symbol VARCHAR(50) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS chat_participants (
