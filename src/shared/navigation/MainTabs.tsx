@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur'; // Assuming expo-blur is available or can be added
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { RootNavigationProp } from '../hooks/useAppNavigation';
 
 import COLORS from '@/assets/colors'; // Using alias
@@ -30,10 +30,19 @@ const iconStyle = {
 
 export default function MainTabs() {
   const navigation = useNavigation<RootNavigationProp>();
+  
+  // Detect current active tab name
+  const currentTabName = useNavigationState(state => {
+    if (!state) return 'TownSquare';
+    const route = state.routes[state.index];
+    return route.name;
+  });
 
   const handleCreatePost = () => {
     navigation.navigate('CreatePost');
   };
+
+  const showFab = currentTabName !== 'Comms';
 
   return (
     <View style={{ flex: 1 }}>
@@ -127,13 +136,15 @@ export default function MainTabs() {
         />
       </Tab.Navigator>
 
-      {/* Floating Action Button for Posting - styled like X */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleCreatePost}
-        activeOpacity={0.85}>
-        <Icons.PlusCircleIcon width={32} height={32} fill={COLORS.white} />
-      </TouchableOpacity>
+      {/* Floating Action Button for Posting - hidden on Comms tab */}
+      {showFab && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleCreatePost}
+          activeOpacity={0.85}>
+          <Icons.PlusCircleIcon width={32} height={32} fill={COLORS.white} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

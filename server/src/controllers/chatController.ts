@@ -11,6 +11,7 @@
  */
 import { Request, Response } from 'express';
 import knex from '../db/knex';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Get all chat rooms for a user
@@ -18,6 +19,7 @@ import knex from '../db/knex';
 export async function getUserChats(req: Request, res: Response) {
   try {
     const { userId } = req.params;
+    console.log(`[getUserChats] Fetching chats for userId: ${userId}`);
     
     if (!userId) {
       return res.status(400).json({ success: false, error: 'Missing userId' });
@@ -26,9 +28,11 @@ export async function getUserChats(req: Request, res: Response) {
     // Get all chat rooms where the user is a participant
     const chats = await knex('chat_rooms')
       .join('chat_participants', 'chat_rooms.id', 'chat_participants.chat_room_id')
-      .where('chat_participants.user_id', userId)
+      .whereRaw('LOWER(chat_participants.user_id) = LOWER(?)', [userId])
       .where('chat_rooms.is_active', true)
       .select('chat_rooms.*');
+
+    console.log(`[getUserChats] Found ${chats.length} chats for user ${userId}`);
 
     // For each chat, get the participants
     const chatsWithParticipants = await Promise.all(
@@ -41,6 +45,7 @@ export async function getUserChats(req: Request, res: Response) {
             'users.id',
             'users.username',
             'users.profile_picture_url',
+            'users.public_encryption_key',
             'chat_participants.is_admin'
           );
 
@@ -118,25 +123,28 @@ export async function createDirectChat(req: Request, res: Response) {
     }
 
     // Create a new chat room
-    const [chatRoom] = await knex('chat_rooms')
+    const chatId = uuidv4();
+    await knex('chat_rooms')
       .insert({
+        id: chatId,
         type: 'direct',
         is_active: true,
         created_at: new Date(),
         updated_at: new Date(),
-      })
-      .returning('*');
+      });
 
     // Add both users as participants
     await knex('chat_participants').insert([
       {
-        chat_room_id: chatRoom.id,
+        id: uuidv4(),
+        chat_room_id: chatId,
         user_id: userId,
         created_at: new Date(),
         updated_at: new Date(),
       },
       {
-        chat_room_id: chatRoom.id,
+        id: uuidv4(),
+        chat_room_id: chatId,
         user_id: otherUserId,
         created_at: new Date(),
         updated_at: new Date(),
@@ -145,7 +153,7 @@ export async function createDirectChat(req: Request, res: Response) {
 
     return res.json({ 
       success: true, 
-      chatId: chatRoom.id,
+      chatId: chatId,
       message: 'Chat created successfully' 
     });
   } catch (error: any) {
@@ -182,19 +190,21 @@ export async function createGroupChat(req: Request, res: Response) {
     }
 
     // Create a new chat room
-    const [chatRoom] = await knex('chat_rooms')
+    const chatId = uuidv4();
+    await knex('chat_rooms')
       .insert({
+        id: chatId,
         type: 'group',
         name,
         is_active: true,
         created_at: new Date(),
         updated_at: new Date(),
-      })
-      .returning('*');
+      });
 
     // Add all participants, with the creator as admin
     const participantsToInsert = allParticipantIds.map(id => ({
-      chat_room_id: chatRoom.id,
+      id: uuidv4(),
+      chat_room_id: chatId,
       user_id: id,
       is_admin: id === userId, // Creator is admin
       created_at: new Date(),
@@ -205,7 +215,7 @@ export async function createGroupChat(req: Request, res: Response) {
 
     return res.json({ 
       success: true, 
-      chatId: chatRoom.id,
+      chatId: chatId,
       message: 'Group chat created successfully' 
     });
   } catch (error: any) {
@@ -269,7 +279,7 @@ export async function getChatMessages(req: Request, res: Response) {
  */
 export async function sendMessage(req: Request, res: Response) {
   try {
-    const { chatId, userId, content, imageUrl, additionalData } = req.body;
+    const { chatId, userId, content, imageUrl, additionalData, nonce, isEncrypted } = req.body;
     
     // Updated Validation:
     // Check for essential IDs first
@@ -306,20 +316,25 @@ export async function sendMessage(req: Request, res: Response) {
       });
     }
 
-    // Create the message with image URL if provided
+    // Create the message with E2EE support
+    const messageId = uuidv4();
     const messageData = {
+      id: messageId,
       chat_room_id: chatId,
       sender_id: userId,
       content: content || '',
       image_url: imageUrl || null,
-      additional_data: additionalData || null,
+      additional_data: additionalData ? (typeof additionalData === 'string' ? additionalData : JSON.stringify(additionalData)) : null,
+      nonce: nonce || null,
+      is_encrypted: isEncrypted || false,
       created_at: new Date(),
       updated_at: new Date(),
     };
 
-    const [message] = await knex('chat_messages')
-      .insert(messageData)
-      .returning('*');
+    await knex('chat_messages').insert(messageData);
+
+    // Get the created message to return
+    const message = await knex('chat_messages').where({ id: messageId }).first();
 
     // Get sender information
     const sender = await knex('users')

@@ -10,9 +10,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
 import { Colors } from '@/styles/theme'; // Import Colors from the newly created theme file
-// Removed: import { useAppSelector } from '@/shared/hooks/useReduxHooks';
+import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
+import { loginSuccess, setVerified } from '@/shared/state/auth/reducer';
+import { verifyHardware, verifySGT } from '@/shared/services/VerificationService';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient'; // For background gradient
+import { Alert, ActivityIndicator } from 'react-native';
 
 // Assuming the user places the image here
 const TardisIconImage = require('@/assets/images/tardis_icon.png');
@@ -20,13 +23,52 @@ const TardisIconImage = require('@/assets/images/tardis_icon.png');
 const { width, height } = Dimensions.get('window');
 
 const LandingScreen: React.FC = () => {
-  const { connectSeekerWallet } = useTardisMobileWallet();
+  const { authorizeSeeker } = useTardisMobileWallet();
   const navigation = useAppNavigation();
-  // Removed: const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  const dispatch = useAppDispatch();
+  const [isConnecting, setIsConnecting] = React.useState(false);
 
   // Animation for pulsing icon
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      // 1. Authorize via MWA
+      const auth = await authorizeSeeker();
+      if (!auth) {
+        setIsConnecting(false);
+        return;
+      }
+
+      // 2. Immediate Gating Check
+      const [hwPass, sgtPass] = await Promise.all([
+        verifyHardware(),
+        verifySGT(auth.address)
+      ]);
+
+      if (hwPass && sgtPass) {
+        // 3. Only Login if Gate Passed
+        dispatch(loginSuccess({
+          provider: 'mwa',
+          address: auth.address,
+          authToken: auth.authToken,
+          username: auth.label || 'Seeker User'
+        }));
+        dispatch(setVerified(true));
+        
+        // Navigation will happen automatically via RootNavigator's isLoggedIn check
+      } else {
+        const reason = !hwPass ? 'Hardware check failed.' : 'Seeker Genesis Token missing.';
+        Alert.alert('Access Denied', `A verified Seeker device and SGT are required to enter the Tardis.\n\nReason: ${reason}`);
+      }
+    } catch (e: any) {
+      Alert.alert('Connection Error', e.message || 'Failed to connect.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   useEffect(() => {
     scale.value = withRepeat(
@@ -71,8 +113,16 @@ const LandingScreen: React.FC = () => {
           <Text style={styles.subtitle}>High-security messaging for the Solana Seeker</Text>
 
           {Platform.OS === 'android' && (
-            <TouchableOpacity style={styles.connectButton} onPress={connectSeekerWallet}>
-              <Text style={styles.connectButtonText}>Connect Seeker</Text>
+            <TouchableOpacity 
+              style={[styles.connectButton, isConnecting && { opacity: 0.7 }]} 
+              onPress={handleConnect}
+              disabled={isConnecting}
+            >
+              {isConnecting ? (
+                <ActivityIndicator color={Colors.white} />
+              ) : (
+                <Text style={styles.connectButtonText}>Connect Seeker</Text>
+              )}
             </TouchableOpacity>
           )}
           {Platform.OS !== 'android' && (

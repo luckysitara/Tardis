@@ -2,11 +2,14 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { SERVER_URL } from '@env';
 
+const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
+
 // Types
 export interface ChatParticipant {
   id: string;
   username: string;
   profile_picture_url: string | null;
+  public_encryption_key?: string | null;
   is_admin?: boolean;
   is_active?: boolean;
 }
@@ -18,6 +21,8 @@ export interface ChatMessage {
   content: string;
   image_url?: string | null;
   additional_data?: any;
+  nonce?: string | null;
+  is_encrypted?: boolean;
   created_at: string;
   updated_at: string;
   is_deleted?: boolean;
@@ -72,7 +77,7 @@ export const fetchUserChats = createAsyncThunk(
   'chat/fetchUserChats',
   async (userId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${SERVER_URL}/api/chat/users/${userId}/chats`);
+      const response = await axios.get(`${SERVER_BASE_URL}/api/chat/users/${userId}/chats`);
       return response.data.chats;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to fetch chats');
@@ -89,7 +94,7 @@ export const fetchChatMessages = createAsyncThunk(
     resetUnread?: boolean;
   }, { rejectWithValue }) => {
     try {
-      const url = `${SERVER_URL}/api/chat/chats/${chatId}/messages${before ? `?before=${before}&limit=${limit}` : `?limit=${limit}`}`;
+      const url = `${SERVER_BASE_URL}/api/chat/chats/${chatId}/messages${before ? `?before=${before}&limit=${limit}` : `?limit=${limit}`}`;
       const response = await axios.get(url);
       return { chatId, messages: response.data.messages, resetUnread };
     } catch (error: any) {
@@ -105,21 +110,27 @@ export const sendMessage = createAsyncThunk(
     userId, 
     content, 
     imageUrl,
-    additionalData 
+    additionalData,
+    nonce,
+    isEncrypted
   }: { 
     chatId: string; 
     userId: string; 
     content: string; 
     imageUrl?: string;
-    additionalData?: any 
+    additionalData?: any;
+    nonce?: string;
+    isEncrypted?: boolean;
   }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${SERVER_URL}/api/chat/messages`, {
+      const response = await axios.post(`${SERVER_BASE_URL}/api/chat/messages`, {
         chatId,
         userId,
         content,
         imageUrl,
         additionalData,
+        nonce,
+        isEncrypted
       });
       return response.data.message;
     } catch (error: any) {
@@ -132,11 +143,15 @@ export const createDirectChat = createAsyncThunk(
   'chat/createDirectChat',
   async ({ userId, otherUserId }: { userId: string; otherUserId: string }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${SERVER_URL}/api/chat/direct`, {
+      const response = await axios.post(`${SERVER_BASE_URL}/api/chat/direct`, {
         userId,
         otherUserId,
       });
-      return response.data;
+      return { 
+        success: response.data.success, 
+        chatId: response.data.chatId,
+        message: response.data.message
+      };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to create chat');
     }
@@ -147,7 +162,7 @@ export const createGroupChat = createAsyncThunk(
   'chat/createGroupChat',
   async ({ name, userId, participantIds }: { name: string; userId: string; participantIds: string[] }, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${SERVER_URL}/api/chat/group`, {
+      const response = await axios.post(`${SERVER_BASE_URL}/api/chat/group`, {
         name,
         userId,
         participantIds,
@@ -163,7 +178,7 @@ export const fetchUsersForChat = createAsyncThunk(
   'chat/fetchUsersForChat',
   async ({ query, userId }: { query?: string; userId?: string }, { rejectWithValue }) => {
     try {
-      let url = `${SERVER_URL}/api/chat/users`;
+      let url = `${SERVER_BASE_URL}/api/chat/users`;
       const params = [];
       
       if (query) params.push(`query=${encodeURIComponent(query)}`);
@@ -194,7 +209,7 @@ export const editMessage = createAsyncThunk(
   }, { rejectWithValue }) => {
     console.log(`[Thunk editMessage] Editing message ${messageId} for user ${userId}`);
     try {
-      const response = await axios.put(`${SERVER_URL}/api/chat/messages/${messageId}`, {
+      const response = await axios.put(`${SERVER_BASE_URL}/api/chat/messages/${messageId}`, {
         userId,
         content,
       });
@@ -219,7 +234,7 @@ export const deleteMessage = createAsyncThunk(
   }, { rejectWithValue }) => {
     console.log(`[Thunk deleteMessage] Deleting message ${messageId} for user ${userId}`);
     try {
-      const response = await axios.delete(`${SERVER_URL}/api/chat/messages/${messageId}`, {
+      const response = await axios.delete(`${SERVER_BASE_URL}/api/chat/messages/${messageId}`, {
         data: { userId } // For DELETE requests, data needs to be passed as { data: ... }
       });
       console.log(`[Thunk deleteMessage] Success:`, response.data);
@@ -360,6 +375,10 @@ const chatSlice = createSlice({
       
     // Fetch users for chat
     builder
+      .addCase(createDirectChat.fulfilled, (state, action: any) => {
+        // If chat exists but not in our list, it will be fetched on next refresh
+        // Or we can let the caller handle navigation
+      })
       .addCase(fetchUsersForChat.pending, (state) => {
         state.loadingUsers = true;
       })

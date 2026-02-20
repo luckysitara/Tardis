@@ -37,10 +37,42 @@ const APP_IDENTITY = {
   uri: 'https://tardis.xyz'
 };
 
+export interface SeekerAuthResult {
+  address: string;
+  authToken: string;
+  label?: string;
+}
+
 export const useTardisMobileWallet = () => {
   const dispatch = useAppDispatch();
   const authState = useSelector((state: RootState) => state.auth);
   const authToken = authState.authToken;
+
+  const authorizeSeeker = useCallback(async (): Promise<SeekerAuthResult | null> => {
+    if (Platform.OS !== 'android' || !transact || !PublicKey) return null;
+
+    try {
+      return await transact(async (wallet: Web3MobileWallet) => {
+        const result = await wallet.authorize({
+          chain: 'solana:mainnet-beta',
+          identity: APP_IDENTITY,
+        });
+
+        if (result?.accounts?.length) {
+          const base58Address = new PublicKey(Buffer.from(result.accounts[0].address, 'base64')).toBase58();
+          return {
+            address: base58Address,
+            authToken: result.auth_token,
+            label: result.accounts[0].label
+          };
+        }
+        return null;
+      });
+    } catch (e) {
+      console.error('[Tardis MWA] Authorize Seeker Error:', e);
+      return null;
+    }
+  }, []);
 
   const connectSeekerWallet = useCallback(async () => {
     console.log('[Tardis MWA] connectSeekerWallet called');
@@ -184,5 +216,10 @@ export const useTardisMobileWallet = () => {
     return await signMessage(derivationMessage);
   }, [signMessage]);
 
-  return React.useMemo(() => ({ connectSeekerWallet, signMessage, getEncryptionSeed }), [connectSeekerWallet, signMessage, getEncryptionSeed]);
+  return React.useMemo(() => ({ 
+    connectSeekerWallet, 
+    authorizeSeeker, // Added
+    signMessage, 
+    getEncryptionSeed 
+  }), [connectSeekerWallet, authorizeSeeker, signMessage, getEncryptionSeed]);
 };

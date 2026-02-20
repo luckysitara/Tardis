@@ -6,7 +6,9 @@ export interface AuthState {
   address: string | null;
   authToken: string | null; // Added for MWA reauthorization
   publicEncryptionKey: string | null; // X25519 Public Key
+  encryptionSeed: string | null; // Base64 encoded seed (in-memory only, not persisted)
   isLoggedIn: boolean;
+  isVerified: boolean; // Added: Tracks if SGT/Hardware gate passed
   profilePicUrl: string | null;
   username: string | null; // storing user's chosen display name
   description: string | null; // storing user's bio description
@@ -45,17 +47,21 @@ export const registerEncryptionKey = createAsyncThunk(
   'auth/registerEncryptionKey',
   async ({ userId, publicKey }: { userId: string; publicKey: string }, thunkAPI) => {
     try {
+      console.log(`[registerEncryptionKey] Registering key for ${userId} at ${SERVER_BASE_URL}/api/profile/register-key`);
       const response = await fetch(`${SERVER_BASE_URL}/api/profile/register-key`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, publicKey }),
       });
+      
       const data = await response.json();
       if (!data.success) {
+        console.error('[registerEncryptionKey] Server error:', data.error);
         return thunkAPI.rejectWithValue(data.error || 'Failed to register encryption key');
       }
       return publicKey;
     } catch (error: any) {
+      console.error('[registerEncryptionKey] Network error:', error);
       return thunkAPI.rejectWithValue(error.message || 'Error registering encryption key');
     }
   }
@@ -332,6 +338,7 @@ const authSlice = createSlice({
       state.address = null;
       state.authToken = null;
       state.isLoggedIn = false;
+      state.isVerified = false;
       state.profilePicUrl = null;
       state.username = null;
       state.description = null;
@@ -340,6 +347,12 @@ const authSlice = createSlice({
     },
     updateProfilePic(state, action: PayloadAction<string>) {
       state.profilePicUrl = action.payload;
+    },
+    setEncryptionSeed(state, action: PayloadAction<string | null>) {
+      state.encryptionSeed = action.payload;
+    },
+    setVerified(state, action: PayloadAction<boolean>) {
+      state.isVerified = action.payload;
     },
   },
   extraReducers: builder => {
@@ -414,6 +427,6 @@ const authSlice = createSlice({
   },
 });
 
-export const {loginSuccess, logoutSuccess, updateProfilePic} =
+export const {loginSuccess, logoutSuccess, updateProfilePic, setEncryptionSeed, setVerified} =
   authSlice.actions;
 export default authSlice.reducer;
