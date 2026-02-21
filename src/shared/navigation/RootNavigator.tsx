@@ -21,7 +21,8 @@ import {
   EditProfileScreen,
   CreatePostScreen,
   ChatScreen,
-  StartChatScreen
+  StartChatScreen,
+  CreateCommunityScreen
 } from '@/screens';
 import TardisShield from '@/components/auth/TardisShield';
 import socketService from '@/shared/services/socketService';
