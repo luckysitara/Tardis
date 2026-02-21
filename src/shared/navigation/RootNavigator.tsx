@@ -22,7 +22,8 @@ import {
   CreatePostScreen,
   ChatScreen,
   StartChatScreen,
-  CreateCommunityScreen
+  CreateCommunityScreen,
+  CommunityFeedScreen // Import the new CommunityFeedScreen
 } from '@/screens';
 import TardisShield from '@/components/auth/TardisShield';
 import socketService from '@/shared/services/socketService';
@@ -36,10 +37,11 @@ export type RootStackParamList = {
   Communities: undefined;
   Profile: undefined;
   EditProfile: undefined; // New: Edit profile screen
-  CreatePost: undefined; // New: Create Post screen
+  CreatePost: { communityId?: string; communityName?: string }; // Update CreatePost to accept communityId
   ChatScreen: { chatId: string; title?: string };
   StartChatScreen: undefined;
   CreateCommunityScreen: undefined;
+  CommunityFeed: { communityId: string; communityName?: string }; // Add CommunityFeed screen
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -76,6 +78,10 @@ const AuthenticatedStack: React.FC = () => {
           name="CreateCommunityScreen" 
           component={CreateCommunityScreen}
           options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen 
+          name="CommunityFeed" 
+          component={CommunityFeedScreen} 
         />
       </Stack.Navigator>
     </TardisShield>
