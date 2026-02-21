@@ -48,7 +48,8 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             content,
             media_urls,
             signature,
-            timestamp
+            timestamp,
+            community_id // Add community_id here
         } = req.body;
 
         // Basic validation
@@ -89,7 +90,8 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             like_count: 0,
             repost_count: 0,
             created_at: new Date(),
-            updated_at: new Date()
+            updated_at: new Date(),
+            community_id // Include community_id here
         });
 
         // Fetch the inserted post with user details
@@ -111,11 +113,20 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 postsRouter.get('/', async (req: Request, res: Response) => {
     console.log('[GET /api/posts] Fetching posts with query:', req.query);
     try {
-        const { limit = 20, offset = 0 } = req.query;
+        const { limit = 20, offset = 0, communityId } = req.query; // Added communityId
 
-        const posts = await knex('posts')
+        let query = knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle', 'users.public_encryption_key')
+            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle', 'users.public_encryption_key');
+
+        if (communityId) {
+            query = query.where('posts.community_id', communityId as string);
+        } else {
+            // Only show posts that are not part of any community on the main feed
+            query = query.whereNull('posts.community_id');
+        }
+
+        const posts = await query
             .orderBy('timestamp', 'desc')
             .limit(Number(limit))
             .offset(Number(offset));
