@@ -40,7 +40,10 @@ const CommunitiesScreen = () => {
   };
 
   const renderCommunityItem = ({ item }: { item: Community }) => (
-    <View style={styles.communityItem}>
+    <TouchableOpacity
+      style={styles.communityItem}
+      onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
+    >
       <View style={styles.communityInfo}>
         <Text style={styles.communityName}>{item.name}</Text>
         <Text style={styles.communityDescription}>{item.description}</Text>
@@ -60,7 +63,7 @@ const CommunitiesScreen = () => {
           disabled={item.is_member}
         />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading && communities.length === 0) {
