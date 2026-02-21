@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,22 +17,32 @@ import { useSelector } from 'react-redux';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { RootState } from '@/shared/state/store';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
-import { fetchAllPosts } from '@/shared/state/thread/reducer';
+import { CreatePostPayload, ThreadPost } from '@/shared/state/post/types';
+import { createPost, fetchPosts } from '@/shared/state/post/slice'; // Import createPost from the new slice
+import { fetchCommunities } from '@/shared/state/community/slice'; // Import fetchCommunities
+import { Community } from '@/shared/state/community/types'; // Import Community type
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
 import { Buffer } from 'buffer';
+import { Picker } from '@react-native-picker/picker'; // Import Picker
 
 const CreatePostScreen = ({ navigation }) => {
   const [postContent, setPostContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null); // State for selected community
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
   const { signMessage, address: userId } = useWallet();
   const authState = useSelector((state: RootState) => state.auth);
   const username = authState.username || 'Anonymous';
+  const { communities } = useSelector((state: RootState) => state.community); // Get communities from store
+
+  useEffect(() => {
+    dispatch(fetchCommunities()); // Fetch communities when component mounts
+  }, [dispatch]);
 
   const handlePost = async () => {
     if (!postContent.trim()) return;
@@ -65,39 +75,27 @@ const CreatePostScreen = ({ navigation }) => {
       setIsPosting(true);
       console.log("[CreatePost] Signature received, publishing...");
 
-      // REAL PRODUCTION: Send signed hardware post to backend
-      const postData = {
+      // Prepare post data with community_id
+      const postData: CreatePostPayload = {
         author_wallet_address: userId,
         author_skr_username: username,
         content: postContent.trim(),
         media_urls: [],
         signature: signatureBase64,
         timestamp: timestamp,
+        community_id: selectedCommunityId || undefined, // Include selected community ID
       };
 
-      const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
-      console.log(`[CreatePost] Publishing to: ${SERVER_BASE_URL}/api/posts`);
-      
-      const response = await fetch(`${SERVER_BASE_URL}/api/posts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData),
-      });
+      await dispatch(createPost(postData)).unwrap(); // Dispatch the new createPost action
 
-      const result = await response.json();
-
-      if (result.success) {
-        Alert.alert("Success", "Hardware-signed post published!");
-        setPostContent('');
-        // Refresh posts in the global state
-        dispatch(fetchAllPosts(undefined));
-        navigation.goBack();
-      } else {
-        Alert.alert("Publishing Error", result.error || "Failed to publish post.");
-      }
-    } catch (error) {
+      Alert.alert("Success", "Hardware-signed post published!");
+      setPostContent('');
+      // Refresh posts in the relevant feed (global or community-specific)
+      dispatch(fetchPosts({ communityId: selectedCommunityId || undefined }));
+      navigation.goBack();
+    } catch (error: any) {
       console.error("Post error:", error);
-      Alert.alert("Error", "An unexpected error occurred while posting.");
+      Alert.alert("Error", error.message || "An unexpected error occurred while posting.");
     } finally {
       setIsPosting(false);
     }
@@ -144,17 +142,38 @@ const CreatePostScreen = ({ navigation }) => {
               source={require('@/assets/images/User.png')}
               style={styles.avatar}
             />
-            <TextInput
-              style={styles.textInput}
-              placeholder="What's happening?"
-              placeholderTextColor={COLORS.gray || '#888'}
-              multiline
-              autoFocus
-              value={postContent}
-              onChangeText={setPostContent}
-              selectionColor={COLORS.brandPrimary}
-              editable={!isPosting}
-            />
+            <View style={styles.postInputArea}>
+              {/* Community Selector */}
+              <View style={styles.communitySelectorContainer}>
+                <Text style={styles.communitySelectorLabel}>Posting to:</Text>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={selectedCommunityId}
+                    onValueChange={(itemValue) => setSelectedCommunityId(itemValue)}
+                    style={styles.picker}
+                    itemStyle={styles.pickerItem}
+                  >
+                    <Picker.Item label="Global Feed" value={null} />
+                    {communities.map(community => (
+                      <Picker.Item key={community.id} label={community.name} value={community.id} />
+                    ))}
+                  </Picker>
+                  <Icons.ChevronDownIcon width={16} height={16} color={COLORS.greyLight} style={styles.pickerIcon} />
+                </View>
+              </View>
+
+              <TextInput
+                style={styles.textInput}
+                placeholder="What's happening?"
+                placeholderTextColor={COLORS.gray || '#888'}
+                multiline
+                autoFocus
+                value={postContent}
+                onChangeText={setPostContent}
+                selectionColor={COLORS.brandPrimary}
+                editable={!isPosting}
+              />
+            </View>
           </View>
         </ScrollView>
 
@@ -239,6 +258,46 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 12,
   },
+  postInputArea: {
+    flex: 1,
+  },
+  communitySelectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    backgroundColor: '#161B22',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#30363D',
+    paddingLeft: 10,
+  },
+  communitySelectorLabel: {
+    color: COLORS.greyLight,
+    fontSize: 16,
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  pickerWrapper: {
+    flex: 1,
+    position: 'relative',
+    justifyContent: 'center',
+    height: 40,
+  },
+  picker: {
+    color: COLORS.white,
+    height: 40,
+    // On Android, set a transparent background to make the wrapper background visible
+    backgroundColor: 'transparent', 
+  },
+  pickerItem: {
+    color: COLORS.white,
+    backgroundColor: COLORS.background, // This style might not apply directly on Android Picker.Item
+    fontSize: 16,
+  },
+  pickerIcon: {
+    position: 'absolute',
+    right: 15,
+    pointerEvents: 'none', // Ensure clicks go through to the picker
+  },
   textInput: {
     flex: 1,
     fontSize: 19,
@@ -291,3 +350,4 @@ const styles = StyleSheet.create({
 });
 
 export default CreatePostScreen;
+
