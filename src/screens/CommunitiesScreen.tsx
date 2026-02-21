@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Button, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Button, ActivityIndicator, Alert, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@/shared/navigation/RootNavigator';
@@ -21,9 +21,12 @@ const CommunitiesScreen = () => {
   const { communities, loading, error } = useAppSelector(state => state.community);
   const userId = useAppSelector(state => state.auth.address); // Assuming userId is available in auth state
 
+  const isAndroid = Platform.OS === 'android';
+  const fabBottom = isAndroid ? 80 : 100;
+
   useEffect(() => {
-    dispatch(fetchCommunities());
-  }, [dispatch]);
+    dispatch(fetchCommunities(userId));
+  }, [dispatch, userId]);
 
   const handleJoinCommunity = async (communityId: string) => {
     if (!userId) {
@@ -33,7 +36,7 @@ const CommunitiesScreen = () => {
     try {
       await dispatch(joinCommunity({ communityId, userId })).unwrap();
       Alert.alert('Success', 'Community joined successfully!');
-      dispatch(fetchCommunities()); // Re-fetch to update joined status
+      dispatch(fetchCommunities(userId)); // Re-fetch to update joined status
     } catch (err: any) {
       Alert.alert('Error', err || 'Failed to join community.');
     }
@@ -47,21 +50,22 @@ const CommunitiesScreen = () => {
       <View style={styles.communityInfo}>
         <Text style={styles.communityName}>{item.name}</Text>
         <Text style={styles.communityDescription}>{item.description}</Text>
-        <Text style={styles.communityMembers}>{item.member_count} members</Text>
+        <Text style={styles.communityMembers}>{item.memberCount || 0} members</Text>
       </View>
       <View style={styles.actions}>
-        {item.is_gated && (
+        {!!item.is_gated && (
           <View style={styles.gatedTag}>
             <Icons.LockIcon width={12} height={12} color={COLORS.white} />
             <Text style={styles.gatedText}>Gated</Text>
           </View>
         )}
-        <Button
-          title={item.is_member ? "Joined" : "Join"}
-          onPress={() => handleJoinCommunity(item.id)}
-          color={COLORS.brandPrimary}
-          disabled={item.is_member}
-        />
+        {!item.is_member && (
+          <Button
+            title="Join"
+            onPress={() => handleJoinCommunity(item.id)}
+            color={COLORS.brandPrimary}
+          />
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -78,13 +82,13 @@ const CommunitiesScreen = () => {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>Error: {error}</Text>
-        <Button title="Retry" onPress={() => dispatch(fetchCommunities())} />
+        <Button title="Retry" onPress={() => dispatch(fetchCommunities(userId))} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Communities</Text>
         <TouchableOpacity
@@ -99,13 +103,29 @@ const CommunitiesScreen = () => {
         renderItem={renderCommunityItem}
         keyExtractor={item => item.id}
         estimatedItemSize={120}
+        onRefresh={() => dispatch(fetchCommunities(userId))}
+        refreshing={loading}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No communities found.</Text>
             <Text style={styles.emptySubtext}>Be the first to create one!</Text>
+            <TouchableOpacity 
+              style={styles.emptyCreateButton}
+              onPress={() => navigation.navigate('CreateCommunityScreen')}
+            >
+              <Text style={styles.emptyCreateButtonText}>Create Community</Text>
+            </TouchableOpacity>
           </View>
         )}
       />
+
+      {/* Floating Action Button for Creating Community - Positioned explicitly */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: fabBottom }]}
+        onPress={() => navigation.navigate('CreateCommunityScreen')}
+        activeOpacity={0.85}>
+        <Icons.PlusCircleIcon width={32} height={32} fill={COLORS.white} />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -127,6 +147,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#30363D',
   },
   headerTitle: {
     fontSize: 28,
@@ -135,6 +157,22 @@ const styles = StyleSheet.create({
   },
   createButton: {
     padding: 5,
+  },
+  fab: {
+    position: 'absolute',
+    right: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.brandPrimary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    zIndex: 9999,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   communityItem: {
     flexDirection: 'row',
@@ -204,6 +242,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.greyMid,
     textAlign: 'center',
+    marginBottom: 20,
+  },
+  emptyCreateButton: {
+    backgroundColor: COLORS.brandPrimary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  emptyCreateButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

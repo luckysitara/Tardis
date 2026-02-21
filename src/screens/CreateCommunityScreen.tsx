@@ -96,7 +96,7 @@ const CreateCommunityScreen = () => {
           <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create New Community</Text>
-        <View style={styles.backButton} /> {/* Placeholder for alignment */}
+        <View style={styles.backButton} />
       </View>
 
       <Text style={styles.label}>Community Name *</Text>
@@ -160,8 +160,8 @@ const CreateCommunityScreen = () => {
               <Picker
                 selectedValue={gate.type}
                 style={styles.picker}
-                onValueChange={(itemValue) => handleGateChange(index, 'type', itemValue)}
-                itemStyle={styles.pickerItem} // Apply style to Picker.Item
+                onValueChange={(itemValue) => handleGateChange(index, 'type', itemValue as any)}
+                itemStyle={styles.pickerItem}
               >
                 <Picker.Item label="Token" value="TOKEN" />
                 <Picker.Item label="NFT" value="NFT" />
@@ -169,8 +169,8 @@ const CreateCommunityScreen = () => {
               </Picker>
             </View>
 
-            {(gate.type === 'TOKEN' || gate.type === 'NFT') && (
-              <>
+            {!!(gate.type === 'TOKEN' || gate.type === 'NFT') && (
+              <View>
                 <Text style={styles.gateLabel}>Mint Address:</Text>
                 <TextInput
                   style={styles.gateInput}
@@ -179,11 +179,11 @@ const CreateCommunityScreen = () => {
                   value={gate.mintAddress}
                   onChangeText={(text) => handleGateChange(index, 'mintAddress', text)}
                 />
-              </>
+              </View>
             )}
 
-            {gate.type === 'TOKEN' && (
-              <>
+            {!!(gate.type === 'TOKEN') && (
+              <View>
                 <Text style={styles.gateLabel}>Minimum Balance:</Text>
                 <TextInput
                   style={styles.gateInput}
@@ -201,14 +201,14 @@ const CreateCommunityScreen = () => {
                   value={gate.symbol}
                   onChangeText={(text) => handleGateChange(index, 'symbol', text)}
                 />
-              </>
+              </View>
             )}
             <Button title="Remove Gate" onPress={() => handleRemoveGate(index)} color={COLORS.error} />
           </View>
         ))}
       </View>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
 
       <Button
         title={loading ? 'Creating...' : 'Create Community'}

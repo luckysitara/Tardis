@@ -182,6 +182,39 @@ const HOST = '0.0.0.0'; // Critical for App Runner health checks
       await knex.raw('ALTER TABLE chat_rooms ADD COLUMN creator_id TEXT NULL;');
       console.log('✅ Added community columns to chat_rooms table.');
     } catch (e) {}
+    // Migration: Add community_id to posts if it doesn't exist
+    try {
+      await knex.raw('ALTER TABLE posts ADD COLUMN community_id VARCHAR(255) NULL;');
+      console.log('✅ Added community_id column to posts table.');
+    } catch (e) {}
+
+    // Migration: Add parent_id to posts if it doesn't exist
+    try {
+      await knex.raw('ALTER TABLE posts ADD COLUMN parent_id CHAR(36) NULL REFERENCES posts(id) ON DELETE CASCADE;');
+      console.log('✅ Added parent_id column to posts table.');
+    } catch (e) {}
+
+    // Migration: Add is_public to posts if it doesn't exist
+    try {
+      await knex.raw('ALTER TABLE posts ADD COLUMN is_public BOOLEAN DEFAULT FALSE;');
+      console.log('✅ Added is_public column to posts table.');
+    } catch (e) {}
+
+    // Migration: Create bookmarks table if it doesn't exist (using raw SQL from schema if possible, or direct)
+    try {
+      await knex.raw(`
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id CHAR(36) PRIMARY KEY NOT NULL,
+            user_id VARCHAR(255) NOT NULL,
+            post_id CHAR(36) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            UNIQUE (user_id, post_id)
+        );
+      `);
+      console.log('✅ Ensured bookmarks table exists.');
+    } catch (e) {}
     
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');

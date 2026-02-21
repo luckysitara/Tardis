@@ -67,12 +67,14 @@ const CommsListScreen = () => {
   };
 
   const filteredChats = useMemo(() => {
-    // 1. Sort by last message timestamp (Temporal Sorting)
-    const sorted = [...chats].sort((a, b) => {
-      const timeA = new Date(a.lastMessage?.created_at || a.updated_at).getTime();
-      const timeB = new Date(b.lastMessage?.created_at || b.updated_at).getTime();
-      return timeB - timeA;
-    });
+    // 1. Filter for 'direct' type only and apply sorting
+    const sorted = chats
+      .filter(chat => chat.type === 'direct')
+      .sort((a, b) => {
+        const timeA = new Date(a.lastMessage?.created_at || a.updated_at).getTime();
+        const timeB = new Date(b.lastMessage?.created_at || b.updated_at).getTime();
+        return timeB - timeA;
+      });
 
     // 2. Filter by search query
     if (!searchQuery) return sorted;
@@ -333,22 +335,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 12,
     fontWeight: '700',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.brandPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: COLORS.brandPrimary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
   emptyContainer: {
     flex: 1,

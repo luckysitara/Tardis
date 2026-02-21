@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { toggleBookmark } from '@/shared/state/post/slice';
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
+import Icons from '@/assets/svgs';
 import { Buffer } from 'buffer';
 
 import type { ThreadPost } from '@/core/thread/components/thread.types';
@@ -19,11 +21,14 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     repost_count,
     reactionCount,
     retweetCount,
+    isBookmarked: initialBookmarked
   } = props;
 
   // Map fields from either direct props (ThreadPost) or backend format
   const author_wallet_address = user?.id || (props as any).author_wallet_address;
   const author_skr_username = user?.username || (props as any).author_skr_username || 'Seeker User';
+  const community_id = (props as any).community_id || (props as any).communityId;
+  const is_public = (props as any).is_public || (props as any).isPublic;
   
   // Content extraction logic
   const getContent = () => {
@@ -62,7 +67,10 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
   const [userHasLiked, setUserHasLiked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(!!initialBookmarked);
+  const [isBookmarking, setIsBookmarking] = useState(false);
 
+  const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
   const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
@@ -165,17 +173,51 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     }
   };
 
+  const handleBookmark = async () => {
+    if (!userId) {
+      Alert.alert("Authentication Required", "Please connect your wallet to bookmark posts.");
+      return;
+    }
+    setIsBookmarking(true);
+    try {
+      const result = await dispatch(toggleBookmark({ postId: id, userId })).unwrap();
+      setIsBookmarked(result.bookmarked);
+    } catch (error) {
+      Alert.alert("Error", "Failed to update bookmark.");
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Image
-          source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
-          style={styles.avatar}
-        />
-        <View>
-          <Text style={styles.username}>{author_skr_username}</Text>
-          <Text style={styles.signedBadge}>✅ Hardware Signed</Text>
+        <View style={styles.headerLeft}>
+          <Image
+            source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
+            style={styles.avatar}
+          />
+          <View>
+            <Text style={styles.username}>{author_skr_username}</Text>
+            {community_id && (
+              <Text style={styles.communityTag}>
+                in community {is_public ? '(Public Announcement)' : ''}
+              </Text>
+            )}
+            <Text style={styles.signedBadge}>✅ Hardware Signed</Text>
+          </View>
         </View>
+        <TouchableOpacity onPress={handleBookmark} disabled={isBookmarking}>
+          {isBookmarking ? (
+            <ActivityIndicator size="small" color={COLORS.brandPrimary} />
+          ) : (
+            isBookmarked ? (
+              <Icons.BookmarkActiveIcon width={24} height={24} />
+            ) : (
+              <Icons.BookmarkIdleIcon width={24} height={24} color={COLORS.greyMid} />
+            )
+          )}
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.content}>{content}</Text>
@@ -219,7 +261,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatar: {
     width: 40,
@@ -232,6 +279,11 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  communityTag: {
+    color: COLORS.greyLight,
+    fontSize: 10,
+    fontStyle: 'italic',
   },
   signedBadge: {
     color: COLORS.brandPrimary,

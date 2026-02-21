@@ -4,7 +4,7 @@ import { StandardWallet } from '@/modules/wallet-providers/types';
 /**
  * Transaction modes available in the app
  */
-export type TransactionMode = 'jito' | 'priority';
+export type TransactionMode = 'priority';
 
 /**
  * Fee tiers for priority transactions
@@ -45,51 +45,9 @@ export interface SendTransactionParams {
 }
 
 /**
- * Parameters for sendSOL
- */
-export interface SendSOLParams {
-  wallet: StandardWallet | any;
-  recipientAddress: string;
-  amountSol: number;
-  connection: Connection;
-  includeCommission?: boolean;
-  onStatusUpdate?: StatusCallback;
-}
-
-/**
- * Parameters for sending Jito bundle transactions
- */
-export interface SendJitoBundleParams {
-  provider: any;
-  instructions: TransactionInstruction[];
-  walletPublicKey: PublicKey;
-  connection: Connection;
-  onStatusUpdate?: StatusCallback;
-}
-
-/**
- * Parameters for Jito bundle MWA
- */
-export interface SendJitoBundleMWAParams {
-  connection: Connection;
-  recipient: string;
-  lamports: number;
-  onStatusUpdate?: StatusCallback;
-}
-
-/**
  * Transaction data for Privy signing
  */
 export type TransactionData = {
   type: 'transaction';
   transaction: Transaction | VersionedTransaction;
 };
-
-/**
- * Response from Jito bundle API
- */
-export interface JitoBundleResponse {
-  jsonrpc: string;
-  result: string;
-  id: number;
-} 

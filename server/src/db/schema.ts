@@ -36,9 +36,23 @@ CREATE TABLE IF NOT EXISTS posts (
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     like_count INTEGER DEFAULT 0,
     repost_count INTEGER DEFAULT 0,
+    community_id VARCHAR(255) NULL, -- Optional: ID of the community this post belongs to
+    parent_id CHAR(36) NULL, -- Optional: ID of the parent post for threads
+    is_public BOOLEAN DEFAULT FALSE, -- Whether a community post is also visible in Town Hall
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (author_wallet_address) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (author_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES posts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    post_id CHAR(36) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    UNIQUE (user_id, post_id)
 );
 
 CREATE TABLE IF NOT EXISTS likes (

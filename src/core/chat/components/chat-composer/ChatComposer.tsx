@@ -78,7 +78,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
     }
   }));
 
-  const { address } = useWallet();
+  const { address, signMessage: walletSign } = useWallet();
   const chats = useAppSelector(state => state.chat.chats);
   const encryptionSeed = useAppSelector(state => state.auth.encryptionSeed);
 
@@ -136,32 +136,59 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
         }
       }
 
-      // 1. Handle Direct Chat (E2EE)
+      // 1. Handle Chat (Direct or Community Group)
       if (chatContext && chatContext.chatId) {
         let finalContent = currentTextValue;
         let nonce = undefined;
         let isEncrypted = false;
+        let signature = undefined;
 
-        if (encryptionSeed) {
-          const currentChat = chats.find(c => c.id === chatContext.chatId);
-          if (currentChat && currentChat.type === 'direct') {
-            const otherParticipant = currentChat.participants.find(p => p.id !== currentUser.id);
-            if (otherParticipant && otherParticipant.public_encryption_key) {
-              try {
-                const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
-                const keypair = getKeypairFromSeed(seedUint8);
-                const { ciphertext, nonce: msgNonce } = encryptMessage(
-                  currentTextValue,
-                  otherParticipant.public_encryption_key,
-                  keypair.secretKey
-                );
-                finalContent = ciphertext;
-                nonce = msgNonce;
-                isEncrypted = true;
-              } catch (err) {
-                console.error('[ChatComposer] Encryption failed:', err);
-              }
+        const currentChat = chats.find(c => c.id === chatContext.chatId);
+        // Robust check: if we can't find chat in state but it's a group ID, or explicitly group
+        const isGroup = currentChat ? currentChat.type === 'group' : true; // Default to group if in community context
+
+        // A. Handle Direct Chat (E2EE)
+        if (currentChat && currentChat.type === 'direct' && encryptionSeed) {
+          const otherParticipant = currentChat.participants.find(p => p.id !== currentUser.id);
+          if (otherParticipant && otherParticipant.public_encryption_key) {
+            try {
+              const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
+              const keypair = getKeypairFromSeed(seedUint8);
+              const { ciphertext, nonce: msgNonce } = encryptMessage(
+                currentTextValue,
+                otherParticipant.public_encryption_key,
+                keypair.secretKey
+              );
+              finalContent = ciphertext;
+              nonce = msgNonce;
+              isEncrypted = true;
+            } catch (err) {
+              console.error('[ChatComposer] Encryption failed:', err);
             }
+          }
+        } 
+        
+        // B. Handle Community/Group Chat (Signature Required)
+        else if (isGroup) {
+          try {
+            const timestamp = new Date().toISOString();
+            // Reconstruct exactly what backend verifies
+            const messageToSign = `{"content":"${currentTextValue.trim()}","timestamp":"${timestamp}","chatId":"${chatContext.chatId}"}`;
+            console.log("[ChatComposer] Requesting MWA signature for Community Message:", messageToSign);
+            
+            const messageUint8 = new Uint8Array(Buffer.from(messageToSign, 'utf8'));
+            const sig = await walletSign(messageUint8);
+            
+            if (!sig) {
+              setIsSubmitting(false);
+              return; // User cancelled
+            }
+            signature = Buffer.from(sig).toString('base64');
+          } catch (err) {
+            console.error('[ChatComposer] Signature failed:', err);
+            Alert.alert('Signature Required', 'You must sign the message to post in a community.');
+            setIsSubmitting(false);
+            return;
           }
         }
 
@@ -171,7 +198,8 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
           content: finalContent,
           imageUrl: uploadedImageUrl,
           nonce,
-          isEncrypted
+          isEncrypted,
+          additionalData: signature ? { signature } : undefined // Attach signature to additionalData
         })).unwrap();
 
         if (resultAction && resultAction.id) {

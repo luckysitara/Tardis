@@ -4,6 +4,7 @@ import {
   VersionedTransaction,
   PublicKey,
 } from '@solana/web3.js';
+import { Platform } from 'react-native';
 import {ENDPOINTS} from '@/shared/config/constants';
 import {CLUSTER, HELIUS_STAKED_URL, SERVER_URL} from '@env';
 import {TransactionService} from '../../wallet-providers/services/transaction/transactionService';

@@ -18,6 +18,10 @@ import TradeShare from './Share_Trade.svg';
 import CloseIcon from './CloseIcon';
 import ArrowIcon from './arrow.svg';
 import RocketIcon from './rocket.svg';
+import ArrowDownIcon from './ArrowDown.svg';
+import ArrowLeftIcon from './arrowLeft.svg';
+import BookmarkActiveIcon from './bookmark-active.svg';
+import BookmarkIdleIcon from './bookmark-idle.svg';
 
 export {
   TownSquareIcon,
@@ -36,6 +40,9 @@ export {
   BackIcon,
   ImageIcon,
   TradeShare,
+  ArrowLeftIcon,
+  BookmarkActiveIcon,
+  BookmarkIdleIcon,
 };
 
 // Aliases for NftListingModal and other components
@@ -44,6 +51,8 @@ export const cross = CloseIcon;
 export const arrowRIght = ArrowIcon;
 export const tensor = RocketIcon;
 export const listedNft = NftIconComponent;
+export const ChevronDownIcon = ArrowDownIcon;
+export const LockIcon = Shield;
 
 export default {
   TownSquareIcon,
@@ -67,4 +76,9 @@ export default {
   arrowRIght: ArrowIcon,
   tensor: RocketIcon,
   listedNft: NftIconComponent,
+  ArrowLeftIcon,
+  ChevronDownIcon: ArrowDownIcon,
+  LockIcon: Shield,
+  BookmarkActiveIcon,
+  BookmarkIdleIcon,
 };

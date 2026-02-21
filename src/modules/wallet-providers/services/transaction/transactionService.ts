@@ -13,7 +13,6 @@ import { Platform } from 'react-native';
 import { CLUSTER } from '@env';
 import { store } from '@/shared/state/store';
 import { parseTransactionError, getSuccessMessage } from '@/shared/services/transactions';
-import { showSuccessNotification, showErrorNotification } from '@/shared/state/notification/reducer';
 import {
   StandardWallet,
   UnifiedWallet,
@@ -41,6 +40,7 @@ export class TransactionService {
    * Display a transaction success notification
    */
   static showSuccess(signature: string, type?: 'swap' | 'transfer' | 'stake' | 'nft' | 'token'): void {
+    const { showSuccessNotification } = require('@/shared/state/notification/reducer');
     const message = getSuccessMessage(signature, type);
     store.dispatch(showSuccessNotification({ message, signature }));
   }
@@ -49,6 +49,7 @@ export class TransactionService {
    * Display a transaction error notification with parsed message
    */
   static showError(error: any): void {
+    const { showErrorNotification } = require('@/shared/state/notification/reducer');
     const message = parseTransactionError(error);
     store.dispatch(showErrorNotification({ message }));
   }

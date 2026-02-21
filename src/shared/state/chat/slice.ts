@@ -103,6 +103,18 @@ export const fetchChatMessages = createAsyncThunk(
   }
 );
 
+export const fetchChatRoomById = createAsyncThunk(
+  'chat/fetchChatRoomById',
+  async (chatId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${SERVER_BASE_URL}/api/chat/rooms/${chatId}`);
+      return response.data.chat;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch chat room');
+    }
+  }
+);
+
 export const sendMessage = createAsyncThunk(
   'chat/sendMessage',
   async ({ 
@@ -331,6 +343,17 @@ const chatSlice = createSlice({
       .addCase(fetchUserChats.rejected, (state, action) => {
         state.loadingChats = false;
         state.error = action.payload as string;
+      })
+      
+    // Fetch single chat room
+    builder
+      .addCase(fetchChatRoomById.fulfilled, (state, action) => {
+        const index = state.chats.findIndex(c => c.id === action.payload.id);
+        if (index !== -1) {
+          state.chats[index] = action.payload;
+        } else {
+          state.chats.push(action.payload);
+        }
       })
       
     // Fetch chat messages

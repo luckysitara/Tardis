@@ -8,6 +8,7 @@ import {
   VersionedTransaction,
   SystemProgram,
 } from '@solana/web3.js';
+import { Platform } from 'react-native';
 import {PumpFunSDK} from 'pumpdotfun-sdk';
 import {getAssociatedTokenAddress} from '@solana/spl-token';
 import {

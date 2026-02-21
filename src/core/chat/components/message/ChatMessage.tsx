@@ -52,9 +52,10 @@ function ChatMessage({
 
   // Determine if this message is from the current user
   const isCurrentUser = useMemo(() => {
+    if (!message || typeof message !== 'object') return false;
     // Check multiple properties for sender ID consistency
     return (
-      message.user.id === currentUser.id ||
+      (message.user && message.user.id === currentUser.id) ||
       ('sender_id' in message && message.sender_id === currentUser.id) ||
       ('senderId' in message && message.senderId === currentUser.id)
     );
@@ -62,6 +63,7 @@ function ChatMessage({
 
   // Decrypt content if message is encrypted
   const decryptedContent = useMemo(() => {
+    if (!message || typeof message !== 'object') return '';
     // Cast message as any for E2EE fields
     const msg = message as any;
     
@@ -105,10 +107,13 @@ function ChatMessage({
   }, [message, encryptionSeed, chats, currentUser.id, isCurrentUser]);
 
   // Create message object for bubble with potentially decrypted content
-  const displayMessage = useMemo(() => ({
-    ...message,
-    content: decryptedContent
-  }), [message, decryptedContent]);
+  const displayMessage = useMemo(() => {
+    if (!message || typeof message !== 'object') return { content: '' } as any;
+    return {
+      ...message,
+      content: decryptedContent
+    };
+  }, [message, decryptedContent]);
 
   // Get base styles
   const baseStyles = getMessageBaseStyles();
@@ -130,6 +135,7 @@ function ChatMessage({
 
   // Determine content type
   const getContentType = () => {
+    if (!message || typeof message !== 'object') return 'text';
     // If message has explicit contentType, use it
     if ('contentType' in message && message.contentType) {
       return message.contentType;
@@ -145,13 +151,17 @@ function ChatMessage({
     } else if ('sections' in message) {
       // Check for images in thread post sections using any to avoid TypeScript errors
       const sections = message.sections as any[];
-      const hasMedia = sections.some(section =>
-        section.image ||
-        (section.media && section.media.length > 0) ||
-        section.mediaSrc
-      );
+      if (Array.isArray(sections)) {
+        const hasMedia = sections.some(section =>
+          section && typeof section === 'object' && (
+            section.image ||
+            (section.media && section.media.length > 0) ||
+            section.mediaSrc
+          )
+        );
 
-      if (hasMedia) return 'media';
+        if (hasMedia) return 'media';
+      }
     }
 
     // Default to text
@@ -270,6 +280,19 @@ function ChatMessage({
             )}
           </View>
         </Pressable>
+        {/* Hardware Signature Badge for Group Messages */}
+        {!!((message as any).additional_data?.signature) && (
+          <View style={{ 
+            marginTop: 4, 
+            flexDirection: 'row', 
+            alignItems: 'center',
+            alignSelf: isCurrentUser ? 'flex-end' : 'flex-start' 
+          }}>
+            <Text style={{ fontSize: 10, color: COLORS.brandPrimary, fontStyle: 'italic' }}>
+              ✅ Hardware Signed
+            </Text>
+          </View>
+        )}
       </Animated.View>
     </View>
   );

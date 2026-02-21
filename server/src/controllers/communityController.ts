@@ -13,6 +13,8 @@ const SGT_GROUP_ADDRESS = 'GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te';
  */
 export async function getCommunities(req: Request, res: Response) {
   try {
+    const { userId } = req.query; // Accept userId to check membership
+
     const communities = await knex('chat_rooms')
       .where({ type: 'group', is_public: true, is_active: true })
       .select('*');
@@ -28,10 +30,19 @@ export async function getCommunities(req: Request, res: Response) {
           .count('id as count')
           .first();
 
+        let isMember = false;
+        if (userId) {
+          const membership = await knex('chat_participants')
+            .where({ chat_room_id: community.id, user_id: userId as string })
+            .first();
+          isMember = !!membership;
+        }
+
         return {
           ...community,
           gates,
-          memberCount: memberCount?.count || 0
+          memberCount: memberCount?.count || 0,
+          is_member: isMember
         };
       })
     );
@@ -160,6 +171,31 @@ export async function joinCommunity(req: Request, res: Response) {
     });
 
     return res.json({ success: true, message: 'Joined successfully' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+/**
+ * Get communities related to a user (joined or created)
+ */
+export async function getUserCommunities(req: Request, res: Response) {
+  try {
+    const { userId } = req.params;
+
+    // Communities joined
+    const joined = await knex('chat_participants')
+      .join('chat_rooms', 'chat_participants.chat_room_id', 'chat_rooms.id')
+      .where('chat_participants.user_id', userId)
+      .where('chat_rooms.type', 'group')
+      .select('chat_rooms.*', 'chat_participants.is_admin');
+
+    // Communities created (should be a subset of joined, but just in case)
+    const created = await knex('chat_rooms')
+      .where({ type: 'group', creator_id: userId })
+      .select('*');
+
+    return res.json({ success: true, joined, created });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }

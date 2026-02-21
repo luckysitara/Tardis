@@ -1,4 +1,5 @@
 import { store } from '@/shared/state/store';
+import { Platform } from 'react-native';
 import { 
   PublicKey,
   Connection,
@@ -7,7 +8,6 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { TransactionService } from '@/modules/wallet-providers/services/transaction/transactionService';
 import { FeeMapping, FeeTier, TransactionMode, TransactionType, StatusCallback } from './types';
 import { DEFAULT_FEE_MAPPING, TRANSACTION_RETRIES } from './constants';
 
@@ -271,23 +271,3 @@ export function isConfirmationError(error: any): boolean {
     error.message.includes('blockhash') ||
     error.message.includes('retries');
 }
-
-/**
- * Handle transaction completion (success, failure, or inconclusive)
- */
-export function handleTransactionCompletion(
-  signature: string,
-  isSuccess: boolean | null,
-  txType?: TransactionType
-): void {
-  if (isSuccess === true) {
-    TransactionService.showSuccess(signature, txType);
-  } else if (isSuccess === false) {
-    console.error(`[handleTransactionCompletion] Explicit failure for ${signature}`);
-  } else {
-    // Inconclusive (null) - Treat as likely success for better UX
-    console.log(`[handleTransactionCompletion] Verification inconclusive for ${signature}, assuming success for UX.`);
-    // Show success toast optimistically
-    TransactionService.showSuccess(signature, txType);
-  }
-} 
