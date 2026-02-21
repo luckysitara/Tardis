@@ -12,3 +12,4 @@ export { default as CreatePostScreen } from './CreatePostScreen';
 export { default as ChatScreen } from './ChatScreen';
 export { default as StartChatScreen } from './StartChatScreen';
 export { default as CreateCommunityScreen } from './CreateCommunityScreen';
+export { default as CommunityFeedScreen } from './CommunityFeedScreen';

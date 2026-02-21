@@ -1,12 +1,8 @@
-export { sendSOL } from './methods/sendSOL';
 export { 
   sendPriorityTransactionMWA,
-  sendTransactionWithPriorityFee 
+  sendTransactionWithPriorityFee,
+  handleTransactionCompletion
 } from './methods/priority';
-export {
-  sendJitoBundleTransaction,
-  sendJitoBundleTransactionMWA
-} from './methods/jito';
 export {
   COMMISSION_PERCENTAGE,
   calculateTransferAmountAfterCommission,

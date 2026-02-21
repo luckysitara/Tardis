@@ -1,7 +1,7 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
 
 interface TransactionState {
-  transactionMode: 'jito' | 'priority';
+  transactionMode: 'priority';
   selectedFeeTier: 'low' | 'medium' | 'high' | 'very-high';
 }
 
@@ -14,7 +14,7 @@ const transactionSlice = createSlice({
   name: 'transaction',
   initialState,
   reducers: {
-    setTransactionMode(state, action: PayloadAction<'jito' | 'priority'>) {
+    setTransactionMode(state, action: PayloadAction<'priority'>) {
       state.transactionMode = action.payload;
     },
     setSelectedFeeTier(

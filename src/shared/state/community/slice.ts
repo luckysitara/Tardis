@@ -7,12 +7,20 @@ const SERVER_BASE_URL = 'http://192.168.1.175:8080';
 
 interface CommunityState {
   communities: Community[];
+  userCommunities: {
+    joined: Community[];
+    created: Community[];
+  };
   loading: boolean;
   error: string | null;
 }
 
 const initialState: CommunityState = {
   communities: [],
+  userCommunities: {
+    joined: [],
+    created: [],
+  },
   loading: false,
   error: null,
 };
@@ -20,10 +28,24 @@ const initialState: CommunityState = {
 // Async Thunks
 export const fetchCommunities = createAsyncThunk(
   'community/fetchCommunities',
-  async (_, { rejectWithValue }) => {
+  async (userId: string | undefined, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${SERVER_BASE_URL}/api/communities`);
+      const response = await axios.get(`${SERVER_BASE_URL}/api/communities`, {
+        params: { userId }
+      });
       return response.data.communities;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || error.message);
+    }
+  }
+);
+
+export const fetchUserCommunities = createAsyncThunk(
+  'community/fetchUserCommunities',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${SERVER_BASE_URL}/api/communities/user/${userId}`);
+      return response.data; // { joined, created }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || error.message);
     }
@@ -121,6 +143,22 @@ const communitySlice = createSlice({
         }
       })
       .addCase(joinCommunity.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // fetchUserCommunities
+      .addCase(fetchUserCommunities.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserCommunities.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userCommunities = {
+          joined: action.payload.joined,
+          created: action.payload.created,
+        };
+      })
+      .addCase(fetchUserCommunities.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

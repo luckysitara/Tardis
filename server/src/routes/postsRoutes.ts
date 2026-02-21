@@ -13,7 +13,7 @@ const postsRouter = Router();
 function mapPost(post: any): any {
     return {
         id: post.id,
-        parentId: post.parentId || null,
+        parentId: post.parent_id || null,
         user: {
             id: post.author_wallet_address,
             username: post.author_skr_username,
@@ -49,7 +49,9 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             media_urls,
             signature,
             timestamp,
-            community_id // Add community_id here
+            community_id, // Add community_id here
+            parent_id, // Add parent_id for threaded replies
+            is_public // Add is_public flag
         } = req.body;
 
         // Basic validation
@@ -91,7 +93,9 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             repost_count: 0,
             created_at: new Date(),
             updated_at: new Date(),
-            community_id // Include community_id here
+            community_id, // Include community_id here
+            parent_id, // Include parent_id here
+            is_public: !!is_public // Include is_public flag
         });
 
         // Fetch the inserted post with user details
@@ -113,7 +117,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 postsRouter.get('/', async (req: Request, res: Response) => {
     console.log('[GET /api/posts] Fetching posts with query:', req.query);
     try {
-        const { limit = 20, offset = 0, communityId } = req.query; // Added communityId
+        const { limit = 20, offset = 0, communityId, userId } = req.query; // Added userId for bookmark status
 
         let query = knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
@@ -122,8 +126,10 @@ postsRouter.get('/', async (req: Request, res: Response) => {
         if (communityId) {
             query = query.where('posts.community_id', communityId as string);
         } else {
-            // Only show posts that are not part of any community on the main feed
-            query = query.whereNull('posts.community_id');
+            // Show global posts (null community_id) OR community posts marked as is_public (Announcement)
+            query = query.where(function() {
+                this.whereNull('posts.community_id').orWhere('posts.is_public', true);
+            });
         }
 
         const posts = await query
@@ -131,11 +137,77 @@ postsRouter.get('/', async (req: Request, res: Response) => {
             .limit(Number(limit))
             .offset(Number(offset));
 
-        const mappedPosts = posts.map(mapPost);
+        // Augment with bookmark status if userId is provided
+        const mappedPosts = await Promise.all(posts.map(async (post) => {
+            const mapped = mapPost(post);
+            if (userId) {
+                const bookmark = await knex('bookmarks')
+                    .where({ user_id: userId as string, post_id: post.id })
+                    .first();
+                mapped.isBookmarked = !!bookmark;
+            }
+            return mapped;
+        }));
 
         return res.json({ success: true, posts: mappedPosts });
     } catch (error: any) {
         console.error('[GET /api/posts] Error retrieving posts:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// POST /api/posts/:id/bookmark - Toggle bookmark for a post
+postsRouter.post('/:id/bookmark', async (req: Request, res: Response) => {
+    try {
+        const { id: post_id } = req.params;
+        const { user_id } = req.body;
+
+        if (!post_id || !user_id) {
+            return res.status(400).json({ success: false, error: 'Missing post ID or user ID.' });
+        }
+
+        const existing = await knex('bookmarks').where({ user_id, post_id }).first();
+        if (existing) {
+            await knex('bookmarks').where({ user_id, post_id }).del();
+            return res.json({ success: true, bookmarked: false });
+        } else {
+            await knex('bookmarks').insert({
+                id: uuidv4(),
+                user_id,
+                post_id,
+                created_at: new Date()
+            });
+            return res.json({ success: true, bookmarked: true });
+        }
+    } catch (error: any) {
+        console.error('[POST /api/posts/:id/bookmark] Error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/posts/bookmarks/:userId - Get all bookmarked posts for a user
+postsRouter.get('/bookmarks/:userId', async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const { limit = 20, offset = 0 } = req.query;
+
+        const posts = await knex('bookmarks')
+            .join('posts', 'bookmarks.post_id', 'posts.id')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .where('bookmarks.user_id', userId)
+            .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle', 'users.public_encryption_key')
+            .orderBy('bookmarks.created_at', 'desc')
+            .limit(Number(limit))
+            .offset(Number(offset));
+
+        const mappedPosts = posts.map(post => ({
+            ...mapPost(post),
+            isBookmarked: true
+        }));
+
+        return res.json({ success: true, posts: mappedPosts });
+    } catch (error: any) {
+        console.error('[GET /api/posts/bookmarks] Error:', error);
         return res.status(500).json({ success: false, error: error.message });
     }
 });

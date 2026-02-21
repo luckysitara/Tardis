@@ -22,6 +22,8 @@ export interface ThreadPost {
   quoteCount: number;
   reactions: Record<string, any>; // Adjust as per your reaction structure
   communityId?: string; // Optional community ID
+  isPublic?: boolean; // Whether it's visible in Town Hall
+  isBookmarked?: boolean; // Bookmark status for current user
 }
 
 export interface CreatePostPayload {
@@ -32,10 +34,12 @@ export interface CreatePostPayload {
   signature: string;
   timestamp: string;
   community_id?: string;
+  is_public?: boolean;
 }
 
 export interface FetchPostsParams {
   limit?: number;
   offset?: number;
   communityId?: string;
+  userId?: string; // To check bookmark status
 }

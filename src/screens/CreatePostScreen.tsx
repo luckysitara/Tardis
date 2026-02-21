@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -32,6 +33,7 @@ const CreatePostScreen = ({ navigation }) => {
   const [postContent, setPostContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null); // State for selected community
+  const [isPublic, setIsPublic] = useState(false); // State for public announcement
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
@@ -75,7 +77,7 @@ const CreatePostScreen = ({ navigation }) => {
       setIsPosting(true);
       console.log("[CreatePost] Signature received, publishing...");
 
-      // Prepare post data with community_id
+      // Prepare post data with community_id and is_public
       const postData: CreatePostPayload = {
         author_wallet_address: userId,
         author_skr_username: username,
@@ -84,6 +86,7 @@ const CreatePostScreen = ({ navigation }) => {
         signature: signatureBase64,
         timestamp: timestamp,
         community_id: selectedCommunityId || undefined, // Include selected community ID
+        is_public: selectedCommunityId ? isPublic : true, // If global feed, always public
       };
 
       await dispatch(createPost(postData)).unwrap(); // Dispatch the new createPost action
@@ -91,7 +94,7 @@ const CreatePostScreen = ({ navigation }) => {
       Alert.alert("Success", "Hardware-signed post published!");
       setPostContent('');
       // Refresh posts in the relevant feed (global or community-specific)
-      dispatch(fetchPosts({ communityId: selectedCommunityId || undefined }));
+      dispatch(fetchPosts({ communityId: selectedCommunityId || undefined, userId }));
       navigation.goBack();
     } catch (error: any) {
       console.error("Post error:", error);
@@ -161,6 +164,18 @@ const CreatePostScreen = ({ navigation }) => {
                   <Icons.ChevronDownIcon width={16} height={16} color={COLORS.greyLight} style={styles.pickerIcon} />
                 </View>
               </View>
+
+              {!!selectedCommunityId && (
+                <View style={styles.announcementContainer}>
+                  <Text style={styles.announcementLabel}>Public Announcement (to Town Square)</Text>
+                  <Switch
+                    value={isPublic}
+                    onValueChange={setIsPublic}
+                    trackColor={{ false: COLORS.borderDarkColor, true: COLORS.brandPrimary }}
+                    thumbColor={COLORS.white}
+                  />
+                </View>
+              )}
 
               <TextInput
                 style={styles.textInput}
@@ -275,6 +290,24 @@ const styles = StyleSheet.create({
     color: COLORS.greyLight,
     fontSize: 16,
     fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  announcementContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 255, 255, 0.05)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 255, 0.1)',
+  },
+  announcementLabel: {
+    color: COLORS.brandPrimary,
+    fontSize: 14,
+    fontFamily: TYPOGRAPHY.fontFamily,
+    fontWeight: '600',
   },
   pickerWrapper: {
     flex: 1,

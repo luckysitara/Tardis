@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
@@ -23,7 +23,7 @@ import {
   ChatScreen,
   StartChatScreen,
   CreateCommunityScreen,
-  CommunityFeedScreen // Import the new CommunityFeedScreen
+  CommunityFeedScreen 
 } from '@/screens';
 import TardisShield from '@/components/auth/TardisShield';
 import socketService from '@/shared/services/socketService';
@@ -31,26 +31,26 @@ import socketService from '@/shared/services/socketService';
 export type RootStackParamList = {
   LandingScreen: undefined;
   Authenticated: undefined;
-  MainTabs: undefined; // New: Main tab navigator
-  TownSquare: undefined; // New: Keeping explicit type for TownSquare if needed for direct navigation outside tabs
+  MainTabs: undefined; 
+  TownSquare: undefined; 
   Comms: undefined;
   Communities: undefined;
   Profile: undefined;
-  EditProfile: undefined; // New: Edit profile screen
-  CreatePost: { communityId?: string; communityName?: string }; // Update CreatePost to accept communityId
+  EditProfile: undefined; 
+  CreatePost: { communityId?: string; communityName?: string }; 
   ChatScreen: { chatId: string; title?: string };
   StartChatScreen: undefined;
   CreateCommunityScreen: undefined;
-  CommunityFeed: { communityId: string; communityName?: string }; // Add CommunityFeed screen
+  CommunityFeed: { communityId: string; communityName?: string }; 
 };
 
-const Stack = createStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Define a component that wraps all authenticated screens with TardisShield
 const AuthenticatedStack: React.FC = () => {
   return (
     <TardisShield>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         {/* The MainTabs component contains the bottom tab navigation */}
         <Stack.Screen name="MainTabs" component={MainTabs} />
         {/* Register other screens that might be navigated to from within MainTabs or directly */}
@@ -68,7 +68,14 @@ const AuthenticatedStack: React.FC = () => {
         <Stack.Screen name="Comms" component={CommsListScreen} />
         <Stack.Screen name="Communities" component={CommunitiesScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="ChatScreen" component={ChatScreen} />
+        <Stack.Screen 
+          name="ChatScreen" 
+          component={ChatScreen} 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
         <Stack.Screen 
           name="StartChatScreen" 
           component={StartChatScreen}
@@ -82,6 +89,9 @@ const AuthenticatedStack: React.FC = () => {
         <Stack.Screen 
           name="CommunityFeed" 
           component={CommunityFeedScreen} 
+          options={{
+            animation: 'slide_from_right'
+          }}
         />
       </Stack.Navigator>
     </TardisShield>

@@ -32,17 +32,16 @@ export default function MainTabs() {
   const navigation = useNavigation<RootNavigationProp>();
   
   // Detect current active tab name
-  const currentTabName = useNavigationState(state => {
-    if (!state) return 'TownSquare';
-    const route = state.routes[state.index];
-    return route.name;
-  });
+  const state = useNavigationState(s => s);
+  const route = state?.routes[state.index];
+  const currentTabName = route?.name || 'TownSquare';
 
   const handleCreatePost = () => {
-    navigation.navigate('CreatePost');
+    navigation.navigate('CreatePost', {});
   };
 
-  const showFab = currentTabName !== 'Comms';
+  // We are not using showFab here anymore as it's moved to TownSquareScreen
+  // but keeping logic for future global needs if any.
 
   return (
     <View style={{ flex: 1 }}>
@@ -59,7 +58,7 @@ export default function MainTabs() {
             borderTopWidth: 0,
             position: 'absolute',
             elevation: 0,
-            height: Platform.OS === 'android' ? 55 : 75,
+            height: Platform.OS === 'android' ? 60 : 80, // Slightly taller
             bottom: 0,
             left: 0,
             right: 0,
@@ -67,7 +66,7 @@ export default function MainTabs() {
           tabBarBackground: () => (
             <BlurView
               tint="dark"
-              intensity={Platform.OS === 'android' ? 15 : 35}
+              intensity={Platform.OS === 'android' ? 25 : 45} // Higher intensity
               style={StyleSheet.absoluteFill}
             >
               <View style={styles.tabBarOverlay} />
@@ -135,16 +134,6 @@ export default function MainTabs() {
           }}
         />
       </Tab.Navigator>
-
-      {/* Floating Action Button for Posting - hidden on Comms tab */}
-      {showFab && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={handleCreatePost}
-          activeOpacity={0.85}>
-          <Icons.PlusCircleIcon width={32} height={32} fill={COLORS.white} />
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -155,21 +144,5 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === 'android'
       ? 'rgba(12, 16, 26, 0.95)'
       : 'rgba(12, 16, 26, 0.75)',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: Platform.OS === 'android' ? 75 : 95, // Above the tab bar
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.brandPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
 });
