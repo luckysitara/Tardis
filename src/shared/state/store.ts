@@ -6,6 +6,7 @@ import notificationReducer from './notification/reducer';
 import profileReducer from './profile/reducer';
 import threadReducer from './thread/reducer';
 import chatReducer from './chat/slice';
+import communityReducer from './community/slice'; // Import the new community reducer
 
 // Redux persist imports
 import { persistStore, persistReducer } from 'redux-persist';
@@ -29,6 +30,7 @@ const rootReducer = combineReducers({
   profile: profileReducer,
   thread: threadReducer,
   chat: chatReducer,
+  community: communityReducer, // Add the community reducer here
 });
 
 
@@ -63,3 +65,4 @@ export type RootState = ReturnType<typeof rootReducer> & {
   _persist?: { version: number; rehydrated: boolean };
 };
 export type AppDispatch = typeof store.dispatch;
+
