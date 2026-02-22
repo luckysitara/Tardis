@@ -22,6 +22,10 @@ import ArrowDownIcon from './ArrowDown.svg';
 import ArrowLeftIcon from './arrowLeft.svg';
 import BookmarkActiveIcon from './bookmark-active.svg';
 import BookmarkIdleIcon from './bookmark-idle.svg';
+import CommentIcon from './comment-idle.svg';
+import RepostIcon from './retweet-idle.svg';
+import HeartIcon from './reaction-idle.svg';
+import ShareIcon from './share-idle.svg';
 
 export {
   TownSquareIcon,
@@ -43,6 +47,10 @@ export {
   ArrowLeftIcon,
   BookmarkActiveIcon,
   BookmarkIdleIcon,
+  CommentIcon,
+  RepostIcon,
+  HeartIcon,
+  ShareIcon,
 };
 
 // Aliases for NftListingModal and other components
@@ -81,4 +89,8 @@ export default {
   LockIcon: Shield,
   BookmarkActiveIcon,
   BookmarkIdleIcon,
+  CommentIcon,
+  RepostIcon,
+  HeartIcon,
+  ShareIcon,
 };

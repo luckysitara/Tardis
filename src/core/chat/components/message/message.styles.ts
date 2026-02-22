@@ -11,9 +11,8 @@ type Overflow = 'visible' | 'hidden' | 'scroll';
 export function getMessageBaseStyles() {
   return StyleSheet.create({
     messageContainer: {
-      marginBottom: 8,
+      marginBottom: 2, // Tighter grouping
       marginHorizontal: 12,
-      maxWidth: '85%',
     },
     currentUserMessageContainer: {
       alignSelf: 'flex-end',
@@ -25,7 +24,7 @@ export function getMessageBaseStyles() {
     headerContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: 4,
       paddingHorizontal: 4,
     },
     headerLeft: {
@@ -33,17 +32,16 @@ export function getMessageBaseStyles() {
       alignItems: 'center',
     },
     avatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      marginRight: 10,
-      borderWidth: 2,
-      borderColor: 'rgba(50, 212, 222, 0.3)',
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      marginRight: 8,
+      backgroundColor: COLORS.gray,
     },
     username: {
-      fontSize: TYPOGRAPHY.size.md,
-      fontWeight: '700',
-      color: COLORS.white,
+      fontSize: 13,
+      fontWeight: '600',
+      color: COLORS.greyMid,
       fontFamily: TYPOGRAPHY.fontFamily,
     },
     userInfoContainer: {
@@ -60,11 +58,11 @@ export function getMessageBaseStyles() {
       flexDirection: 'row',
       justifyContent: 'flex-end',
       alignItems: 'center',
-      marginTop: 4,
+      marginTop: 2,
     },
     timestamp: {
       fontSize: 10,
-      color: COLORS.greyMid,
+      color: 'rgba(255, 255, 255, 0.5)',
       fontFamily: TYPOGRAPHY.fontFamily,
     },
     currentUserTimestamp: {
@@ -78,41 +76,30 @@ export function getMessageBaseStyles() {
 
 export const messageBubbleStyles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginVertical: 2,
-    maxWidth: '100%',
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    marginVertical: 1,
+    minWidth: 80, // Ensure small messages aren't too thin
   },
   currentUser: {
     backgroundColor: COLORS.brandBlue,
-    borderBottomRightRadius: 6,
+    borderBottomRightRadius: 4,
     alignSelf: 'flex-end',
-    minWidth: 80,
-    shadowColor: COLORS.brandBlue,
-    shadowOpacity: 0.3,
   },
   otherUser: {
-    backgroundColor: COLORS.lighterBackground,
-    borderBottomLeftRadius: 6,
+    backgroundColor: '#2F3336', // X-like Dark Grey
+    borderBottomLeftRadius: 4,
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   text: {
     color: COLORS.white,
-    fontSize: TYPOGRAPHY.size.md,
+    fontSize: 16,
     fontFamily: TYPOGRAPHY.fontFamily,
-    lineHeight: 20,
+    lineHeight: 22,
     fontWeight: '400',
   },
   currentUserText: {
-    textAlign: 'left',
     color: COLORS.white,
   },
   otherUserText: {
@@ -120,8 +107,8 @@ export const messageBubbleStyles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 10,
-    color: COLORS.greyMid,
-    marginTop: 4,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 2,
     alignSelf: 'flex-end',
     fontFamily: TYPOGRAPHY.fontFamily,
   },

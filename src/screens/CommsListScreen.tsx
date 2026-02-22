@@ -251,35 +251,38 @@ const styles = StyleSheet.create({
   },
   chatItem: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.background, // Ensure background is solid
   },
   avatarContainer: {
     position: 'relative',
+    marginRight: 12,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#30363D',
   },
   onlineStatus: {
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#238636',
     borderWidth: 2,
     borderColor: COLORS.background,
   },
   chatInfo: {
     flex: 1,
-    marginLeft: 15,
     justifyContent: 'center',
+    paddingBottom: 12, // Match paddingVertical of container
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: -12, // Offset the padding so the border is at the bottom of the item
   },
   chatHeader: {
     flexDirection: 'row',
@@ -288,15 +291,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   chatName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.white,
     flex: 1,
+    marginRight: 8,
   },
   timestamp: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.greyMid,
-    marginLeft: 10,
   },
   chatFooter: {
     flexDirection: 'row',
@@ -307,15 +310,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 16,
   },
   previewText: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.greyMid,
-    flex: 1,
+    lineHeight: 20,
   },
   shieldIconSmall: {
-    marginRight: 6,
-    opacity: 0.8,
+    marginRight: 4,
+    opacity: 0.7,
   },
   unreadBadge: {
     backgroundColor: COLORS.brandPrimary,
@@ -325,15 +329,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
-    marginLeft: 10,
-    shadowColor: COLORS.brandPrimary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
   },
   unreadCount: {
     color: COLORS.white,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   emptyContainer: {

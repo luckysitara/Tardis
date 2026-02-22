@@ -138,7 +138,7 @@ io.on('connection', (socket) => {
 
 // Start the Express server.
 const PORT = parseInt(process.env.PORT || '8080', 10);
-const HOST = '0.0.0.0'; // Critical for App Runner health checks
+const HOST = '10.203.135.79'; // Critical for App Runner health checks
 
 (async function startServer() {
   // Start server immediately for health checks - critical for App Runner

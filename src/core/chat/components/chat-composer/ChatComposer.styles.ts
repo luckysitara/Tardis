@@ -7,28 +7,25 @@ export function getChatComposerBaseStyles() {
   return StyleSheet.create({
     composerContainer: {
       flexDirection: 'row',
-      padding: 8,
-      paddingBottom: 0,
-      backgroundColor: COLORS.background,
-      borderTopColor: COLORS.borderDarkColor,
-      borderTopWidth: 1,
+      padding: 12,
+      paddingBottom: 4,
+      backgroundColor: COLORS.background, // Match screen background
       alignItems: 'center',
-      marginBottom: 0,
     },
     inputContainer: {
       flex: 1,
       flexDirection: 'row',
-      backgroundColor: COLORS.darkerBackground,
+      backgroundColor: '#2F3336', // X/WhatsApp dark grey input
       borderRadius: 24,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      minHeight: 40,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      minHeight: 44,
       alignItems: 'center',
     },
     composerInput: {
       flex: 1,
-      fontSize: TYPOGRAPHY.size.md,
-      fontWeight: TYPOGRAPHY.fontWeightToString(TYPOGRAPHY.regular),
+      fontSize: 16,
+      fontWeight: '400',
       color: COLORS.white,
       padding: 0,
       margin: 0,

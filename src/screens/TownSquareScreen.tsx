@@ -139,9 +139,8 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   flashListContentContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 150, // Increased from 100 to ensure scrolling past the absolute tab bar
+    paddingTop: 0,
+    paddingBottom: 150, 
   },
   emptyContainer: {
     marginTop: 100,
@@ -161,10 +160,10 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 25,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: COLORS.brandPrimary,
     justifyContent: 'center',
     alignItems: 'center',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
@@ -8,8 +8,11 @@ import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 import { Buffer } from 'buffer';
+import TYPOGRAPHY from '@/assets/typography';
 
 import type { ThreadPost } from '@/core/thread/components/thread.types';
+
+const { width } = Dimensions.get('window');
 
 const PostComponent: React.FC<ThreadPost> = (props) => {
   const {
@@ -27,6 +30,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   // Map fields from either direct props (ThreadPost) or backend format
   const author_wallet_address = user?.id || (props as any).author_wallet_address;
   const author_skr_username = user?.username || (props as any).author_skr_username || 'Seeker User';
+  const author_handle = user?.username ? `@${user.username.toLowerCase()}` : `@${(author_skr_username as string).toLowerCase().replace(/\s/g, '')}`;
   const community_id = (props as any).community_id || (props as any).communityId;
   const is_public = (props as any).is_public || (props as any).isPublic;
   
@@ -73,7 +77,18 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8080';
+  const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8080';
+
+  const formatRelativeTime = (time: string) => {
+    const date = new Date(time);
+    const now = new Date();
+    const diff = (now.getTime() - date.getTime()) / 1000; // seconds
+
+    if (diff < 60) return `${Math.floor(diff)}s`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
 
   const handleLike = async () => {
     if (!userId) {
@@ -85,10 +100,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     setIsLiking(true);
     try {
       const timestamp = new Date().toISOString();
-      // DETERMINISTIC: Keys must be in this exact order for backend verification
       const messageToSign = `{"post_id":"${id}","user_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
-
-      console.log("[PostComponent] Requesting MWA signature for Like:", messageToSign);
       const engagementSignature = await signMessage(messageToSign);
 
       if (!engagementSignature) {
@@ -97,7 +109,6 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
       }
 
       const signatureBase64 = Buffer.from(engagementSignature).toString('base64');
-
       const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,16 +120,12 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
       });
 
       const result = await response.json();
-
       if (result.success) {
         setLikes(prev => result.liked ? prev + 1 : prev - 1);
         setUserHasLiked(result.liked);
-      } else {
-        Alert.alert("Error", result.error || "Failed to like post.");
       }
     } catch (error) {
       console.error("Error liking post:", error);
-      Alert.alert("Error", "An unexpected error occurred.");
     } finally {
       setIsLiking(false);
     }
@@ -134,10 +141,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     setIsReposting(true);
     try {
       const timestamp = new Date().toISOString();
-      // DETERMINISTIC: Keys must be in this exact order for backend verification
       const messageToSign = `{"original_post_id":"${id}","reposter_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
-
-      console.log("[PostComponent] Requesting MWA signature for Repost:", messageToSign);
       const engagementSignature = await signMessage(messageToSign);
 
       if (!engagementSignature) {
@@ -146,7 +150,6 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
       }
 
       const signatureBase64 = Buffer.from(engagementSignature).toString('base64');
-
       const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/repost`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,92 +161,91 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
       });
 
       const result = await response.json();
-
       if (result.success) {
         setReposts(prev => prev + 1);
-        Alert.alert("Success", "Post hardware-reposted!");
-      } else {
-        Alert.alert("Error", result.error || "Failed to repost.");
       }
     } catch (error) {
       console.error("Error reposting post:", error);
-      Alert.alert("Error", "An unexpected error occurred.");
     } finally {
       setIsReposting(false);
     }
   };
 
-  const handleBookmark = async () => {
-    if (!userId) {
-      Alert.alert("Authentication Required", "Please connect your wallet to bookmark posts.");
-      return;
-    }
-    setIsBookmarking(true);
-    try {
-      const result = await dispatch(toggleBookmark({ postId: id, userId })).unwrap();
-      setIsBookmarked(result.bookmarked);
-    } catch (error) {
-      Alert.alert("Error", "Failed to update bookmark.");
-    } finally {
-      setIsBookmarking(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
-            style={styles.avatar}
-          />
-          <View>
-            <Text style={styles.username}>{author_skr_username}</Text>
-            {community_id && (
-              <Text style={styles.communityTag}>
-                in community {is_public ? '(Public Announcement)' : ''}
-              </Text>
-            )}
-            <Text style={styles.signedBadge}>✅ Hardware Signed</Text>
-          </View>
-        </View>
-        <TouchableOpacity onPress={handleBookmark} disabled={isBookmarking}>
-          {isBookmarking ? (
-            <ActivityIndicator size="small" color={COLORS.brandPrimary} />
-          ) : (
-            isBookmarked ? (
-              <Icons.BookmarkActiveIcon width={24} height={24} />
-            ) : (
-              <Icons.BookmarkIdleIcon width={24} height={24} color={COLORS.greyMid} />
-            )
-          )}
-        </TouchableOpacity>
+      {/* Left Column: Avatar */}
+      <View style={styles.leftColumn}>
+        <Image
+          source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
+          style={styles.avatar}
+        />
       </View>
 
-      <Text style={styles.content}>{content}</Text>
-
-      {mediaUri && (
-        <Image source={{ uri: mediaUri }} style={styles.media} resizeMode="cover" />
-      )}
-
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={handleLike} style={styles.actionButton} disabled={isLiking || isReposting}>
-          {isLiking ? (
-            <ActivityIndicator size="small" color={COLORS.brandPrimary} />
-          ) : (
-            <Text style={[styles.actionText, userHasLiked && { color: COLORS.brandPink }]}>
-              {userHasLiked ? '❤️' : '🤍'} {likes}
+      {/* Right Column: Content */}
+      <View style={styles.rightColumn}>
+        {/* Header: Name, Handle, Time, More */}
+        <View style={styles.header}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.displayName} numberOfLines={1}>
+              {author_skr_username}
+              {/* Optional Verified Icon could go here */}
             </Text>
+            <Text style={styles.handle} numberOfLines={1}>{author_handle}</Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
+          </View>
+          <TouchableOpacity style={styles.moreButton}>
+            <Icons.Settings width={16} height={16} color={COLORS.greyMid} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Content Body */}
+        <View style={styles.contentContainer}>
+          <Text style={styles.content}>{content}</Text>
+          
+          {mediaUri && (
+            <Image source={{ uri: mediaUri }} style={styles.media} resizeMode="cover" />
           )}
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleRepost} style={styles.actionButton} disabled={isLiking || isReposting}>
-          {isReposting ? (
-            <ActivityIndicator size="small" color={COLORS.brandPrimary} />
-          ) : (
-            <Text style={styles.actionText}>🔄 {reposts}</Text>
-          )}
-        </TouchableOpacity>
-        <Text style={styles.timestamp}>{new Date(timestamp).toLocaleDateString()}</Text>
+        </View>
+
+        {/* Action Bar */}
+        <View style={styles.actions}>
+          {/* Reply (Placeholder) */}
+          <TouchableOpacity style={styles.actionButton}>
+            <Icons.CommentIcon width={18} height={18} color={COLORS.greyMid} />
+            <Text style={styles.actionText}>0</Text>
+          </TouchableOpacity>
+
+          {/* Repost */}
+          <TouchableOpacity onPress={handleRepost} style={styles.actionButton} disabled={isReposting}>
+             <Icons.RepostIcon width={18} height={18} color={isReposting ? COLORS.brandPrimary : COLORS.greyMid} />
+             <Text style={[styles.actionText, reposts > 0 && { color: COLORS.white }]}>{reposts || ''}</Text>
+          </TouchableOpacity>
+
+          {/* Like */}
+          <TouchableOpacity onPress={handleLike} style={styles.actionButton} disabled={isLiking}>
+            <Icons.HeartIcon 
+              width={18} 
+              height={18} 
+              color={userHasLiked ? COLORS.brandPink : COLORS.greyMid}
+              fill={userHasLiked ? COLORS.brandPink : 'transparent'} 
+            />
+            <Text style={[styles.actionText, userHasLiked && { color: COLORS.brandPink }]}>
+              {likes || ''}
+            </Text>
+          </TouchableOpacity>
+          
+          {/* Share/Bookmark */}
+           <TouchableOpacity style={styles.actionButton}>
+            <Icons.ShareIcon width={18} height={18} color={COLORS.greyMid} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Footer Hardware Status */}
+        <View style={styles.statusFooter}>
+           <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} style={{ opacity: 0.7 }} />
+           <Text style={styles.statusText}>Signed</Text>
+        </View>
       </View>
     </View>
   );
@@ -251,81 +253,107 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.darkerBackground,
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.borderDarkColor,
-  },
-  header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.borderDarkColor || 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.background,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  leftColumn: {
+    marginRight: 12,
+  },
+  rightColumn: {
+    flex: 1,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: COLORS.gray,
+    backgroundColor: COLORS.lightGrey,
   },
-  username: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  headerTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  displayName: {
     color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: '700',
+    fontSize: 15,
+    marginRight: 4,
   },
-  communityTag: {
-    color: COLORS.greyLight,
-    fontSize: 10,
-    fontStyle: 'italic',
+  handle: {
+    color: COLORS.greyMid,
+    fontSize: 14,
+    marginRight: 4,
   },
-  signedBadge: {
-    color: COLORS.brandPrimary,
-    fontSize: 12,
+  dot: {
+    color: COLORS.greyMid,
+    fontSize: 14,
+    marginRight: 4,
+  },
+  time: {
+    color: COLORS.greyMid,
+    fontSize: 14,
+  },
+  moreButton: {
+    padding: 2,
+  },
+  contentContainer: {
+    marginBottom: 8,
   },
   content: {
     color: COLORS.white,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 10,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 8,
   },
   media: {
     width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 10,
-    backgroundColor: COLORS.gray,
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    marginTop: 8,
+    backgroundColor: COLORS.lightGrey,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderDarkColor,
-    paddingTop: 10,
+    marginTop: 4,
+    maxWidth: '90%', // Keep actions from stretching too far
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 5,
+    paddingVertical: 4,
+    minWidth: 40,
   },
   actionText: {
-    color: COLORS.greyMid || '#B7B7B7',
-    fontSize: 14,
-    marginLeft: 5,
+    color: COLORS.greyMid,
+    fontSize: 13,
+    marginLeft: 6,
   },
-  timestamp: {
-    color: COLORS.greyMid || '#B7B7B7',
-    fontSize: 12,
+  statusFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    opacity: 0.6,
   },
+  statusText: {
+    color: COLORS.brandPrimary,
+    fontSize: 10,
+    marginLeft: 4,
+    fontWeight: '600',
+  }
 });
 
 export default PostComponent;
