@@ -74,19 +74,39 @@ function ChatMessage({
           // In E2EE (NaCl Box), Alice SK + Bob PK == Shared Secret.
           // To decrypt a message Alice sent to Bob, Alice uses Her SK + Bob PK.
           // To decrypt a message Bob sent to Alice, Alice uses Her SK + Bob PK.
-          // Thus, in a direct chat, always use the OTHER person's public key.
+          
+          // IMPORTANT: "Other participant" is always the person who is NOT ME.
+          // If I am the sender, other participant is the recipient.
+          // If I am the recipient, other participant is the sender.
           const otherParticipant = currentChat.participants.find(p => p.id !== currentUser.id);
           
           if (otherParticipant && otherParticipant.public_encryption_key) {
+            const otherPkBase64 = otherParticipant.public_encryption_key;
+            
+            // SECURITY CHECK: Validate that the key looks like a real 32-byte base64 string
+            // This prevents errors with test placeholders like 'rose_test_key...'
+            let isKeyValid = false;
+            try {
+              const decoded = Buffer.from(otherPkBase64, 'base64');
+              isKeyValid = decoded.length === 32;
+            } catch (e) {
+              isKeyValid = false;
+            }
+
+            if (!isKeyValid) {
+              console.warn(`[ChatMessage] Skipping E2EE decrypt for user ${otherParticipant.id.substring(0, 8)}. Invalid PK format (likely test data).`);
+              return '[Encrypted Transmission]';
+            }
+
             const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
             const keypair = getKeypairFromSeed(seedUint8);
             
-            console.log(`[ChatMessage] Secure Decrypt attempt. Msg: ${msg.id.substring(0, 8)}, I am sender: ${isCurrentUser}`);
+            console.log(`[ChatMessage] Secure Decrypt attempt. Msg: ${msg.id.substring(0, 8)}, I am sender: ${isCurrentUser}, My Addr: ${currentUser.id.substring(0, 6)}, Other Addr: ${otherParticipant.id.substring(0, 6)}`);
             
             const decrypted = decryptMessage(
               msg.content,
               msg.nonce,
-              otherParticipant.public_encryption_key,
+              otherPkBase64,
               keypair.secretKey
             );
             
@@ -94,8 +114,12 @@ function ChatMessage({
               return decrypted;
             } else {
               console.warn('[ChatMessage] Secure Decrypt failed. Key mismatch or data corrupted.');
+              // Check if we have the wrong otherParticipant (shouldn't happen in direct chat with 2 people)
               return '[Decryption failed]';
             }
+          } else {
+            console.warn('[ChatMessage] Secure Decrypt failed. Missing other participant encryption key.');
+            return '[Locked - Missing Key]';
           }
         }
       } catch (err) {

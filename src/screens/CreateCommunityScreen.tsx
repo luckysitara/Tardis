@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -18,8 +19,10 @@ import { RootStackParamList } from '@/shared/navigation/RootNavigator';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { createCommunity, fetchCommunities } from '@/shared/state/community/slice';
 import COLORS from '@/assets/colors';
-import Icons from '@/assets/svgs'; // Assuming you have an Icons component for SVG
+import Icons from '@/assets/svgs';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadChatImage } from '@/core/chat/services/chatImageService';
 
 type CreateCommunityScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -37,14 +40,43 @@ const CreateCommunityScreen = () => {
   const navigation = useNavigation<CreateCommunityScreenNavigationProp>();
   const dispatch = useAppDispatch();
   const { loading, error } = useAppSelector(state => state.community);
-  const creatorId = useAppSelector(state => state.auth.address); // Get creatorId from auth state
+  const creatorId = useAppSelector(state => state.auth.address);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [bannerUrl, setBannerUrl] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const [selectedBanner, setSelectedBanner] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(true);
   const [gates, setGates] = useState<GateInput[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const pickImage = async (type: 'avatar' | 'banner') => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need access to your gallery to pick an image.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: type === 'avatar' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        if (type === 'avatar') {
+          setSelectedAvatar(result.assets[0].uri);
+        } else {
+          setSelectedBanner(result.assets[0].uri);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick an image');
+    }
+  };
 
   const handleAddGate = () => {
     setGates([...gates, { type: 'TOKEN', mintAddress: '', minBalance: '', symbol: '' }]);
@@ -57,7 +89,6 @@ const CreateCommunityScreen = () => {
 
   const handleGateChange = (index: number, field: keyof GateInput, value: string) => {
     const newGates = [...gates];
-    // Ensure type is correctly cast if it's the field being updated
     (newGates[index][field] as any) = value;
     setGates(newGates);
   };
@@ -68,7 +99,35 @@ const CreateCommunityScreen = () => {
       return;
     }
 
+    setIsUploading(true);
     try {
+      let avatarUrl = '';
+      let bannerUrl = '';
+
+      // 1. Upload Avatar if selected
+      if (selectedAvatar) {
+        try {
+          avatarUrl = await uploadChatImage(creatorId, selectedAvatar);
+        } catch (uploadError) {
+          console.error("Avatar upload error:", uploadError);
+          Alert.alert("Upload Error", "Failed to upload avatar.");
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // 2. Upload Banner if selected
+      if (selectedBanner) {
+        try {
+          bannerUrl = await uploadChatImage(creatorId, selectedBanner);
+        } catch (uploadError) {
+          console.error("Banner upload error:", uploadError);
+          Alert.alert("Upload Error", "Failed to upload banner.");
+          setIsUploading(false);
+          return;
+        }
+      }
+
       await dispatch(createCommunity({
         name,
         description,
@@ -78,14 +137,16 @@ const CreateCommunityScreen = () => {
         creatorId,
         gates: gates.map(gate => ({
           ...gate,
-          minBalance: gate.minBalance || '1', // Default to 1 if not provided
+          minBalance: gate.minBalance || '1',
         })),
       })).unwrap();
       Alert.alert('Success', 'Community created successfully!');
-      dispatch(fetchCommunities()); // Re-fetch communities to update the list
+      dispatch(fetchCommunities());
       navigation.goBack();
     } catch (err: any) {
       Alert.alert('Error', err || 'Failed to create community.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -119,23 +180,45 @@ const CreateCommunityScreen = () => {
         numberOfLines={4}
       />
 
-      <Text style={styles.label}>Avatar URL</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="https://example.com/avatar.png"
-        placeholderTextColor={COLORS.greyMid}
-        value={avatarUrl}
-        onChangeText={setAvatarUrl}
-      />
+      <Text style={styles.label}>Community Avatar</Text>
+      <TouchableOpacity 
+        style={styles.imagePickerPlaceholder} 
+        onPress={() => pickImage('avatar')}
+      >
+        {selectedAvatar ? (
+          <Image source={{ uri: selectedAvatar }} style={styles.previewAvatar} />
+        ) : (
+          <View style={styles.placeholderInner}>
+            <Icons.GalleryIcon width={32} height={32} color={COLORS.greyMid} />
+            <Text style={styles.placeholderText}>Select Avatar</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      {selectedAvatar && (
+        <TouchableOpacity onPress={() => setSelectedAvatar(null)}>
+          <Text style={styles.removeText}>Remove Avatar</Text>
+        </TouchableOpacity>
+      )}
 
-      <Text style={styles.label}>Banner URL</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="https://example.com/banner.png"
-        placeholderTextColor={COLORS.greyMid}
-        value={bannerUrl}
-        onChangeText={setBannerUrl}
-      />
+      <Text style={styles.label}>Community Banner</Text>
+      <TouchableOpacity 
+        style={[styles.imagePickerPlaceholder, styles.bannerPlaceholder]} 
+        onPress={() => pickImage('banner')}
+      >
+        {selectedBanner ? (
+          <Image source={{ uri: selectedBanner }} style={styles.previewBanner} />
+        ) : (
+          <View style={styles.placeholderInner}>
+            <Icons.GalleryIcon width={32} height={32} color={COLORS.greyMid} />
+            <Text style={styles.placeholderText}>Select Banner</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      {selectedBanner && (
+        <TouchableOpacity onPress={() => setSelectedBanner(null)}>
+          <Text style={styles.removeText}>Remove Banner</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.switchContainer}>
         <Text style={styles.label}>Public Community</Text>
@@ -162,6 +245,7 @@ const CreateCommunityScreen = () => {
                 style={styles.picker}
                 onValueChange={(itemValue) => handleGateChange(index, 'type', itemValue as any)}
                 itemStyle={styles.pickerItem}
+                dropdownIconColor={COLORS.white}
               >
                 <Picker.Item label="Token" value="TOKEN" />
                 <Picker.Item label="NFT" value="NFT" />
@@ -203,19 +287,24 @@ const CreateCommunityScreen = () => {
                 />
               </View>
             )}
-            <Button title="Remove Gate" onPress={() => handleRemoveGate(index)} color={COLORS.error} />
+            <Button title="Remove Gate" onPress={() => handleRemoveGate(index)} color={COLORS.errorRed || '#EF4444'} />
           </View>
         ))}
       </View>
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-      <Button
-        title={loading ? 'Creating...' : 'Create Community'}
+      <TouchableOpacity
+        style={[styles.submitButton, (loading || isUploading) && styles.submitButtonDisabled]}
         onPress={handleSubmit}
-        color={COLORS.brandPrimary}
-        disabled={loading}
-      />
+        disabled={loading || isUploading}
+      >
+        {loading || isUploading ? (
+          <ActivityIndicator size="small" color={COLORS.white} />
+        ) : (
+          <Text style={styles.submitButtonText}>Create Community</Text>
+        )}
+      </TouchableOpacity>
     </ScrollView>
   );
 };
@@ -227,7 +316,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 50, // Ensure content isn't cut off by bottom button
+    paddingBottom: 50,
   },
   header: {
     flexDirection: 'row',
@@ -236,7 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    width: 24, // To balance the header title position
+    width: 24,
   },
   headerTitle: {
     fontSize: 24,
@@ -262,6 +351,44 @@ const styles = StyleSheet.create({
   multilineInput: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  imagePickerPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#161B22',
+    borderWidth: 1,
+    borderColor: '#30363D',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginTop: 5,
+  },
+  bannerPlaceholder: {
+    width: '100%',
+    height: 150,
+    borderRadius: 10,
+  },
+  placeholderInner: {
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: COLORS.greyMid,
+    fontSize: 12,
+    marginTop: 5,
+  },
+  previewAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  previewBanner: {
+    width: '100%',
+    height: '100%',
+  },
+  removeText: {
+    color: COLORS.errorRed || '#EF4444',
+    fontSize: 12,
+    marginTop: 5,
   },
   switchContainer: {
     flexDirection: 'row',
@@ -314,18 +441,32 @@ const styles = StyleSheet.create({
   picker: {
     flex: 1,
     color: COLORS.white,
-    // Note: backgroundColor is buggy on iOS for Picker itself, often needs to be applied to wrapper
   },
   pickerItem: {
     color: COLORS.white,
-    backgroundColor: COLORS.background, // This style is for individual Picker.Item, may not work on all platforms
+    backgroundColor: COLORS.background,
   },
   errorText: {
-    color: COLORS.error,
+    color: COLORS.errorRed || '#EF4444',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 10,
     marginBottom: 20,
+  },
+  submitButton: {
+    backgroundColor: COLORS.brandPrimary,
+    borderRadius: 10,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitButtonText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
 

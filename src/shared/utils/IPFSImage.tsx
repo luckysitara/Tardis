@@ -111,45 +111,15 @@ export const IPFSAwareImage = ({
         };
     }, [source]);
 
-    // Try next gateway when current one fails
-    const tryNextGateway = useCallback(() => {
-        if (!mountedRef.current || !ipfsHashRef.current) return;
-
-        const hash = ipfsHashRef.current;
-        const gatewayList = [...IPFS_GATEWAYS.primary, ...IPFS_GATEWAYS.backup];
-        const nextAttempt = gatewayAttempt + 1;
-        
-        // If we've tried all gateways, show fallback
-        if (nextAttempt >= gatewayList.length) {
-            if (hash) {
-                // Remember this problematic hash for future reference
-                problematicIpfsHashes.add(hash);
-            }
-            setShowFallback(true);
-            setIsLoading(false);
-            return;
-        }
-
-        // Try next gateway
-        setGatewayAttempt(nextAttempt);
-        const nextGateway = gatewayList[nextAttempt];
-        
-        // Add a small delay to prevent rapid retries
-        setTimeout(() => {
-            if (mountedRef.current) {
-                setCurrentSource({ 
-                    uri: `${nextGateway}${hash}`,
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-            }
-        }, 50);
-    }, [gatewayAttempt]);
-
     // Handle image load error
     const handleError = (e: any) => {
         if (!mountedRef.current) return;
 
-        console.log(`Image load error: ${e?.nativeEvent?.error || 'Unknown error'}`);
+        let errorUrl = '';
+        if (typeof currentSource === 'string') errorUrl = currentSource;
+        else if (currentSource && typeof currentSource === 'object' && 'uri' in currentSource) errorUrl = currentSource.uri as string;
+
+        console.log(`[IPFSAwareImage] Load error for URL: ${errorUrl}. Error: ${e?.nativeEvent?.error || 'Unknown error'}`);
         
         if (ipfsHashRef.current) {
             // For IPFS images, try next gateway
@@ -226,30 +196,33 @@ export const IPFSAwareImage = ({
 export const getValidImageSource = (imageUrl: string | any) => {
     if (!imageUrl) return DEFAULT_IMAGES.user;
 
-    // If it's already an object (like required assets), return as is
     if (typeof imageUrl !== 'string') {
         return imageUrl;
     }
 
-    // First, standardize the URL format
     const fixedUrl = fixAllImageUrls(imageUrl);
 
-    // Extract IPFS hash if present
+    // If the URL already seems like a direct gateway URL, return it as is
+    // This prevents double-prefixing (e.g. cloudflare-ipfs.com/ipfs/gateway.pinata.cloud/ipfs/...)
+    if (fixedUrl.includes('gateway.pinata.cloud/ipfs/') || 
+        fixedUrl.includes('ipfs.io/ipfs/') || 
+        fixedUrl.includes('cloudflare-ipfs.com/ipfs/')) {
+        return { uri: fixedUrl };
+    }
+
     let ipfsHash = '';
     if (fixedUrl.startsWith('ipfs://')) {
         ipfsHash = fixedUrl.replace('ipfs://', '');
     } else if (fixedUrl.includes('/ipfs/')) {
         const parts = fixedUrl.split('/ipfs/');
         if (parts.length > 1) {
-            ipfsHash = parts[1];
+            ipfsHash = parts[1].split('?')[0]?.split('#')[0];
         }
     } else if (fixedUrl.startsWith('Qm') && fixedUrl.length > 30) {
         ipfsHash = fixedUrl;
     }
 
-    // If we identified an IPFS hash, use our primary gateway
     if (ipfsHash) {
-        // Use different gateways for different platforms
         const gateway = Platform.OS === 'android' 
             ? IPFS_GATEWAYS.primary[0]  
             : 'https://ipfs.io/ipfs/';
@@ -263,8 +236,7 @@ export const getValidImageSource = (imageUrl: string | any) => {
         };
     }
 
-    // Add caching headers for Android
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && fixedUrl.startsWith('http')) {
         return {
             uri: fixedUrl,
             headers: {
@@ -273,7 +245,6 @@ export const getValidImageSource = (imageUrl: string | any) => {
         };
     }
 
-    // Default handling for other platforms
     return { uri: fixedUrl };
 };
 

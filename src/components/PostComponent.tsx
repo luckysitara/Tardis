@@ -9,6 +9,7 @@ import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 import { Buffer } from 'buffer';
 import TYPOGRAPHY from '@/assets/typography';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 
 import type { ThreadPost } from '@/core/thread/components/thread.types';
 
@@ -44,10 +45,13 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   };
 
   const getMedia = () => {
+    // 1. Check sections for MEDIA type (used by ChatComposer for thread posts)
     if (sections && sections.length > 0) {
-      const imageSection = sections.find(s => s.type === 'TEXT_IMAGE' || s.imageUrl);
-      if (imageSection) return imageSection.imageUrl;
+      const mediaSection = sections.find(s => s.type === 'MEDIA' || s.type === 'TEXT_IMAGE' || s.imageUrl || s.mediaUrl);
+      if (mediaSection) return (mediaSection as any).mediaUrl || (mediaSection as any).imageUrl;
     }
+    
+    // 2. Check root media_urls (used by CreatePostScreen)
     const media_urls = (props as any).media_urls;
     if (media_urls) {
       try {
@@ -204,7 +208,11 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
           <Text style={styles.content}>{content}</Text>
           
           {mediaUri && (
-            <Image source={{ uri: mediaUri }} style={styles.media} resizeMode="cover" />
+            <IPFSAwareImage 
+              source={getValidImageSource(mediaUri)} 
+              style={styles.media} 
+              resizeMode="cover" 
+            />
           )}
         </View>
 

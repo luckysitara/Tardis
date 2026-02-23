@@ -104,8 +104,9 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   /**
    * Helper to prepare thread sections
    */
-  const prepareSections = (text: string): ThreadSection[] => {
+  const prepareSections = (text: string, imageUrl?: string): ThreadSection[] => {
     const sections: ThreadSection[] = [];
+    
     if (text.trim()) {
       sections.push({
         id: 'section-' + Math.random().toString(36).substr(2, 9),
@@ -113,6 +114,15 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
         text: text.trim(),
       });
     }
+
+    if (imageUrl) {
+      sections.push({
+        id: 'media-' + Math.random().toString(36).substr(2, 9),
+        type: 'MEDIA',
+        mediaUrl: imageUrl,
+      });
+    }
+
     return sections;
   };
 
@@ -173,7 +183,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
           try {
             const timestamp = new Date().toISOString();
             // Reconstruct exactly what backend verifies
-            const messageToSign = `{"content":"${currentTextValue.trim()}","timestamp":"${timestamp}","chatId":"${chatContext.chatId}"}`;
+            const messageToSign = `{"content":"${currentTextValue.trim()}","timestamp":"${timestamp}"${uploadedImageUrl ? `,"imageUrl":"${uploadedImageUrl}"` : ""},"chatId":"${chatContext.chatId}"}`;
             console.log("[ChatComposer] Requesting MWA signature for Community Message:", messageToSign);
             
             const messageUint8 = new Uint8Array(Buffer.from(messageToSign, 'utf8'));
@@ -217,7 +227,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
       } 
       // 2. Handle Thread Posts
       else {
-        const sections = prepareSections(currentTextValue);
+        const sections = prepareSections(currentTextValue, uploadedImageUrl);
         if (parentId) {
           await dispatch(createReplyAsync({ parentId, userId: currentUser.id, sections })).unwrap();
         } else {
@@ -248,7 +258,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsMultipleSelection: false,
         quality: 0.8,
         allowsEditing: true,
@@ -320,10 +330,18 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
             keyboardAppearance="dark"
           />
           <View style={styles.iconsContainer}>
-            <TouchableOpacity onPress={handleMediaPress} style={styles.iconButton}>
+            <TouchableOpacity 
+              onPress={handleMediaPress} 
+              style={styles.iconButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               {ImageIcon && <ImageIcon width={22} height={22} />}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowTradeModal(true)} style={styles.iconButton}>
+            <TouchableOpacity 
+              onPress={() => setShowTradeModal(true)} 
+              style={styles.iconButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               {TradeShare && <TradeShare width={22} height={22} />}
             </TouchableOpacity>
           </View>

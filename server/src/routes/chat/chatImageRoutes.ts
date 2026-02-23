@@ -62,13 +62,27 @@ chatImageRouter.post(
 
       // 6) Attempt to fetch the returned metadata JSON
       let ipfsImageUrl = ipfsResult;
-      const { default: fetch } = await import('node-fetch');
-      const metadataResponse = await fetch(ipfsResult);
-      if (metadataResponse.ok) {
-        const metadataJson: any = await metadataResponse.json();
-        if (metadataJson.image) {
-          ipfsImageUrl = metadataJson.image;
+      try {
+        const { default: fetch } = await import('node-fetch');
+        console.log(`[ChatImageUpload] Verifying IPFS result: ${ipfsResult}`);
+        const metadataResponse = await fetch(ipfsResult);
+        
+        if (metadataResponse.ok) {
+          const contentType = metadataResponse.headers.get('content-type');
+          console.log(`[ChatImageUpload] IPFS Content-Type: ${contentType}`);
+          
+          if (contentType && contentType.includes('application/json')) {
+            const metadataJson: any = await metadataResponse.json();
+            if (metadataJson.image) {
+              ipfsImageUrl = metadataJson.image;
+              console.log(`[ChatImageUpload] Extracted image URL from metadata: ${ipfsImageUrl}`);
+            }
+          } else {
+            console.log(`[ChatImageUpload] IPFS result is likely a direct image, using as is.`);
+          }
         }
+      } catch (fetchErr: any) {
+        console.warn(`[ChatImageUpload] Failed to fetch/parse IPFS metadata, using raw result: ${fetchErr.message}`);
       }
 
       return res.json({ success: true, url: ipfsImageUrl });

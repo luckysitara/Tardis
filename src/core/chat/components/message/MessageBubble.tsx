@@ -61,6 +61,8 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
     // Priority 1: Check root fields
     if ('tradeData' in msg && msg.tradeData) return 'trade';
     if ('nftData' in msg && msg.nftData) return 'nft';
+    if ('image_url' in msg && msg.image_url) return 'image';
+    if ((msg as any).imageUrl) return 'image';
     
     // Priority 2: Check additional_data for specialized types ONLY
     if (hasAdditionalData) {
@@ -74,7 +76,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
       const sections = msg.sections as any[];
       if (sections.some(section => section && typeof section === 'object' && section.type === 'TEXT_TRADE' && section.tradeData)) return 'trade';
       if (sections.some(section => section && typeof section === 'object' && section.type === 'NFT_LISTING' && section.listingData)) return 'nft';
-      if (sections.some(section => section && typeof section === 'object' && (section.type === 'TEXT_IMAGE' || section.imageUrl || section.type === 'TEXT_VIDEO' || section.videoUrl))) return 'media';
+      if (sections.some(section => section && typeof section === 'object' && (section.type === 'MEDIA' || section.type === 'TEXT_IMAGE' || section.imageUrl || section.mediaUrl || section.type === 'TEXT_VIDEO' || section.videoUrl))) return 'media';
     }
 
     return 'text';
@@ -86,10 +88,12 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
     if (msg.media && Array.isArray(msg.media)) return msg.media;
     if (msg.sections && Array.isArray(msg.sections)) {
       return msg.sections
-        .filter((section: any) => section && typeof section === 'object' && (section.type === 'TEXT_IMAGE' || section.imageUrl))
-        .map((section: any) => section.imageUrl || '');
+        .filter((section: any) => section && typeof section === 'object' && (section.type === 'MEDIA' || section.type === 'TEXT_IMAGE' || section.imageUrl || section.mediaUrl))
+        .map((section: any) => section.mediaUrl || section.imageUrl || '');
     }
-    // Check additional data
+    // Check root and additional data
+    if (msg.image_url) return [msg.image_url];
+    if (msg.imageUrl) return [msg.imageUrl];
     if (typeof msg.additional_data === 'object' && msg.additional_data?.image_url) {
         return [msg.additional_data.image_url];
     }
@@ -130,7 +134,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
 
     switch (type) {
       case 'image':
-        const imgUrl = msg.image_url || (typeof msg.additional_data === 'object' && msg.additional_data?.image_url);
+        const imgUrl = msg.image_url || msg.imageUrl || (typeof msg.additional_data === 'object' && msg.additional_data?.image_url);
         return (
           <View style={styles.messageContent}>
             <View style={styles.imageContainer}>
@@ -160,7 +164,12 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
             {contentText ? <Text style={textStyle}>{contentText}</Text> : null}
             <View style={styles.mediaContainer}>
               {urls.map((url: string, idx: number) => (
-                <IPFSAwareImage key={idx} source={getValidImageSource(url)} style={styles.mediaImage} resizeMode="cover" />
+                <IPFSAwareImage 
+                  key={idx} 
+                  source={getValidImageSource(url)} 
+                  style={styles.mediaImage} 
+                  resizeMode="cover" 
+                />
               ))}
             </View>
           </View>

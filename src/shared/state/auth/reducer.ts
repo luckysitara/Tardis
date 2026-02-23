@@ -285,6 +285,39 @@ export const deleteAccountAction = createAsyncThunk<
   },
 );
 
+/**
+ * Update the user's profile picture URL in the database.
+ */
+export const updateProfilePicAction = createAsyncThunk(
+  'auth/updateProfilePic',
+  async (
+    {userId, profilePicUrl}: {userId: string; profilePicUrl: string},
+    thunkAPI,
+  ) => {
+    try {
+      const response = await fetch(
+        `${SERVER_BASE_URL}/api/profile/updateProfilePic`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({userId, profilePicUrl}),
+        },
+      );
+      const data = await response.json();
+      if (!data.success) {
+        return thunkAPI.rejectWithValue(
+          data.error || 'Failed to update profile picture',
+        );
+      }
+      return data.profilePicUrl as string;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(
+        error.message || 'Error updating profile picture',
+      );
+    }
+  },
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -389,6 +422,10 @@ const authSlice = createSlice({
 
     builder.addCase(updateDescription.fulfilled, (state, action) => {
       state.description = action.payload;
+    });
+
+    builder.addCase(updateProfilePicAction.fulfilled, (state, action) => {
+      state.profilePicUrl = action.payload;
     });
 
     builder.addCase(attachCoinToProfile.fulfilled, (state, action) => {

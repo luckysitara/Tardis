@@ -18,82 +18,125 @@ import { useSelector } from 'react-redux';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { RootState } from '@/shared/state/store';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
-import { CreatePostPayload, ThreadPost } from '@/shared/state/post/types';
-import { createPost, fetchPosts } from '@/shared/state/post/slice'; // Import createPost from the new slice
-import { fetchCommunities } from '@/shared/state/community/slice'; // Import fetchCommunities
-import { Community } from '@/shared/state/community/types'; // Import Community type
-import { SERVER_URL } from '@env';
+import { CreatePostPayload } from '@/shared/state/post/types';
+import { createPost, fetchPosts } from '@/shared/state/post/slice';
+import { fetchCommunities } from '@/shared/state/community/slice';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
 import { Buffer } from 'buffer';
-import { Picker } from '@react-native-picker/picker'; // Import Picker
+import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadChatImage } from '@/core/chat/services/chatImageService';
 
 const CreatePostScreen = ({ navigation }) => {
   const [postContent, setPostContent] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
-  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null); // State for selected community
-  const [isPublic, setIsPublic] = useState(false); // State for public announcement
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
   const { signMessage, address: userId } = useWallet();
   const authState = useSelector((state: RootState) => state.auth);
   const username = authState.username || 'Anonymous';
-  const { communities } = useSelector((state: RootState) => state.community); // Get communities from store
+  const { communities } = useSelector((state: RootState) => state.community);
 
   useEffect(() => {
-    dispatch(fetchCommunities()); // Fetch communities when component mounts
+    dispatch(fetchCommunities());
   }, [dispatch]);
 
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need access to your gallery to pick an image.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick an image');
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+  };
+
   const handlePost = async () => {
-    if (!postContent.trim()) return;
+    if (!postContent.trim() && !selectedImage) return;
     
     if (!userId) {
       Alert.alert("Authentication Required", "Please connect your wallet to post.");
       return;
     }
 
+    setIsPosting(true);
     try {
+      let mediaUrls: string[] = [];
+      
+      // 1. Upload image if selected
+      if (selectedImage) {
+        try {
+          const uploadedUrl = await uploadChatImage(userId, selectedImage);
+          mediaUrls.push(uploadedUrl);
+        } catch (uploadError) {
+          console.error("Image upload error:", uploadError);
+          Alert.alert("Upload Error", "Failed to upload image. Post without image?");
+          // Option to continue or cancel - for now, we'll cancel
+          setIsPosting(false);
+          return;
+        }
+      }
+
       const timestamp = new Date().toISOString();
       // DETERMINISTIC: Keys must be in this exact order for backend verification
+      // If we have an image, we might want to include its URL in the signature if the backend expects it.
+      // But for now, let's stick to the current signature format or check if it needs update.
       const messageToSign = `{"content":"${postContent.trim()}","timestamp":"${timestamp}"}`;
       const messageUint8 = new Uint8Array(Buffer.from(messageToSign, 'utf8'));
 
       console.log("[CreatePost] Requesting MWA signature for:", messageToSign);
       
-      // Request signature immediately on user interaction
       const signature = await signMessage(messageUint8);
 
       if (!signature) {
         console.warn("[CreatePost] No signature received.");
+        setIsPosting(false);
         return;
       }
 
-      // Convert Uint8Array signature to base64 for backend
       const signatureBase64 = Buffer.from(signature).toString('base64');
 
-      // Now set loading state for backend submission
-      setIsPosting(true);
       console.log("[CreatePost] Signature received, publishing...");
 
-      // Prepare post data with community_id and is_public
       const postData: CreatePostPayload = {
         author_wallet_address: userId,
         author_skr_username: username,
         content: postContent.trim(),
-        media_urls: [],
+        media_urls: mediaUrls,
         signature: signatureBase64,
         timestamp: timestamp,
-        community_id: selectedCommunityId || undefined, // Include selected community ID
-        is_public: selectedCommunityId ? isPublic : true, // If global feed, always public
+        community_id: selectedCommunityId || undefined,
+        is_public: selectedCommunityId ? isPublic : true,
       };
 
-      await dispatch(createPost(postData)).unwrap(); // Dispatch the new createPost action
+      await dispatch(createPost(postData)).unwrap();
 
       Alert.alert("Success", "Hardware-signed post published!");
       setPostContent('');
-      // Refresh posts in the relevant feed (global or community-specific)
+      setSelectedImage(null);
       dispatch(fetchPosts({ communityId: selectedCommunityId || undefined, userId }));
       navigation.goBack();
     } catch (error: any) {
@@ -111,8 +154,9 @@ const CreatePostScreen = ({ navigation }) => {
   return (
     <View style={[styles.safeArea, { backgroundColor: COLORS.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
         style={styles.container}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Header */}
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
@@ -122,10 +166,10 @@ const CreatePostScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.postButton,
-              (!postContent.trim() || isOverLimit || isPosting) && styles.postButtonDisabled,
+              ((!postContent.trim() && !selectedImage) || isOverLimit || isPosting) && styles.postButtonDisabled,
             ]}
             onPress={handlePost}
-            disabled={!postContent.trim() || isOverLimit || isPosting}
+            disabled={(!postContent.trim() && !selectedImage) || isOverLimit || isPosting}
           >
             {isPosting ? (
               <ActivityIndicator size="small" color={COLORS.white} />
@@ -155,6 +199,7 @@ const CreatePostScreen = ({ navigation }) => {
                     onValueChange={(itemValue) => setSelectedCommunityId(itemValue)}
                     style={styles.picker}
                     itemStyle={styles.pickerItem}
+                    dropdownIconColor={COLORS.white}
                   >
                     <Picker.Item label="Global Feed" value={null} />
                     {communities.map(community => (
@@ -188,6 +233,15 @@ const CreatePostScreen = ({ navigation }) => {
                 selectionColor={COLORS.brandPrimary}
                 editable={!isPosting}
               />
+
+              {selectedImage && (
+                <View style={styles.imagePreviewContainer}>
+                  <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+                  <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
+                    <Icons.cross width={16} height={16} color={COLORS.white} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </ScrollView>
@@ -195,8 +249,13 @@ const CreatePostScreen = ({ navigation }) => {
         {/* Toolbar - always above keyboard */}
         <View style={[styles.toolbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <View style={styles.toolbarIcons}>
-             <TouchableOpacity style={styles.iconButton} disabled={isPosting}>
-                <Icons.GalleryIcon width={24} height={24} color={COLORS.brandPrimary} />
+             <TouchableOpacity 
+                style={styles.iconButton} 
+                onPress={pickImage} 
+                disabled={isPosting}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              >
+                <Icons.GalleryIcon width={28} height={28} color={COLORS.brandPrimary} />
              </TouchableOpacity>
           </View>
           
@@ -318,26 +377,45 @@ const styles = StyleSheet.create({
   picker: {
     color: COLORS.white,
     height: 40,
-    // On Android, set a transparent background to make the wrapper background visible
     backgroundColor: 'transparent', 
   },
   pickerItem: {
     color: COLORS.white,
-    backgroundColor: COLORS.background, // This style might not apply directly on Android Picker.Item
+    backgroundColor: COLORS.background,
     fontSize: 16,
   },
   pickerIcon: {
     position: 'absolute',
     right: 15,
-    pointerEvents: 'none', // Ensure clicks go through to the picker
+    pointerEvents: 'none',
   },
   textInput: {
-    flex: 1,
     fontSize: 19,
     color: COLORS.white,
     fontFamily: TYPOGRAPHY.fontFamily,
     paddingTop: 8,
-    minHeight: 150,
+    minHeight: 100,
+  },
+  imagePreviewContainer: {
+    marginTop: 15,
+    position: 'relative',
+    borderRadius: 15,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.borderDarkColor,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 15,
+    padding: 5,
   },
   toolbar: {
     flexDirection: 'row',
@@ -366,10 +444,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   charCountWarning: {
-    color: '#FFAD1F', // Orange
+    color: '#FFAD1F', 
   },
   charCountError: {
-    color: '#E0245E', // Red
+    color: '#E0245E', 
   },
   divider: {
     width: 1,

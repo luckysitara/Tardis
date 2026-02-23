@@ -14,44 +14,48 @@ import { Platform } from 'react-native';
  * @returns Promise that resolves to the IPFS URL of the uploaded image
  */
 export async function uploadChatImage(userId: string, imageUri: string): Promise<string> {
+  console.log(`[uploadChatImage] Initiating upload for user ${userId}, uri: ${imageUri}`);
   try {
-    // Create formData with the image
     const formData = new FormData();
     
-    // Get file info
-    const fileInfo = await FileSystem.getInfoAsync(imageUri);
-    if (!fileInfo.exists) {
-      throw new Error('Image file does not exist');
-    }
-    
-    // Get filename from URI
-    const fileName = imageUri.split('/').pop() || 'chat-image.jpg';
-    
-    // Add file to form data
-    // @ts-ignore: Expo's FormData implementation has a different type
-    formData.append('chatImage', {
-      uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
+    const fileName = imageUri.split('/').pop() || 'image.jpg';
+    const match = /\.(\w+)$/.exec(fileName);
+    const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+    // Important: React Native FormData needs an object with uri, name, type
+    // and uri should have file:// prefix on most versions
+    const photo = {
+      uri: imageUri.startsWith('file://') ? imageUri : `file://${imageUri}`,
       name: fileName,
-      type: 'image/jpeg', // Assuming JPEG, but could be determined dynamically
-    });
-    
-    // Add userId to track who uploaded the image
+      type: type,
+    };
+
+    // @ts-ignore
+    formData.append('chatImage', photo);
     formData.append('userId', userId);
 
-    // Upload to server endpoint
-    const response = await axios.post(`${SERVER_URL}/api/chat/images/upload`, formData, {
+    console.log(`[uploadChatImage] Sending request to ${SERVER_URL}/api/chat/images/upload`);
+
+    const response = await fetch(`${SERVER_URL}/api/chat/images/upload`, {
+      method: 'POST',
+      body: formData,
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'multipart/form-data',
       },
     });
 
-    if (response.data && response.data.success && response.data.url) {
-      return response.data.url;
+    const result = await response.json();
+    console.log(`[uploadChatImage] Server response:`, result);
+
+    if (result && result.success && result.url) {
+      return result.url;
     } else {
-      throw new Error('Failed to get image URL from server');
+      throw new Error(result.error || 'Failed to get image URL from server');
     }
   } catch (error: any) {
-    console.error('Error uploading chat image:', error);
+    console.error('[uploadChatImage] Error:', error);
     throw new Error(`Failed to upload image: ${error.message}`);
   }
 } 
+ 

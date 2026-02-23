@@ -29,12 +29,15 @@ function mapPost(post: any): any {
                 text: post.content
             }
         ],
+        media_urls: typeof post.media_urls === 'string' ? JSON.parse(post.media_urls) : (post.media_urls || []),
         createdAt: post.timestamp || post.created_at,
         replies: [],
         reactionCount: post.like_count || 0,
         retweetCount: post.repost_count || 0,
         quoteCount: 0,
-        reactions: {}
+        reactions: {},
+        communityId: post.community_id,
+        isPublic: !!post.is_public
     };
 }
 
