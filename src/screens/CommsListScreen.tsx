@@ -4,11 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   RefreshControl,
   SafeAreaView,
   TextInput,
-  Animated,
+  StatusBar,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
@@ -20,7 +19,8 @@ import Icons from '@/assets/svgs';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import { decryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
 import { Buffer } from 'buffer';
-import Svg, { Path, Circle } from 'react-native-svg';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * Formats a timestamp into a relative "Tardis" format
@@ -30,21 +30,27 @@ const formatTemporalTime = (timestamp: string | Date | number | undefined) => {
   
   try {
     const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return 'Ancient';
+    if (isNaN(date.getTime())) return '';
 
     const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
 
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 3600 * 24));
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return date.toLocaleDateString([], { weekday: 'short' });
+    
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   } catch (e) {
-    return 'Ancient';
+    return '';
   }
 };
 
 const CommsListScreen = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { address: userId, encryptionSeed } = useAppSelector(state => state.auth);
@@ -67,8 +73,7 @@ const CommsListScreen = () => {
   };
 
   const filteredChats = useMemo(() => {
-    // 1. Filter for 'direct' type only and apply sorting
-    const sorted = chats
+    const sorted = [...chats]
       .filter(chat => chat.type === 'direct')
       .sort((a, b) => {
         const timeA = new Date(a.lastMessage?.created_at || a.updated_at).getTime();
@@ -76,73 +81,73 @@ const CommsListScreen = () => {
         return timeB - timeA;
       });
 
-    // 2. Filter by search query
     if (!searchQuery) return sorted;
     return sorted.filter(chat => {
-      const name = chat.name || chat.participants.find(p => p.id !== userId)?.username || '';
+      const otherParticipant = chat.participants.find(p => p.id !== userId);
+      const name = chat.name || otherParticipant?.username || '';
       return name.toLowerCase().includes(searchQuery.toLowerCase());
     });
   }, [chats, searchQuery, userId]);
 
   const renderChatItem = ({ item }: { item: ChatRoom }) => {
     const otherParticipant = item.participants.find(p => p.id !== userId);
-    const chatName = item.name || otherParticipant?.username || 'Unknown Seeker';
-    const avatar = otherParticipant?.profile_picture_url || DEFAULT_IMAGES.user;
+    const chatName = item.name || otherParticipant?.username || 'Seeker';
+    const avatar = otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`;
     const lastMessage = item.lastMessage;
     const isE2EE = item.type === 'direct';
 
-    // Preview Logic with E2EE Scrambling
-    let previewText = lastMessage ? lastMessage.content : 'No transmissions yet';
+    let previewText = lastMessage ? lastMessage.content : 'New chat started';
     
     if (lastMessage?.is_encrypted && encryptionSeed) {
       try {
-        const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
-        const keypair = getKeypairFromSeed(seedUint8);
-        const sender = item.participants.find(p => p.id === lastMessage.sender_id);
-        
-        if (sender?.public_encryption_key) {
+        const otherPk = otherParticipant?.public_encryption_key;
+        if (otherPk && otherPk.length > 20) { // Basic validation
+          const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
+          const keypair = getKeypairFromSeed(seedUint8);
           const decrypted = decryptMessage(
             lastMessage.content,
             lastMessage.nonce || '',
-            sender.public_encryption_key,
+            otherPk,
             keypair.secretKey
           );
-          previewText = decrypted || '[Locked Transmission]';
+          previewText = decrypted || '[Encrypted]';
         } else {
-          previewText = '[Locked Transmission]';
+          previewText = '[Encrypted]';
         }
       } catch (e) {
-        previewText = '[Scrambled...]';
+        previewText = '[Encrypted]';
       }
-    } else if (lastMessage?.is_encrypted) {
-      previewText = 'Authorize Seed Vault to decrypt...';
     }
 
     return (
       <TouchableOpacity
         style={styles.chatItem}
+        activeOpacity={0.7}
         onPress={() => {
           dispatch(setSelectedChat(item.id));
           navigation.navigate('ChatScreen', { chatId: item.id, title: chatName });
         }}
       >
         <View style={styles.avatarContainer}>
-          <Image source={typeof avatar === 'string' ? { uri: avatar } : avatar} style={styles.avatar} />
+          <IPFSAwareImage
+            source={getValidImageSource(avatar)}
+            style={styles.avatar}
+          />
           {otherParticipant?.is_active && <View style={styles.onlineStatus} />}
         </View>
 
         <View style={styles.chatInfo}>
           <View style={styles.chatHeader}>
             <Text style={styles.chatName} numberOfLines={1}>{chatName}</Text>
-            <Text style={styles.timestamp}>{formatTemporalTime(lastMessage?.created_at || item.updated_at)}</Text>
+            <Text style={[styles.timestamp, item.unreadCount > 0 && styles.activeTimestamp]}>
+              {formatTemporalTime(lastMessage?.created_at || item.updated_at)}
+            </Text>
           </View>
 
           <View style={styles.chatFooter}>
             <View style={styles.previewContainer}>
-              {isE2EE && Icons.Shield && (
-                <View style={styles.shieldIconSmall}>
-                  <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} />
-                </View>
+              {isE2EE && (
+                <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} style={styles.shieldIcon} />
               )}
               <Text style={styles.previewText} numberOfLines={1}>
                 {previewText}
@@ -161,26 +166,29 @@ const CommsListScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Transmissions</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity 
           style={styles.headerIcon}
           onPress={() => navigation.navigate('StartChatScreen')}
         >
-          <Icons.PlusCircleIcon width={28} height={28} fill={COLORS.white} />
+          <Icons.PlusCircleIcon width={24} height={24} fill={COLORS.white} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
         <View style={styles.searchInputWrapper}>
-          <Icons.SearchIcon width={18} height={18} color={COLORS.greyMid} />
+          <Icons.SearchIcon width={16} height={16} color={COLORS.greyMid} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search .skr IDs..."
+            placeholder="Search Direct Messages"
             placeholderTextColor={COLORS.greyMid}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            keyboardAppearance="dark"
           />
         </View>
       </View>
@@ -196,12 +204,13 @@ const CommsListScreen = () => {
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>The Void is quiet...</Text>
-            <Text style={styles.emptySubtext}>Materialize a new chat to begin.</Text>
+            <Icons.PlusCircleIcon width={40} height={40} fill={COLORS.greyMid} />
+            <Text style={styles.emptyText}>Welcome to your inbox</Text>
+            <Text style={styles.emptySubtext}>Message anyone on Solana with end-to-end encryption.</Text>
           </View>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -214,37 +223,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: COLORS.background,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: COLORS.white,
-    letterSpacing: 0.5,
+    fontFamily: TYPOGRAPHY.fontFamily,
   },
   headerIcon: {
-    padding: 5,
+    padding: 4,
   },
   searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    marginVertical: 12,
   },
   searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161B22',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
-    borderWidth: 1,
-    borderColor: '#30363D',
+    backgroundColor: '#202327',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    height: 40,
   },
   searchInput: {
     flex: 1,
     color: COLORS.white,
     marginLeft: 10,
-    fontSize: 16,
+    fontSize: 15,
+    fontFamily: TYPOGRAPHY.fontFamily,
   },
   listContent: {
     paddingBottom: 100,
@@ -253,17 +262,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.background, // Ensure background is solid
   },
   avatarContainer: {
     position: 'relative',
-    marginRight: 12,
   },
   avatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#30363D',
+    backgroundColor: COLORS.darkerBackground,
   },
   onlineStatus: {
     position: 'absolute',
@@ -272,17 +279,18 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#238636',
+    backgroundColor: COLORS.brandGreen,
     borderWidth: 2,
     borderColor: COLORS.background,
   },
   chatInfo: {
     flex: 1,
+    marginLeft: 12,
     justifyContent: 'center',
-    paddingBottom: 12, // Match paddingVertical of container
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    marginBottom: -12, // Offset the padding so the border is at the bottom of the item
+    paddingBottom: 12,
+    marginBottom: -12,
   },
   chatHeader: {
     flexDirection: 'row',
@@ -294,12 +302,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.white,
+    fontFamily: TYPOGRAPHY.fontFamily,
     flex: 1,
-    marginRight: 8,
   },
   timestamp: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.greyMid,
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  activeTimestamp: {
+    color: COLORS.brandPrimary,
+    fontWeight: '600',
   },
   chatFooter: {
     flexDirection: 'row',
@@ -310,16 +323,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 16,
+    marginRight: 10,
+  },
+  shieldIcon: {
+    marginRight: 4,
+    opacity: 0.8,
   },
   previewText: {
     fontSize: 14,
     color: COLORS.greyMid,
-    lineHeight: 20,
-  },
-  shieldIconSmall: {
-    marginRight: 4,
-    opacity: 0.7,
+    fontFamily: TYPOGRAPHY.fontFamily,
+    flex: 1,
   },
   unreadBadge: {
     backgroundColor: COLORS.brandPrimary,
@@ -333,25 +347,27 @@ const styles = StyleSheet.create({
   unreadCount: {
     color: COLORS.white,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   emptyContainer: {
     flex: 1,
-    marginTop: 100,
+    marginTop: 80,
     alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 40,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: COLORS.white,
+    marginTop: 20,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.greyMid,
     textAlign: 'center',
+    lineHeight: 20,
   }
 });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, SafeAreaView, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, SafeAreaView, Dimensions, Platform, StatusBar } from 'react-native';
 import { FlashList } from "@shopify/flash-list";
 import COLORS from '@/assets/colors';
 import PostComponent from '../components/PostComponent';
@@ -8,13 +8,18 @@ import { fetchAllPosts } from '@/shared/state/thread/reducer';
 import type { ThreadPost } from '@/core/thread/components/thread.types';
 import Icons from '@/assets/svgs';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 
 const { width } = Dimensions.get('window');
 
 const TownSquareScreen = () => {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { allPosts, loading } = useAppSelector(state => state.thread);
+  const { profilePicUrl, username } = useAppSelector(state => state.auth);
+  
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'FOR_YOU' | 'FOLLOWING'>('FOR_YOU');
 
@@ -38,7 +43,6 @@ const TownSquareScreen = () => {
   const filteredPosts = useMemo(() => {
     if (!allPosts) return [];
     if (activeTab === 'FOR_YOU') return allPosts;
-    // For now, "Following" is just a mock filter or could be actual following logic later
     return allPosts.filter((_, index) => index % 2 === 0);
   }, [allPosts, activeTab]);
 
@@ -47,53 +51,78 @@ const TownSquareScreen = () => {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.tabHeader}>
-          <TouchableOpacity 
-            style={styles.tabButton} 
-            onPress={() => setActiveTab('FOR_YOU')}
-          >
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* X-style Top Header */}
+      <View style={[styles.topHeader, { paddingTop: insets.top }]}>
+        <TouchableOpacity 
+          style={styles.headerAvatarWrapper}
+          onPress={() => navigation.navigate('Seeker')}
+        >
+          <IPFSAwareImage
+            source={getValidImageSource(profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${username}`)}
+            style={styles.headerAvatar}
+          />
+        </TouchableOpacity>
+        
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>TARDIS</Text>
+        </View>
+
+        <TouchableOpacity style={styles.headerIconButton}>
+          <Icons.Settings width={22} height={22} color={COLORS.white} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.tabHeader}>
+        <TouchableOpacity 
+          style={styles.tabButton} 
+          onPress={() => setActiveTab('FOR_YOU')}
+        >
+          <View style={styles.tabTextWrapper}>
             <Text style={[styles.tabText, activeTab === 'FOR_YOU' && styles.activeTabText]}>For You</Text>
             {activeTab === 'FOR_YOU' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.tabButton} 
-            onPress={() => setActiveTab('FOLLOWING')}
-          >
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.tabButton} 
+          onPress={() => setActiveTab('FOLLOWING')}
+        >
+          <View style={styles.tabTextWrapper}>
             <Text style={[styles.tabText, activeTab === 'FOLLOWING' && styles.activeTabText]}>Following</Text>
             {activeTab === 'FOLLOWING' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
+      </View>
 
-        <View style={{ flex: 1 }}>
-          <FlashList
-            data={filteredPosts}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            estimatedItemSize={200}
-            contentContainerStyle={styles.flashListContentContainer}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing || (loading && allPosts.length === 0)}
-                onRefresh={onRefresh}
-                tintColor={COLORS.brandPrimary}
-              />
-            }
-            ListEmptyComponent={
-              !loading ? (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>The square is empty...</Text>
-                  <Text style={styles.emptySubtext}>Be the first to transmit a message to the timeline.</Text>
-                </View>
-              ) : null
-            }
-          />
-        </View>
-      </SafeAreaView>
+      <View style={{ flex: 1 }}>
+        <FlashList
+          data={filteredPosts}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          estimatedItemSize={200}
+          contentContainerStyle={styles.flashListContentContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing || (loading && allPosts.length === 0)}
+              onRefresh={onRefresh}
+              tintColor={COLORS.brandPrimary}
+            />
+          }
+          ListEmptyComponent={
+            !loading ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>The square is empty...</Text>
+                <Text style={styles.emptySubtext}>Be the first to transmit a message to the timeline.</Text>
+              </View>
+            ) : null
+          }
+        />
+      </View>
 
-      {/* Floating Action Button for Posting - Outside SafeArea for stable positioning */}
+      {/* Floating Action Button for Posting */}
       <TouchableOpacity
         style={[styles.fab, { bottom: fabBottom }]}
         onPress={handleCreatePost}
@@ -109,6 +138,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: COLORS.background,
+  },
+  headerAvatarWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: COLORS.darkerBackground,
+  },
+  headerAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  logoContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  logoText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  headerIconButton: {
+    padding: 4,
+  },
   tabHeader: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
@@ -118,11 +179,15 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 12,
+  },
+  tabTextWrapper: {
     position: 'relative',
+    paddingVertical: 4,
+    alignItems: 'center',
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: COLORS.greyMid,
   },
@@ -132,8 +197,8 @@ const styles = StyleSheet.create({
   },
   activeIndicator: {
     position: 'absolute',
-    bottom: 0,
-    width: 60,
+    bottom: -12,
+    width: 40,
     height: 4,
     backgroundColor: COLORS.brandPrimary,
     borderRadius: 2,
@@ -177,3 +242,4 @@ const styles = StyleSheet.create({
 });
 
 export default TownSquareScreen;
+

@@ -111,6 +111,42 @@ export const IPFSAwareImage = ({
         };
     }, [source]);
 
+    // Try next gateway when current one fails
+    const tryNextGateway = useCallback(() => {
+        if (!mountedRef.current || !ipfsHashRef.current) return;
+
+        const hash = ipfsHashRef.current;
+        const gatewayList = [...IPFS_GATEWAYS.primary, ...IPFS_GATEWAYS.backup];
+        const nextAttempt = gatewayAttempt + 1;
+        
+        // If we've tried all gateways, show fallback
+        if (nextAttempt >= gatewayList.length) {
+            if (hash) {
+                // Remember this problematic hash for future reference
+                problematicIpfsHashes.add(hash);
+            }
+            setShowFallback(true);
+            setIsLoading(false);
+            return;
+        }
+
+        // Try next gateway
+        setGatewayAttempt(nextAttempt);
+        const nextGateway = gatewayList[nextAttempt];
+        
+        console.log(`[IPFSAwareImage] Retrying with gateway: ${nextGateway}`);
+
+        // Add a small delay to prevent rapid retries
+        setTimeout(() => {
+            if (mountedRef.current) {
+                setCurrentSource({ 
+                    uri: `${nextGateway}${hash}`,
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+            }
+        }, 50);
+    }, [gatewayAttempt]);
+
     // Handle image load error
     const handleError = (e: any) => {
         if (!mountedRef.current) return;

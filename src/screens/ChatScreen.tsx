@@ -14,47 +14,42 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
-import { fetchChatMessages, receiveMessage } from '@/shared/state/chat/slice';
+import { fetchChatMessages } from '@/shared/state/chat/slice';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
 import ChatComposer from '@/core/chat/components/chat-composer/ChatComposer';
 import ChatMessage from '@/core/chat/components/message/ChatMessage';
 import socketService from '@/shared/services/socketService';
-import { Connection } from '@solana/web3.js';
-import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ChatScreen = () => {
+  const insets = useSafeAreaInsets();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { chatId, title } = route.params;
 
-  const { address: userId, username, profilePicUrl, encryptionSeed } = useAppSelector(state => state.auth);
-  const { wallet } = useWallet();
+  const { address: userId, username, profilePicUrl } = useAppSelector(state => state.auth);
   const { messages, chats, loadingMessages } = useAppSelector(state => state.chat);
   const chatMessages = messages[chatId] || [];
   const currentChat = chats.find(c => c.id === chatId);
+  
+  const otherParticipant = useMemo(() => 
+    currentChat?.participants.find(p => p.id !== userId),
+  [currentChat, userId]);
 
   const flatListRef = useRef<FlatList>(null);
 
-  // Header Animation for "Security Pulsing"
+  // Security Pulsing
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Start pulsing animation for the shield
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 1.15, duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       ])
     );
     pulse.start();
@@ -67,13 +62,9 @@ const ChatScreen = () => {
         dispatch(fetchChatMessages({ chatId, resetUnread: true }));
         socketService.joinChat(chatId);
       }
-      return () => {
-        // Optionally leave chat on blur
-      };
     }, [chatId, dispatch])
   );
 
-  // Determine user object for composer
   const currentUser = useMemo(() => ({
     id: userId || '',
     username: username || 'Me',
@@ -83,50 +74,52 @@ const ChatScreen = () => {
   }), [userId, username, profilePicUrl]);
 
   const handleSendMessage = (content: string, imageUrl?: string) => {
-    // Logic is already handled inside ChatComposer for E2EE
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
 
   const onListContentSizeChange = useCallback(() => {
-    // Only auto-scroll on content size change if we are already near the bottom
-    // or for the very first load to avoid jumping during transition
     flatListRef.current?.scrollToEnd({ animated: false });
   }, []);
 
   const renderHeader = () => (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: insets.top }]}>
       <TouchableOpacity 
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <Icons.BackIcon width={24} height={24} color={COLORS.white} />
+        <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.brandPrimary} />
       </TouchableOpacity>
       
-      <View style={styles.headerInfo}>
-        <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Secure Chat'}</Text>
-        <View style={styles.securityStatus}>
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} />
-          </Animated.View>
-          <Text style={styles.securityText}>Hardware Attested</Text>
+      <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7}>
+        <IPFSAwareImage
+          source={getValidImageSource(otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${title}`)}
+          style={styles.headerAvatar}
+        />
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Secure Chat'}</Text>
+          <View style={styles.securityStatus}>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <Icons.Shield width={10} height={10} color={COLORS.brandPrimary} />
+            </Animated.View>
+            <Text style={styles.securityText}>End-to-End Encrypted</Text>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.headerAction}>
-        <Icons.Settings width={22} height={22} color={COLORS.greyMid} />
+        <Icons.Settings width={20} height={20} color={COLORS.brandPrimary} />
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       {renderHeader()}
 
       <View style={styles.content}>
-        {/* Only show loader if we have NO messages and are loading */}
         {loadingMessages && chatMessages.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.brandPrimary} />
@@ -147,10 +140,8 @@ const ChatScreen = () => {
             )}
             contentContainerStyle={styles.messageList}
             onContentSizeChange={onListContentSizeChange}
-            removeClippedSubviews={Platform.OS === 'android'} // Performance optimization
+            removeClippedSubviews={Platform.OS === 'android'}
             initialNumToRender={15}
-            maxToRenderPerBatch={10}
-            windowSize={10}
           />
         )}
       </View>
@@ -159,7 +150,7 @@ const ChatScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <View style={styles.composerWrapper}>
+        <View style={[styles.composerWrapper, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <ChatComposer
             currentUser={currentUser}
             chatContext={{ chatId }}
@@ -167,7 +158,7 @@ const ChatScreen = () => {
           />
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -179,59 +170,64 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(12, 16, 26, 0.95)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   backButton: {
-    padding: 5,
+    padding: 4,
   },
   headerInfo: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.darkerBackground,
+  },
+  titleContainer: {
     marginLeft: 10,
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: COLORS.white,
+    fontFamily: TYPOGRAPHY.fontFamily,
   },
   securityStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
   securityText: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.brandPrimary,
     marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontWeight: '600',
   },
   headerAction: {
-    padding: 5,
+    padding: 8,
   },
   content: {
     flex: 1,
   },
   messageList: {
-    paddingVertical: 20,
-    paddingHorizontal: 10,
+    paddingVertical: 16,
   },
   composerWrapper: {
-    paddingHorizontal: 15,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 20,
     backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 14,
-    color: COLORS.greyMid,
   },
 });
 

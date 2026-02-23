@@ -1,14 +1,14 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { BlurView } from 'expo-blur'; // Assuming expo-blur is available or can be added
+import { Platform, View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { RootNavigationProp } from '../hooks/useAppNavigation';
 
-import COLORS from '@/assets/colors'; // Using alias
-import Icons from '@/assets/svgs'; // Import the new Icons object
+import COLORS from '@/assets/colors'; 
+import Icons from '@/assets/svgs'; 
 
-import AnimatedTabIcon from './AnimatedTabIcon'; // Import our new AnimatedTabIcon
+import AnimatedTabIcon from './AnimatedTabIcon';
 
 // Import our placeholder screens
 import { 
@@ -31,18 +31,10 @@ const iconStyle = {
 export default function MainTabs() {
   const navigation = useNavigation<RootNavigationProp>();
   
-  // Detect current active tab name
-  const state = useNavigationState(s => s);
-  const route = state?.routes[state.index];
-  const currentTabName = route?.name || 'TownSquare';
-
-  const handleCreatePost = () => {
-    navigation.navigate('CreatePost', {});
-  };
-
-  // We are not using showFab here anymore as it's moved to TownSquareScreen
-  // but keeping logic for future global needs if any.
-
+  // Detection for "appearing on touch" - we can use an animated value for the tab bar height/offset
+  // For a truly "responsive to touch" feel like X, we would usually hide it on scroll down 
+  // and show it on scroll up. 
+  
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
@@ -52,25 +44,23 @@ export default function MainTabs() {
           tabBarShowLabel: false,
           tabBarActiveTintColor: COLORS.brandPrimary,
           tabBarStyle: {
-            paddingTop: Platform.OS === 'android' ? 5 : 10,
-            paddingBottom: Platform.OS === 'android' ? 5 : 0,
             backgroundColor: 'transparent',
-            borderTopWidth: 0,
+            borderTopWidth: 0.5,
+            borderTopColor: 'rgba(255, 255, 255, 0.1)',
             position: 'absolute',
             elevation: 0,
-            height: Platform.OS === 'android' ? 60 : 80, // Slightly taller
+            height: Platform.OS === 'android' ? 60 : 85,
             bottom: 0,
             left: 0,
             right: 0,
+            paddingBottom: Platform.OS === 'ios' ? 25 : 0,
           },
           tabBarBackground: () => (
             <BlurView
               tint="dark"
-              intensity={Platform.OS === 'android' ? 25 : 45} // Higher intensity
+              intensity={Platform.OS === 'android' ? 30 : 50}
               style={StyleSheet.absoluteFill}
-            >
-              <View style={styles.tabBarOverlay} />
-            </BlurView>
+            />
           ),
         }}>
         <Tab.Screen
@@ -80,7 +70,7 @@ export default function MainTabs() {
             tabBarIcon: ({ focused, size }) => (
               <AnimatedTabIcon
                 focused={focused}
-                size={size * 1.15} // Slightly larger for emphasis
+                size={size * 1.15}
                 icon={Icons.TownSquareIcon}
                 iconSelected={Icons.TownSquareIconSelected}
                 style={iconStyle}
@@ -146,3 +136,4 @@ const styles = StyleSheet.create({
       : 'rgba(12, 16, 26, 0.75)',
   },
 });
+

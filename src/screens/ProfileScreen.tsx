@@ -1,116 +1,213 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Button, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Image, StatusBar } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../shared/state/store';
 import COLORS from '@/assets/colors';
 import { fetchUserCommunities } from '@/shared/state/community/slice';
-import { fetchBookmarkedPosts } from '@/shared/state/post/slice';
+import { fetchBookmarkedPosts, fetchPosts } from '@/shared/state/post/slice';
 import { FlashList } from '@shopify/flash-list';
 import PostComponent from '@/components/PostComponent';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
+import Icons from '@/assets/svgs';
+import TYPOGRAPHY from '@/assets/typography';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const { width } = Dimensions.get('window');
 
 const ProfileScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<any>();
-  const { username: skrUsername, address: userId } = useSelector((state: RootState) => state.auth);
+  const { username: skrUsername, address: userId, profilePicUrl, description: userBio } = useSelector((state: RootState) => state.auth);
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
-  const { bookmarkedPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
+  const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
-  const [activeTab, setActiveTab] = useState<'COMMUNITIES' | 'BOOKMARKS'>('COMMUNITIES');
+  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS'>('POSTS');
 
   useEffect(() => {
     if (userId) {
       dispatch(fetchUserCommunities(userId));
       dispatch(fetchBookmarkedPosts(userId));
+      dispatch(fetchPosts({ userId })); // Fetch user's own posts
     }
   }, [dispatch, userId]);
+
+  const profileAvatar = useMemo(() => 
+    profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${skrUsername}`,
+  [profilePicUrl, skrUsername]);
+
+  const displayHandle = useMemo(() => 
+    skrUsername ? `@${skrUsername.toLowerCase()}` : '@seeker',
+  [skrUsername]);
 
   const renderCommunityItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.communityItem}
       onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
     >
-      <View style={styles.communityIconPlaceholder}>
-        <Text style={styles.communityIconText}>{item.name.substring(0, 1).toUpperCase()}</Text>
-      </View>
-      <View>
+      <IPFSAwareImage
+        source={getValidImageSource(item.avatar_url)}
+        style={styles.communityAvatar}
+        defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name}` }}
+      />
+      <View style={styles.communityInfo}>
         <Text style={styles.communityName}>{item.name}</Text>
         <Text style={styles.communityRole}>{item.creator_id === userId ? 'Founder' : 'Member'}</Text>
       </View>
+      <Icons.ArrowLeftIcon width={16} height={16} color={COLORS.greyMid} style={{ transform: [{ rotate: '180deg' }] }} />
     </TouchableOpacity>
   );
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'POSTS':
+        return (
+          <FlashList
+            data={userPosts.filter(p => p.user.id === userId)}
+            renderItem={({ item }) => <PostComponent {...item} />}
+            keyExtractor={item => item.id}
+            estimatedItemSize={200}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No posts yet.</Text>
+              </View>
+            )}
+          />
+        );
+      case 'COMMUNITIES':
+        const communities = Array.from(new Map([...userCommunities.created, ...userCommunities.joined].map(item => [item.id, item])).values());
+        return (
+          <FlashList
+            data={communities}
+            renderItem={renderCommunityItem}
+            keyExtractor={item => item.id}
+            estimatedItemSize={80}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No communities joined.</Text>
+              </View>
+            )}
+          />
+        );
+      case 'BOOKMARKS':
+        return (
+          <FlashList
+            data={bookmarkedPosts}
+            renderItem={({ item }) => <PostComponent {...item} />}
+            keyExtractor={item => item.id}
+            estimatedItemSize={200}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No bookmarks yet.</Text>
+              </View>
+            )}
+          />
+        );
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center' }}>
-        <Text style={styles.header}>Your Seeker Profile</Text>
-        <Text style={styles.skrText}>{skrUsername || "Loading .skr..."}</Text>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Custom Sticky Header like X */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.white} />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>{skrUsername || "Profile"}</Text>
+          <Text style={styles.headerSubtitle}>{userPosts.filter(p => p.user.id === userId).length} Posts</Text>
+        </View>
+      </View>
 
-        <View style={styles.profileInfoContainer}>
-          <View style={styles.profilePicturePlaceholder} />
-          <Text style={styles.bioText}>
-            Hardware-attested Solana Seeker. Exploring the encrypted frontier.
+      <ScrollView stickyHeaderIndices={[3]} showsVerticalScrollIndicator={false}>
+        {/* Cover Banner */}
+        <View style={styles.bannerContainer}>
+          <Image 
+            source={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop' }} 
+            style={styles.bannerImage} 
+          />
+        </View>
+
+        {/* Profile Info Section */}
+        <View style={styles.profileSection}>
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarWrapper}>
+              <IPFSAwareImage
+                source={getValidImageSource(profileAvatar)}
+                style={styles.profileAvatar}
+              />
+            </View>
+            <TouchableOpacity 
+              style={styles.editProfileButton}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
+              <Text style={styles.editProfileButtonText}>Edit profile</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.nameSection}>
+            <Text style={styles.displayName}>{skrUsername || "Seeker"}</Text>
+            <Text style={styles.handle}>{displayHandle}</Text>
+          </View>
+
+          <Text style={styles.bio}>
+            {userBio || "Hardware-attested Solana Seeker. Exploring the encrypted frontier of Web3 social."}
           </Text>
-          <View style={styles.followStats}>
-            <Text style={styles.followText}>0 Followers</Text>
-            <Text style={styles.followText}>0 Following</Text>
+
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Icons.SearchIcon width={14} height={14} color={COLORS.greyMid} />
+              <Text style={styles.metaText}>Solana Mainnet</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Icons.PlusCircleIcon width={14} height={14} color={COLORS.greyMid} />
+              <Text style={styles.metaText}>Joined Feb 2026</Text>
+            </View>
+          </View>
+
+          <View style={styles.statsRow}>
+            <TouchableOpacity style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={() => navigation.navigate('EditProfile')}
-        >
-          <Text style={styles.editButtonText}>Edit Profile</Text>
-        </TouchableOpacity>
-
-        <View style={styles.tabContainer}>
+        {/* Tabs */}
+        <View style={styles.tabBar}>
           <TouchableOpacity 
-            style={[styles.tab, activeTab === 'COMMUNITIES' && styles.activeTab]}
+            style={styles.tab} 
+            onPress={() => setActiveTab('POSTS')}
+          >
+            <Text style={[styles.tabLabel, activeTab === 'POSTS' && styles.activeTabLabel]}>Posts</Text>
+            {activeTab === 'POSTS' && <View style={styles.activeIndicator} />}
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.tab} 
             onPress={() => setActiveTab('COMMUNITIES')}
           >
-            <Text style={[styles.tabText, activeTab === 'COMMUNITIES' && styles.activeTabText]}>Communities</Text>
+            <Text style={[styles.tabLabel, activeTab === 'COMMUNITIES' && styles.activeTabLabel]}>Communities</Text>
+            {activeTab === 'COMMUNITIES' && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
+
           <TouchableOpacity 
-            style={[styles.tab, activeTab === 'BOOKMARKS' && styles.activeTab]}
+            style={styles.tab} 
             onPress={() => setActiveTab('BOOKMARKS')}
           >
-            <Text style={styles.tabText}>Bookmarks</Text>
+            <Text style={[styles.tabLabel, activeTab === 'BOOKMARKS' && styles.activeTabLabel]}>Bookmarks</Text>
+            {activeTab === 'BOOKMARKS' && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
         </View>
 
-        <View style={styles.contentArea}>
-          {activeTab === 'COMMUNITIES' ? (
-            communitiesLoading ? (
-              <ActivityIndicator color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
-            ) : (
-              <View style={{ height: 400 }}>
-                <FlashList
-                  data={Array.from(new Map([...userCommunities.created, ...userCommunities.joined].map(item => [item.id, item])).values())}
-                  renderItem={renderCommunityItem}
-                  keyExtractor={item => item.id}
-                  estimatedItemSize={70}
-                  ListEmptyComponent={() => (
-                    <Text style={styles.emptyText}>No communities yet.</Text>
-                  )}
-                />
-              </View>
-            )
-          ) : (
-            postsLoading ? (
-              <ActivityIndicator color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
-            ) : (
-              <View style={{ height: 400 }}>
-                <FlashList
-                  data={bookmarkedPosts}
-                  renderItem={({ item }) => <PostComponent {...item} />}
-                  keyExtractor={item => item.id}
-                  estimatedItemSize={200}
-                  ListEmptyComponent={() => (
-                    <Text style={styles.emptyText}>No bookmarks yet.</Text>
-                  )}
-                />
-              </View>
-            )
-          )}
+        {/* Content Area */}
+        <View style={styles.contentContainer}>
+          {renderContent()}
         </View>
       </ScrollView>
     </View>
@@ -123,124 +220,204 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginTop: 50,
-    marginBottom: 10,
-  },
-  skrText: {
-    fontSize: 22,
-    color: COLORS.brandPrimary,
-    marginBottom: 20,
-  },
-  profileInfoContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(12, 16, 26, 0.9)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    zIndex: 10,
   },
-  profilePicturePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.gray,
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: COLORS.brandPrimary,
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
   },
-  bioText: {
+  headerTitleContainer: {
+    marginLeft: 20,
+  },
+  headerTitle: {
     color: COLORS.white,
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 15,
-    maxWidth: '80%',
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fontFamily,
   },
-  followStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '60%',
+  headerSubtitle: {
+    color: COLORS.greyMid,
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fontFamily,
   },
-  followText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  editButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORS.brandPrimary,
-    paddingHorizontal: 30,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginBottom: 30,
-  },
-  editButtonText: {
-    color: COLORS.brandPrimary,
-    fontWeight: '600',
-  },
-  tabContainer: {
-    flexDirection: 'row',
+  bannerContainer: {
     width: '100%',
-    borderBottomWidth: 1,
+    height: 120,
+    backgroundColor: COLORS.darkerBackground,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  profileSection: {
+    paddingHorizontal: 16,
+    marginTop: -40,
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  avatarWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: COLORS.background,
+    backgroundColor: COLORS.background,
+    overflow: 'hidden',
+  },
+  profileAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  editProfileButton: {
+    borderWidth: 1,
+    borderColor: COLORS.greyMid,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginBottom: 4,
+  },
+  editProfileButtonText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  nameSection: {
+    marginTop: 12,
+  },
+  displayName: {
+    color: COLORS.white,
+    fontSize: 22,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  handle: {
+    color: COLORS.greyMid,
+    fontSize: 15,
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  bio: {
+    color: COLORS.white,
+    fontSize: 15,
+    lineHeight: 20,
+    marginTop: 12,
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+    marginBottom: 4,
+  },
+  metaText: {
+    color: COLORS.greyMid,
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    marginRight: 20,
+  },
+  statNumber: {
+    color: COLORS.white,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  statLabel: {
+    color: COLORS.greyMid,
+    marginLeft: 4,
+    fontSize: 14,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   tab: {
     flex: 1,
-    paddingVertical: 15,
     alignItems: 'center',
+    paddingVertical: 16,
+    position: 'relative',
   },
-  activeTab: {
-    borderBottomWidth: 3,
-    borderBottomColor: COLORS.brandPrimary,
-  },
-  tabText: {
+  tabLabel: {
     color: COLORS.greyMid,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  activeTabText: {
+  activeTabLabel: {
     color: COLORS.white,
   },
-  contentArea: {
-    width: '100%',
-    padding: 10,
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    height: 4,
+    width: 56,
+    backgroundColor: COLORS.brandPrimary,
+    borderRadius: 2,
+  },
+  contentContainer: {
+    flex: 1,
+    minHeight: 500,
   },
   communityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
-  communityIconPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.brandPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
+  communityAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  communityIconText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
+  communityInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   communityName: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   communityRole: {
     color: COLORS.brandPrimary,
-    fontSize: 12,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
   },
   emptyText: {
     color: COLORS.greyMid,
+    fontSize: 15,
     textAlign: 'center',
-    marginTop: 40,
-    fontStyle: 'italic',
   }
 });
 
 export default ProfileScreen;
+
 
