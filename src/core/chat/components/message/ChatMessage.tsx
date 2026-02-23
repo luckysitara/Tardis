@@ -113,17 +113,14 @@ function ChatMessage({
             if (decrypted) {
               return decrypted;
             } else {
-              console.warn('[ChatMessage] Secure Decrypt failed. Key mismatch or data corrupted.');
-              // Check if we have the wrong otherParticipant (shouldn't happen in direct chat with 2 people)
-              return '[Decryption failed]';
+              // Silent failure - common with test accounts or mismatched seeds
+              return '[Locked Transmission]';
             }
           } else {
-            console.warn('[ChatMessage] Secure Decrypt failed. Missing other participant encryption key.');
             return '[Locked - Missing Key]';
           }
         }
       } catch (err) {
-        console.error('[ChatMessage] Decryption error:', err);
         return '[Decryption error]';
       }
     }

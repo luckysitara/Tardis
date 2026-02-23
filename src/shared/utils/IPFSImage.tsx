@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Platform, ImageProps, View, Text } from 'react-native';
 import COLORS from '@/assets/colors';
 
-// Reliable IPFS gateways with load balancing
+// Reliable IPFS gateways - Pinata is the primary as requested
 const IPFS_GATEWAYS = {
   primary: [
     'https://gateway.pinata.cloud/ipfs/',
@@ -112,7 +112,7 @@ export const IPFSAwareImage = ({
     }, [source]);
 
     // Try next gateway when current one fails
-    const tryNextGateway = useCallback(() => {
+    const tryNextGateway = useCallback(async () => {
         if (!mountedRef.current || !ipfsHashRef.current) return;
 
         const hash = ipfsHashRef.current;
@@ -122,7 +122,6 @@ export const IPFSAwareImage = ({
         // If we've tried all gateways, show fallback
         if (nextAttempt >= gatewayList.length) {
             if (hash) {
-                // Remember this problematic hash for future reference
                 problematicIpfsHashes.add(hash);
             }
             setShowFallback(true);
@@ -130,33 +129,62 @@ export const IPFSAwareImage = ({
             return;
         }
 
-        // Try next gateway
         setGatewayAttempt(nextAttempt);
         const nextGateway = gatewayList[nextAttempt];
+        const nextUrl = `${nextGateway}${hash}`;
         
         console.log(`[IPFSAwareImage] Retrying with gateway: ${nextGateway}`);
 
-        // Add a small delay to prevent rapid retries
+        // Small delay to prevent rapid retries
         setTimeout(() => {
             if (mountedRef.current) {
                 setCurrentSource({ 
-                    uri: `${nextGateway}${hash}`,
+                    uri: nextUrl,
                     headers: { 'Cache-Control': 'no-cache' }
                 });
             }
         }, 50);
     }, [gatewayAttempt]);
 
+    // Metadata JSON handler
+    const tryExtractImageFromMetadata = async (url: string) => {
+        if (!mountedRef.current) return false;
+        try {
+            console.log(`[IPFSAwareImage] URL failed as image, checking if it is Metadata JSON: ${url}`);
+            const response = await fetch(url);
+            const contentType = response.headers.get('content-type');
+            
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data && data.image) {
+                    console.log(`[IPFSAwareImage] Found image link in metadata: ${data.image}`);
+                    setCurrentSource(getValidImageSource(data.image));
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.log(`[IPFSAwareImage] Metadata check failed: ${url}`);
+        }
+        return false;
+    };
+
     // Handle image load error
-    const handleError = (e: any) => {
+    const handleError = async (e: any) => {
         if (!mountedRef.current) return;
 
         let errorUrl = '';
         if (typeof currentSource === 'string') errorUrl = currentSource;
         else if (currentSource && typeof currentSource === 'object' && 'uri' in currentSource) errorUrl = currentSource.uri as string;
 
-        console.log(`[IPFSAwareImage] Load error for URL: ${errorUrl}. Error: ${e?.nativeEvent?.error || 'Unknown error'}`);
+        const errorMsg = e?.nativeEvent?.error || '';
+        console.log(`[IPFSAwareImage] Load error for URL: ${errorUrl}. Error: ${errorMsg}`);
         
+        // Specific case: If it's a "unknown image format", it might be a Metadata JSON
+        if (errorMsg.includes('unknown image format') || errorMsg.includes('malformed')) {
+            const success = await tryExtractImageFromMetadata(errorUrl);
+            if (success) return;
+        }
+
         if (ipfsHashRef.current) {
             // For IPFS images, try next gateway
             tryNextGateway();
@@ -166,7 +194,6 @@ export const IPFSAwareImage = ({
             setIsLoading(false);
         }
 
-        // Call original onError if provided
         if (onError) {
             onError(e);
         }
@@ -238,27 +265,22 @@ export const getValidImageSource = (imageUrl: string | any) => {
 
     const fixedUrl = fixAllImageUrls(imageUrl);
 
-    // If the URL already seems like a direct gateway URL, return it as is
-    // This prevents double-prefixing (e.g. cloudflare-ipfs.com/ipfs/gateway.pinata.cloud/ipfs/...)
-    if (fixedUrl.includes('gateway.pinata.cloud/ipfs/') || 
-        fixedUrl.includes('ipfs.io/ipfs/') || 
-        fixedUrl.includes('cloudflare-ipfs.com/ipfs/')) {
-        return { uri: fixedUrl };
-    }
-
     let ipfsHash = '';
     if (fixedUrl.startsWith('ipfs://')) {
         ipfsHash = fixedUrl.replace('ipfs://', '');
     } else if (fixedUrl.includes('/ipfs/')) {
         const parts = fixedUrl.split('/ipfs/');
         if (parts.length > 1) {
+            // Extract hash and remove any trailing paths or queries
             ipfsHash = parts[1].split('?')[0]?.split('#')[0];
         }
     } else if (fixedUrl.startsWith('Qm') && fixedUrl.length > 30) {
         ipfsHash = fixedUrl;
     }
 
+    // If we identified an IPFS hash, use our managed gateway rotation
     if (ipfsHash) {
+        // Use primary gateway first (Pinata if configured on server, otherwise Cloudflare/IPFS.io)
         const gateway = Platform.OS === 'android' 
             ? IPFS_GATEWAYS.primary[0]  
             : 'https://ipfs.io/ipfs/';

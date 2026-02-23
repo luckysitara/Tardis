@@ -4,68 +4,32 @@ import path from 'path';
 import FormData from 'form-data';
 import { PinataSDK } from 'pinata';
 
-// Use environment variables for API keys
-const PINATA_API_KEY = process.env.PINATA_API_KEY;
-const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
-
+/**
+ * Uploads an image to IPFS using Pinata exclusively.
+ */
 export async function uploadToIpfs(
   imagePathOrBuffer: string | Buffer,
   metadata: Record<string, any>,
 ): Promise<string> {
   const { default: fetch } = await import('node-fetch');
   
-  // 1) Prioritize Pinata if configured
-  if (process.env.PINATA_JWT) {
-    console.log('[IPFS] Prioritizing Pinata upload...');
-    try {
-      // For social media posts/chats, we just want the image CID
-      return await uploadToPinata(imagePathOrBuffer, metadata, true);
-    } catch (pinataErr: any) {
-      console.error('[IPFS] Pinata upload failed:', pinataErr.message);
-    }
+  if (!process.env.PINATA_JWT) {
+    console.error('[IPFS] CRITICAL: PINATA_JWT is not configured in .env');
+    throw new Error('IPFS upload failed: Pinata credentials missing on server.');
   }
 
-  // 2) Fallback to pump.fun
-  console.log('[IPFS] Attempting fallback upload to pump.fun...');
-  
-  let fileBuffer: Buffer;
-  if (typeof imagePathOrBuffer === 'string') {
-    fileBuffer = fs.readFileSync(path.resolve(imagePathOrBuffer));
-  } else {
-    fileBuffer = imagePathOrBuffer;
-  }
-
-  const formData = new FormData();
-  formData.append('file', fileBuffer, {filename: `image-${Date.now()}.png`, contentType: 'image/png'});
-  formData.append('name', metadata.name || 'Chat Image');
-  formData.append('symbol', metadata.symbol || 'IMG');
-  formData.append('description', metadata.description || 'Uploaded via Tardis');
-  formData.append('showName', metadata.showName !== undefined ? metadata.showName.toString() : 'false');
-  
+  console.log('[IPFS] Uploading to Pinata...');
   try {
-    const metadataResponse = await fetch('https://pump.fun/api/ipfs', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        ...formData.getHeaders(),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
-
-    if (metadataResponse.ok) {
-      const result = await metadataResponse.json() as { metadataUri: string, image?: string };
-      if (result.image) return result.image;
-      if (result.metadataUri) return result.metadataUri;
-    }
-  } catch (err: any) {
-    console.error('[IPFS] pump.fun fallback exception:', err.message);
+    // For social media and chat, we upload the file and return the direct CID URL
+    return await uploadToPinata(imagePathOrBuffer, metadata, true);
+  } catch (error: any) {
+    console.error('[IPFS] Pinata upload failed:', error.message);
+    throw error;
   }
-
-  return `https://tardis.social/fallback-image-${Date.now()}.png`;
 }
 
 /**
- * Upload image to Pinata
+ * Low-level Pinata upload function
  */
 export async function uploadToPinata(
   imagePathOrBuffer: string | Buffer,
@@ -81,7 +45,7 @@ export async function uploadToPinata(
     fileBuffer = imagePathOrBuffer;
   }
 
-  const fileName = `image-${Date.now()}.png`;
+  const fileName = `tardis-${Date.now()}.png`;
   const tempFilePath = path.join(process.cwd(), fileName);
   fs.writeFileSync(tempFilePath, fileBuffer);
   
@@ -99,21 +63,24 @@ export async function uploadToPinata(
     });
     
     if (!imageResponse.ok) {
-      throw new Error(`Failed to upload image to Pinata: ${imageResponse.statusText}`);
+      const errorDetail = await imageResponse.text();
+      throw new Error(`Pinata API Error: ${imageResponse.status} - ${errorDetail}`);
     }
     
     const imageUploadData = await imageResponse.json() as { IpfsHash: string };
     const gateway = process.env.PINATA_GATEWAY || 'gateway.pinata.cloud';
     const imageUri = `https://${gateway}/ipfs/${imageUploadData.IpfsHash}`;
-    console.log('[IPFS] Image uploaded to Pinata:', imageUri);
+    
+    console.log('[IPFS] Successfully pinned to Pinata:', imageUri);
     
     if (returnOnlyImage) {
         return imageUri;
     }
 
+    // Optional: Pin metadata JSON if this were for a token/NFT
     const metadataObject = {
-      name: metadata.name || '',
-      symbol: metadata.symbol || '',
+      name: metadata.name || 'Tardis Media',
+      symbol: metadata.symbol || 'TRDS',
       description: metadata.description || '',
       image: imageUri,
       showName: metadata.showName !== undefined ? metadata.showName : true,
@@ -139,5 +106,5 @@ export async function uploadToPinata(
 
 export async function createLocalMetadata(metadata: any): Promise<string> {
   console.log('Creating local metadata:', metadata);
-  return `https://meteora.ag/metadata/${Date.now()}.json`;
+  return `https://tardis.social/metadata/${Date.now()}.json`;
 }
