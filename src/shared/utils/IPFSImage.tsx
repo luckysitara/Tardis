@@ -3,16 +3,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Platform, ImageProps, View, Text } from 'react-native';
 import COLORS from '@/assets/colors';
 
-// Reliable IPFS gateways - Pinata is the primary as requested
+// Reliable IPFS gateways - Using Pinata as the heavy lifter
 const IPFS_GATEWAYS = {
   primary: [
     'https://gateway.pinata.cloud/ipfs/',
     'https://cloudflare-ipfs.com/ipfs/',
-    'https://ipfs.io/ipfs/'
+    'https://gateway.ipfs.io/ipfs/'
   ],
   backup: [
+    'https://ipfs.io/ipfs/',
     'https://nftstorage.link/ipfs/',
-    'https://gateway.ipfs.io/ipfs/',
     'https://ipfs.fleek.co/ipfs/'
   ]
 };
@@ -152,13 +152,30 @@ export const IPFSAwareImage = ({
         try {
             console.log(`[IPFSAwareImage] URL failed as image, checking if it is Metadata JSON: ${url}`);
             const response = await fetch(url);
-            const contentType = response.headers.get('content-type');
             
+            // If the metadata fetch itself is rate-limited, skip this gateway for the hash too
+            if (response.status === 429 || response.status === 403) {
+                console.log(`[IPFSAwareImage] Metadata fetch blocked (${response.status})`);
+                return false;
+            }
+
+            const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 const data = await response.json();
                 if (data && data.image) {
                     console.log(`[IPFSAwareImage] Found image link in metadata: ${data.image}`);
-                    setCurrentSource(getValidImageSource(data.image));
+                    
+                    // IMPORTANT: Extract hash from the NEW link and restart rotation
+                    // This prevents getting stuck on a broken ipfs.io link found inside the JSON
+                    const newSourceObj = getValidImageSource(data.image);
+                    setCurrentSource(newSourceObj);
+                    
+                    // If the new source is just a hash-based URI, update our ref so retry works
+                    if (typeof newSourceObj === 'object' && 'uri' in newSourceObj) {
+                        const hashMatch = newSourceObj.uri.match(/\/ipfs\/(Qm[a-zA-Z0-9]+)/);
+                        if (hashMatch) ipfsHashRef.current = hashMatch[1];
+                    }
+                    
                     return true;
                 }
             }
@@ -179,14 +196,18 @@ export const IPFSAwareImage = ({
         const errorMsg = e?.nativeEvent?.error || '';
         console.log(`[IPFSAwareImage] Load error for URL: ${errorUrl}. Error: ${errorMsg}`);
         
-        // Specific case: If it's a "unknown image format", it might be a Metadata JSON
-        if (errorMsg.includes('unknown image format') || errorMsg.includes('malformed')) {
+        // Handle specific block/limit codes from Android/iOS networking
+        const isBlocked = errorMsg.includes('403') || errorMsg.includes('429') || errorMsg.includes('Forbidden') || errorMsg.includes('Too Many');
+
+        // Specific case: If it's a "unknown image format" or a known blocked status, it might be a Metadata JSON
+        // or a gateway that is refusing to serve the file.
+        if (errorMsg.includes('unknown image format') || errorMsg.includes('malformed') || isBlocked) {
             const success = await tryExtractImageFromMetadata(errorUrl);
             if (success) return;
         }
 
         if (ipfsHashRef.current) {
-            // For IPFS images, try next gateway
+            // For IPFS images, try next gateway immediately
             tryNextGateway();
         } else {
             // For regular images, show fallback immediately
@@ -281,9 +302,7 @@ export const getValidImageSource = (imageUrl: string | any) => {
     // If we identified an IPFS hash, use our managed gateway rotation
     if (ipfsHash) {
         // Use primary gateway first (Pinata if configured on server, otherwise Cloudflare/IPFS.io)
-        const gateway = Platform.OS === 'android' 
-            ? IPFS_GATEWAYS.primary[0]  
-            : 'https://ipfs.io/ipfs/';
+        const gateway = IPFS_GATEWAYS.primary[0];
             
         return {
             uri: `${gateway}${ipfsHash}`,

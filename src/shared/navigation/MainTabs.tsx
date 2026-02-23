@@ -31,10 +31,6 @@ const iconStyle = {
 export default function MainTabs() {
   const navigation = useNavigation<RootNavigationProp>();
   
-  // Detection for "appearing on touch" - we can use an animated value for the tab bar height/offset
-  // For a truly "responsive to touch" feel like X, we would usually hide it on scroll down 
-  // and show it on scroll up. 
-  
   return (
     <View style={{ flex: 1 }}>
       <Tab.Navigator
@@ -46,21 +42,24 @@ export default function MainTabs() {
           tabBarStyle: {
             backgroundColor: 'transparent',
             borderTopWidth: 0.5,
-            borderTopColor: 'rgba(255, 255, 255, 0.1)',
+            borderTopColor: 'rgba(255, 255, 255, 0.12)',
             position: 'absolute',
             elevation: 0,
-            height: Platform.OS === 'android' ? 60 : 85,
+            height: Platform.OS === 'android' ? 64 : 88,
             bottom: 0,
             left: 0,
             right: 0,
-            paddingBottom: Platform.OS === 'ios' ? 25 : 0,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 0,
           },
           tabBarBackground: () => (
-            <BlurView
-              tint="dark"
-              intensity={Platform.OS === 'android' ? 30 : 50}
-              style={StyleSheet.absoluteFill}
-            />
+            <View style={StyleSheet.absoluteFill}>
+              <BlurView
+                tint="dark"
+                intensity={Platform.OS === 'android' ? 40 : 60}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(12, 16, 26, 0.5)' }]} />
+            </View>
           ),
         }}>
         <Tab.Screen
