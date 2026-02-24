@@ -12,6 +12,22 @@ import Icons from '@/assets/svgs';
 import { ThreadPost } from '@/core/thread/components/thread.types';
 import BlinkMessage from './BlinkMessage';
 
+// Custom Mentions component
+const HighlightedText = ({ text, style }: { text: string, style: any }) => {
+  const parts = text.split(/(@\w+)/g);
+  return (
+    <Text style={style}>
+      {parts.map((part, i) => (
+        part.startsWith('@') ? (
+          <Text key={i} style={{ color: COLORS.brandPrimary, fontWeight: '700' }}>{part}</Text>
+        ) : (
+          part
+        )
+      ))}
+    </Text>
+  );
+};
+
 // Custom Retweet icon
 const RetweetIcon = ({ width = 14, height = 14, color = COLORS.greyLight }) => (
   <View style={{ width, height, justifyContent: 'center', alignItems: 'center' }}>
@@ -242,7 +258,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
         return (
           <View>
             {renderQuotedMessage()}
-            <Text style={textStyle}>{contentText}</Text>
+            <HighlightedText text={contentText} style={textStyle} />
             {solanaActionUrl && <BlinkMessage url={solanaActionUrl} />}
             {renderReactions()}
           </View>

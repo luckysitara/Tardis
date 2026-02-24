@@ -11,6 +11,7 @@ import Icons from '@/assets/svgs';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
+import { TextInput } from 'react-native-gesture-handler';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +24,8 @@ const TownSquareScreen = () => {
   
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'FOR_YOU' | 'FOLLOWING'>('FOR_YOU');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   const isAndroid = Platform.OS === 'android';
   const fabBottom = isAndroid ? 80 : 100;
@@ -43,6 +46,18 @@ const TownSquareScreen = () => {
   const handleCreatePost = () => {
     navigation.navigate('CreatePost', {});
   };
+
+  const filteredPosts = useMemo(() => {
+    let posts = allPosts || [];
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      posts = posts.filter(p => 
+        p.user.username.toLowerCase().includes(query) || 
+        p.sections.some(s => s.text?.toLowerCase().includes(query))
+      );
+    }
+    return posts;
+  }, [allPosts, searchQuery]);
 
   const renderItem = ({ item }: { item: ThreadPost }) => (
     <PostComponent {...item} />
@@ -65,11 +80,26 @@ const TownSquareScreen = () => {
         </TouchableOpacity>
         
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>TARDIS</Text>
+          {isSearching ? (
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search Seeker..."
+              placeholderTextColor={COLORS.greyMid}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              onBlur={() => setIsSearching(false)}
+            />
+          ) : (
+            <Text style={styles.logoText}>TARDIS</Text>
+          )}
         </View>
 
-        <TouchableOpacity style={styles.headerIconButton}>
-          <Icons.Settings width={22} height={22} color={COLORS.white} />
+        <TouchableOpacity 
+          style={styles.headerIconButton}
+          onPress={() => setIsSearching(!isSearching)}
+        >
+          <Icons.SearchIcon width={22} height={22} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
@@ -97,7 +127,7 @@ const TownSquareScreen = () => {
 
       <View style={{ flex: 1 }}>
         <FlashList
-          data={allPosts}
+          data={filteredPosts}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           estimatedItemSize={200}
@@ -167,6 +197,15 @@ const styles = StyleSheet.create({
   },
   headerIconButton: {
     padding: 4,
+  },
+  searchInput: {
+    backgroundColor: COLORS.darkerBackground,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    color: COLORS.white,
+    width: '100%',
+    height: 36,
   },
   tabHeader: {
     flexDirection: 'row',

@@ -275,6 +275,33 @@ export const messageBubbleStyles = StyleSheet.create({
       marginLeft: 2,
       fontWeight: '600',
     },
+    quotedMessageContainer: {
+      flexDirection: 'row',
+      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      borderRadius: 8,
+      padding: 8,
+      marginBottom: 8,
+      borderLeftWidth: 3,
+      borderLeftColor: COLORS.brandPrimary,
+    },
+    quotedIndicator: {
+      width: 2,
+      backgroundColor: COLORS.brandPrimary,
+      marginRight: 8,
+    },
+    quotedTextContainer: {
+      flex: 1,
+    },
+    quotedUser: {
+      color: COLORS.brandPrimary,
+      fontSize: 11,
+      fontWeight: '700',
+      marginBottom: 2,
+    },
+    quotedContent: {
+      color: COLORS.greyMid,
+      fontSize: 12,
+    },
   });
   export const messageHeaderStyles = StyleSheet.create({
   container: {
