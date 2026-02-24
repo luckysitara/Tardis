@@ -55,7 +55,7 @@ class NotificationService {
   private expoPushToken: string | null = null;
   private notificationListener: any = null;
   private responseListener: any = null;
-  private serverBaseUrl: string = SERVER_URL || 'http://localhost:8080';
+  private serverBaseUrl: string = SERVER_URL || 'http://192.168.1.175:8085';
 
   /**
    * Initialize the notification service

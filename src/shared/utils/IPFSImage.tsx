@@ -3,17 +3,22 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Platform, ImageProps, View, Text } from 'react-native';
 import COLORS from '@/assets/colors';
 
+// Import Pinata JWT from process.env
+const PINATA_JWT = process.env.PINATA_JWT;
+
 // Reliable IPFS gateways - Using public ones with diverse coverage
 const IPFS_GATEWAYS = {
   primary: [
-    'https://ipfs.io/ipfs/',
+    'https://teal-additional-lemming-515.mypinata.cloud/ipfs/',
     'https://gateway.pinata.cloud/ipfs/',
-    'https://gateway.ipfs.io/ipfs/'
+    'https://cloudflare-ipfs.com/ipfs/',
+    'https://ipfs.io/ipfs/'
   ],
   backup: [
     'https://nftstorage.link/ipfs/',
     'https://ipfs.fleek.co/ipfs/',
-    'https://dweb.link/ipfs/'
+    'https://dweb.link/ipfs/',
+    'https://gateway.ipfs.io/ipfs/'
   ]
 };
 
@@ -41,6 +46,17 @@ export const IPFSAwareImage = ({
     const mountedRef = useRef(true);
     const ipfsHashRef = useRef<string | null>(null);
     const [showFallback, setShowFallback] = useState(false);
+
+    // Helper to get headers for Pinata gateways
+    const getPinataHeaders = (gatewayUrl: string) => {
+      if (PINATA_JWT && gatewayUrl.includes('pinata.cloud')) {
+        return {
+          'Cache-Control': 'no-cache',
+          'Authorization': `Bearer ${PINATA_JWT}`
+        };
+      }
+      return { 'Cache-Control': 'no-cache' };
+    };
 
     // Extract IPFS hash when source changes
     useEffect(() => {
@@ -94,7 +110,7 @@ export const IPFSAwareImage = ({
                 const gateway = IPFS_GATEWAYS.primary[0];
                 setCurrentSource({ 
                     uri: `${gateway}${hash}`,
-                    headers: { 'Cache-Control': 'no-cache' }
+                    headers: getPinataHeaders(gateway)
                 });
             } else {
                 // For other URLs or iOS, use the original source
@@ -140,7 +156,7 @@ export const IPFSAwareImage = ({
             if (mountedRef.current) {
                 setCurrentSource({ 
                     uri: nextUrl,
-                    headers: { 'Cache-Control': 'no-cache' }
+                    headers: getPinataHeaders(nextGateway)
                 });
             }
         }, 50);
@@ -151,7 +167,8 @@ export const IPFSAwareImage = ({
         if (!mountedRef.current) return false;
         try {
             console.log(`[IPFSAwareImage] URL failed as image, checking if it is Metadata JSON: ${url}`);
-            const response = await fetch(url);
+            const headers = url.includes('pinata.cloud') && PINATA_JWT ? { 'Authorization': `Bearer ${PINATA_JWT}` } : {};
+            const response = await fetch(url, { headers });
             
             // If the metadata fetch itself is rate-limited, skip this gateway for the hash too
             if (response.status === 429 || response.status === 403) {
@@ -308,7 +325,8 @@ export const getValidImageSource = (imageUrl: string | any) => {
             uri: `${gateway}${ipfsHash}`,
             headers: {
                 'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+                'Pragma': 'no-cache',
+                ...(gateway.includes('pinata.cloud') && PINATA_JWT ? { 'Authorization': `Bearer ${PINATA_JWT}` } : {})
             }
         };
     }

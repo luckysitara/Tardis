@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Community } from './types'; // Assuming types are defined in types.ts
 
 // Replace with your actual server base URL
-const SERVER_BASE_URL = 'http://10.203.135.79:8080';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://192.168.1.175:8085';
 
 interface CommunityState {
   communities: Community[];

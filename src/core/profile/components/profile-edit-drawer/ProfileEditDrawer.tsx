@@ -523,13 +523,13 @@ const ProfileEditDrawer = ({
                     </View>
 
                     <View style={styles.inputSection}>
-                        <Text style={styles.inputLabel}>Wallet address</Text>
+                        <Text style={styles.inputLabel}>SKR Username</Text>
                         <TextInput
                             style={[styles.textInput, styles.disabledInput]}
-                            value={`@${profileData.userId.substring(0, 6)}...${profileData.userId.slice(-4)}`}
+                            value={`@${profileData.userId.substring(0, 6).toLowerCase()}.skr`}
                             editable={false}
                         />
-                        <Text style={styles.inputHelperText}>Your wallet address cannot be changed</Text>
+                        <Text style={styles.inputHelperText}>Your SKR username is derived from your wallet address and cannot be changed.</Text>
                     </View>
 
                     <View style={styles.inputSection}>

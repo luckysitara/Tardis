@@ -20,7 +20,7 @@ COPY . .
 RUN pnpm build
 
 # The port that your application listens to
-EXPOSE 8080
+EXPOSE 8085
 
 # Set NODE_ENV
 ENV NODE_ENV=production

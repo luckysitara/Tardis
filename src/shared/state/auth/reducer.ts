@@ -19,6 +19,7 @@ export interface AuthState {
       symbol?: string;
       name?: string;
     };
+    coverImage?: string; // Add coverImage property
   };
 }
 
@@ -34,10 +35,11 @@ const initialState: AuthState = {
   attachmentData: {},
 };
 
-const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8080';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
 
 // Debug environment variable loading
 console.log('[Auth Reducer] SERVER_URL from @env:', SERVER_URL);
+console.log('[Auth Reducer] EXPO_PUBLIC_SERVER_URL from process.env:', process.env.EXPO_PUBLIC_SERVER_URL);
 console.log('[Auth Reducer] SERVER_BASE_URL resolved to:', SERVER_BASE_URL);
 
 /**

@@ -123,7 +123,7 @@ cp .env.example .env
 # GENERAL CONFIGURATION
 # ===========================================
 NODE_ENV=development
-PORT=8080
+PORT=8085
 
 # ===========================================
 # SOLANA NETWORK CONFIGURATION
@@ -225,7 +225,7 @@ WEBSOCKET_ENABLED=true
 pnpm dev
 ```
 
-The server will start on port 8080 (or the port specified in your environment variables) with WebSocket support enabled.
+The server will start on port 8085 (or the port specified in your environment variables) with WebSocket support enabled.
 
 **Build for production:**
 

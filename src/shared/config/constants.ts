@@ -2,7 +2,6 @@ import {
   HELIUS_API_KEY,
   SERVER_URL,
   CLUSTER,
-  HELIUS_RPC_CLUSTER,
   // Other env values (e.g. PRIVY_APP_ID, etc.) can be imported as needed.
 } from '@env';
 
@@ -24,7 +23,7 @@ export const ENDPOINTS = {
     blockEngine: 'https://mainnet.block-engine.jito.wtf:443/api/v1/bundles',
   },
   // Helius RPC endpoint from env
-  helius: `https://${HELIUS_RPC_CLUSTER}.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+  helius: `https://${process.env.EXPO_PUBLIC_HELIUS_RPC_CLUSTER || 'mainnet'}.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
   tensorFlowBaseUrl: 'https://api.mainnet.tensordev.io',
 };
 

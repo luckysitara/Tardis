@@ -83,7 +83,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8080';
+  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
 
   const formatRelativeTime = (time: string) => {
     const date = new Date(time);
@@ -184,8 +184,9 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
         style={styles.leftColumn}
         onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
       >
-        <Image
-          source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
+        <IPFSAwareImage
+          source={getValidImageSource(user?.avatar)}
+          defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
           style={styles.avatar}
         />
       </TouchableOpacity>

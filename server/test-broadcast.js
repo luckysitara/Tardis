@@ -3,7 +3,7 @@
 
 const fetch = require('node-fetch');
 
-const SERVER_URL = 'http://localhost:8080';
+const SERVER_URL = 'http://192.168.1.175:8085';
 
 async function testBroadcast() {
   try {

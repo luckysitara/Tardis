@@ -7,7 +7,7 @@ import type {
 import {allposts as fallbackPosts} from '../../mocks/posts';
 import {SERVER_URL} from '@env';
 
-const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8080';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
 
 // Debug environment variable loading
 console.log('[Thread Reducer] SERVER_URL from @env:', SERVER_URL);

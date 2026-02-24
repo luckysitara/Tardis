@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
 import { SERVER_URL } from '@env';
 
-const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8080';
+const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8085';
 
 const { width } = Dimensions.get('window');
 
@@ -129,7 +129,7 @@ const ProfileScreen = ({ navigation, route }) => {
       />
       <View style={styles.communityInfo}>
         <Text style={styles.communityName}>{item.name}</Text>
-        <Text style={styles.communityRole}>{item.creator_id === userId ? 'Founder' : 'Member'}</Text>
+        <Text style={styles.communityRole}>{item.creator_id === targetUserId ? 'Founder' : 'Member'}</Text>
       </View>
       <Icons.ArrowLeftIcon width={16} height={16} color={COLORS.greyMid} style={{ transform: [{ rotate: '180deg' }] }} />
     </TouchableOpacity>
@@ -140,7 +140,7 @@ const ProfileScreen = ({ navigation, route }) => {
       case 'POSTS':
         return (
           <FlashList
-            data={userPosts.filter(p => p.user.id === userId)}
+            data={userPosts.filter(p => p.user.id === (targetUserId || authState.address))}
             renderItem={({ item }) => <PostComponent {...item} />}
             keyExtractor={item => item.id}
             estimatedItemSize={200}
@@ -181,7 +181,7 @@ const ProfileScreen = ({ navigation, route }) => {
           />
         );
       case 'PORTFOLIO':
-        return <PortfolioView address={userId || ''} />;
+        return <PortfolioView address={targetUserId || ''} />;
     }
   };
 
@@ -196,16 +196,18 @@ const ProfileScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>{skrUsername || "Profile"}</Text>
-          <Text style={styles.headerSubtitle}>{userPosts.filter(p => p.user.id === userId).length} Posts</Text>
+          <Text style={styles.headerSubtitle}>{userPosts.filter(p => p.user.id === (targetUserId || authState.address)).length} Posts</Text>
         </View>
       </View>
 
       <ScrollView stickyHeaderIndices={[3]} showsVerticalScrollIndicator={false}>
         {/* Cover Banner */}
         <View style={styles.bannerContainer}>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop' }} 
-            style={styles.bannerImage} 
+          <IPFSAwareImage
+            source={getValidImageSource(authState.attachmentData?.coverImage)}
+            defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop' }}
+            style={styles.bannerImage}
+            resizeMode="cover"
           />
         </View>
 

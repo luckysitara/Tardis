@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { View, Pressable, GestureResponderEvent, Text, TextStyle, Animated } from 'react-native';
 import { ChatMessageProps } from './message.types';
 import { getMessageBaseStyles } from './message.styles';
