@@ -5,6 +5,7 @@ import COLORS from '@/assets/colors';
 import PostComponent from '../components/PostComponent';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { fetchAllPosts } from '@/shared/state/thread/reducer';
+import { fetchFollowing } from '@/shared/state/follow/slice';
 import type { ThreadPost } from '@/core/thread/components/thread.types';
 import Icons from '@/assets/svgs';
 import { useNavigation } from '@react-navigation/native';
@@ -18,7 +19,7 @@ const TownSquareScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { allPosts, loading } = useAppSelector(state => state.thread);
-  const { profilePicUrl, username } = useAppSelector(state => state.auth);
+  const { profilePicUrl, username, address: userId } = useAppSelector(state => state.auth);
   
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'FOR_YOU' | 'FOLLOWING'>('FOR_YOU');
@@ -27,24 +28,21 @@ const TownSquareScreen = () => {
   const fabBottom = isAndroid ? 80 : 100;
 
   useEffect(() => {
-    dispatch(fetchAllPosts(undefined));
-  }, [dispatch]);
+    dispatch(fetchAllPosts({ userId, followingOnly: activeTab === 'FOLLOWING' }));
+    if (userId) {
+      dispatch(fetchFollowing(userId));
+    }
+  }, [dispatch, userId, activeTab]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await dispatch(fetchAllPosts(undefined));
+    await dispatch(fetchAllPosts({ userId, followingOnly: activeTab === 'FOLLOWING' }));
     setRefreshing(false);
-  }, [dispatch]);
+  }, [dispatch, userId, activeTab]);
 
   const handleCreatePost = () => {
     navigation.navigate('CreatePost', {});
   };
-
-  const filteredPosts = useMemo(() => {
-    if (!allPosts) return [];
-    if (activeTab === 'FOR_YOU') return allPosts;
-    return allPosts.filter((_, index) => index % 2 === 0);
-  }, [allPosts, activeTab]);
 
   const renderItem = ({ item }: { item: ThreadPost }) => (
     <PostComponent {...item} />
@@ -99,7 +97,7 @@ const TownSquareScreen = () => {
 
       <View style={{ flex: 1 }}>
         <FlashList
-          data={filteredPosts}
+          data={allPosts}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           estimatedItemSize={200}

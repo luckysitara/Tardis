@@ -21,6 +21,8 @@ import {
   getUsersForChat,
   editMessage,
   deleteMessage,
+  addReaction,
+  removeReaction,
 } from '../../controllers/chatController';
 import { chatImageRouter } from './chatImageRoutes';
 
@@ -55,6 +57,10 @@ chatRouter.put('/messages/:messageId', asyncHandler(editMessage));
 
 // Delete a message
 chatRouter.delete('/messages/:messageId', asyncHandler(deleteMessage));
+
+// Reactions
+chatRouter.post('/messages/:messageId/reactions', asyncHandler(addReaction));
+chatRouter.delete('/messages/:messageId/reactions', asyncHandler(removeReaction));
 
 // Get users for chat creation (search)
 chatRouter.get('/users', asyncHandler(getUsersForChat));

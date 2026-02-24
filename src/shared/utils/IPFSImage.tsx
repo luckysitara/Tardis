@@ -3,17 +3,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Platform, ImageProps, View, Text } from 'react-native';
 import COLORS from '@/assets/colors';
 
-// Reliable IPFS gateways - Using Pinata as the heavy lifter
+// Reliable IPFS gateways - Using public ones with diverse coverage
 const IPFS_GATEWAYS = {
   primary: [
+    'https://ipfs.io/ipfs/',
     'https://gateway.pinata.cloud/ipfs/',
-    'https://cloudflare-ipfs.com/ipfs/',
     'https://gateway.ipfs.io/ipfs/'
   ],
   backup: [
-    'https://ipfs.io/ipfs/',
     'https://nftstorage.link/ipfs/',
-    'https://ipfs.fleek.co/ipfs/'
+    'https://ipfs.fleek.co/ipfs/',
+    'https://dweb.link/ipfs/'
   ]
 };
 

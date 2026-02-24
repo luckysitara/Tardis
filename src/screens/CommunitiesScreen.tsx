@@ -48,7 +48,22 @@ const CommunitiesScreen = () => {
       Alert.alert('Success', 'Community joined successfully!');
       dispatch(fetchCommunities(userId));
     } catch (err: any) {
-      Alert.alert('Error', err || 'Failed to join community.');
+      console.log("[CommunitiesScreen] Join error:", err);
+      if (err.includes('Access Denied')) {
+        Alert.alert(
+          'Access Denied', 
+          err,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Buy Token', 
+              onPress: () => navigation.navigate('Swap' as any) 
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', err || 'Failed to join community.');
+      }
     }
   };
 

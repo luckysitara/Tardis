@@ -10,6 +10,7 @@ import profileImageRouter from './routes/user/userRoutes'; // Keep profile route
 import postsRouter from './routes/postsRoutes'; // Add this import
 import { chatRouter } from './routes/chat/chatRoutes'; // Add this import
 import { communityRouter } from './routes/chat/communityRoutes'; // Add this import
+import { followRouter } from './routes/followRoutes'; // Add this import
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -91,6 +92,7 @@ app.use('/api/profile', profileImageRouter);
 app.use('/api/posts', postsRouter); // Add this line
 app.use('/api/chat', chatRouter); // Add this line
 app.use('/api/communities', communityRouter); // Add this line
+app.use('/api/follows', followRouter); // Add this line
 
 // Socket.io handlers
 io.on('connection', (socket) => {
@@ -126,6 +128,16 @@ io.on('connection', (socket) => {
       userId: socket.data.userId,
       isTyping,
     });
+  });
+
+  socket.on('add_reaction', ({ chatId, messageId, emoji, userId }) => {
+    console.log(`Reaction ${emoji} added to message ${messageId} in chat ${chatId}`);
+    socket.to(`chat:${chatId}`).emit('new_reaction', { chatId, messageId, emoji, userId });
+  });
+
+  socket.on('remove_reaction', ({ chatId, messageId, emoji, userId }) => {
+    console.log(`Reaction ${emoji} removed from message ${messageId} in chat ${chatId}`);
+    socket.to(`chat:${chatId}`).emit('reaction_removed', { chatId, messageId, emoji, userId });
   });
 
   socket.on('disconnect', () => {

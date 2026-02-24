@@ -185,9 +185,43 @@ export function getChatComposerBaseStyles() {
       fontWeight: TYPOGRAPHY.fontWeightToString(TYPOGRAPHY.semiBold),
       fontFamily: TYPOGRAPHY.fontFamily,
     },
-    attachmentPreviewsContainer: {
-      width: '100%',
-      marginBottom: 2,
-    },
-  });
-} 
+        attachmentPreviewsContainer: {
+          width: '100%',
+          marginBottom: 2,
+        },
+        replyPreviewContainer: {
+          flexDirection: 'row',
+          backgroundColor: COLORS.darkerBackground,
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12,
+          padding: 10,
+          alignItems: 'center',
+          borderLeftWidth: 4,
+          borderLeftColor: COLORS.brandPrimary,
+        },
+        replyIndicator: {
+          width: 4,
+          height: '100%',
+          backgroundColor: COLORS.brandPrimary,
+          borderRadius: 2,
+        },
+        replyTextContainer: {
+          flex: 1,
+          marginLeft: 10,
+        },
+        replyToUser: {
+          color: COLORS.brandPrimary,
+          fontSize: 12,
+          fontWeight: '700',
+          marginBottom: 2,
+        },
+        replyContent: {
+          color: COLORS.greyMid,
+          fontSize: 13,
+        },
+        closeReplyButton: {
+          padding: 4,
+        },
+      });
+    }
+     

@@ -40,7 +40,8 @@ const ChatScreen = () => {
     currentChat?.participants.find(p => p.id !== userId),
   [currentChat, userId]);
 
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<List>(null);
+  const [replyingTo, setReplyingTo] = useState<any>(null);
 
   // Security Pulsing
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -136,6 +137,8 @@ const ChatScreen = () => {
                   user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
                 } as any}
                 currentUser={currentUser}
+                onPressUser={(user) => navigation.navigate('Profile', { userId: user.id })}
+                onPressMessage={(msg) => setReplyingTo(msg)}
               />
             )}
             contentContainerStyle={styles.messageList}
@@ -155,6 +158,8 @@ const ChatScreen = () => {
             currentUser={currentUser}
             chatContext={{ chatId }}
             onMessageSent={handleSendMessage}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
           />
         </View>
       </KeyboardAvoidingView>

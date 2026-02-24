@@ -82,12 +82,20 @@ export interface MessageData {
   additional_data?: {
     tradeData?: TradeData;
     nftData?: NftListingData;
+    type?: 'tip';
+    amount?: number;
+    symbol?: string;
+    signature?: string;
   } | null;
   
   // Message content types
   contentType?: 'text' | 'media' | 'trade' | 'nft' | 'mixed';
   tradeData?: TradeData;
   nftData?: NFTData;
+  reactions?: Array<{
+    user_id: string;
+    emoji: string;
+  }>;
 }
 
 export interface MessageBubbleProps {
@@ -95,6 +103,7 @@ export interface MessageBubbleProps {
   isCurrentUser?: boolean;
   themeOverrides?: Record<string, string>;
   styleOverrides?: Record<string, ViewStyle | TextStyle>;
+  onPressReaction?: (emoji: string) => void;
 }
 
 export interface MessageHeaderProps {
@@ -112,8 +121,10 @@ export interface ChatMessageProps {
   message: MessageData | ThreadPost;
   currentUser: MessageUser | ThreadUser;
   onPressMessage?: (message: MessageData | ThreadPost) => void;
+  onPressUser?: (user: MessageUser | ThreadUser) => void;
   themeOverrides?: Record<string, string>;
   styleOverrides?: Record<string, ViewStyle | TextStyle>;
   showHeader?: boolean;
   showFooter?: boolean;
-} 
+}
+ 

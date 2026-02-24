@@ -126,11 +126,34 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     is_deleted BOOLEAN DEFAULT FALSE,
     nonce TEXT NULL, -- For E2EE (NACL box)
     is_encrypted BOOLEAN DEFAULT FALSE, -- Flag for E2EE
+    reply_to_id CHAR(36) NULL, -- Reference to another message
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reply_to_id) REFERENCES chat_messages(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(chat_room_id);
+
+CREATE TABLE IF NOT EXISTS message_reactions (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    message_id CHAR(36) NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    emoji VARCHAR(10) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES chat_messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (message_id, user_id, emoji)
+);
+
+CREATE TABLE IF NOT EXISTS follows (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    follower_id VARCHAR(255) NOT NULL,
+    following_id VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (follower_id, following_id)
+);
 `;

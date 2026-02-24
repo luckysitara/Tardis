@@ -8,6 +8,7 @@ import threadReducer from './thread/reducer';
 import chatReducer from './chat/slice';
 import communityReducer from './community/slice'; // Import the new community reducer
 import postReducer from './post/slice'; // Import the new post reducer
+import followReducer from './follow/slice'; // Add this import
 
 // Redux persist imports
 import { persistStore, persistReducer } from 'redux-persist';
@@ -33,6 +34,7 @@ const rootReducer = combineReducers({
   chat: chatReducer,
   community: communityReducer, // Add the community reducer here
   post: postReducer, // Add the post reducer here
+  follow: followReducer, // Add the follow reducer here
 });
 
 

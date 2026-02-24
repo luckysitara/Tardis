@@ -250,16 +250,31 @@ export async function getChatMessages(req: Request, res: Response) {
 
     const messages = await query;
 
-    // Get sender information for each message
+    // Get sender information and reactions for each message
     const messagesWithSenders = await Promise.all(
       messages.map(async (message) => {
         const sender = await knex('users')
           .where('id', message.sender_id)
           .first('id', 'username', 'profile_picture_url');
 
+        const reactions = await knex('message_reactions')
+          .where('message_id', message.id)
+          .select('user_id', 'emoji');
+
+        let replyTo = null;
+        if (message.reply_to_id) {
+          replyTo = await knex('chat_messages')
+            .join('users', 'chat_messages.sender_id', 'users.id')
+            .where('chat_messages.id', message.reply_to_id)
+            .select('chat_messages.*', 'users.username', 'users.profile_picture_url')
+            .first();
+        }
+
         return {
           ...message,
           sender,
+          reactions,
+          replyTo
         };
       })
     );
@@ -279,7 +294,7 @@ export async function getChatMessages(req: Request, res: Response) {
  */
 export async function sendMessage(req: Request, res: Response) {
   try {
-    const { chatId, userId, content, imageUrl, additionalData, nonce, isEncrypted } = req.body;
+    const { chatId, userId, content, imageUrl, additionalData, nonce, isEncrypted, replyToId } = req.body;
     
     // Updated Validation:
     // Check for essential IDs first
@@ -327,6 +342,7 @@ export async function sendMessage(req: Request, res: Response) {
       additional_data: additionalData ? (typeof additionalData === 'string' ? additionalData : JSON.stringify(additionalData)) : null,
       nonce: nonce || null,
       is_encrypted: isEncrypted || false,
+      reply_to_id: replyToId || null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -538,15 +554,66 @@ export async function deleteMessage(req: Request, res: Response) {
 
     console.log(`[Delete Message] Message ${messageId} marked as deleted`);
 
-    // Return the chatId along with the messageId for client-side updates
-    return res.json({ 
-      success: true, 
-      messageId,
-      chatId: message.chat_room_id, // Add chatId to the response
-      message: 'Message deleted successfully' 
-    });
-  } catch (error: any) {
-    console.error('[Delete Message Error]', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-} 
+        // Return the chatId along with the messageId for client-side updates
+        return res.json({ 
+          success: true, 
+          messageId,
+          chatId: message.chat_room_id, // Add chatId to the response
+          message: 'Message deleted successfully' 
+        });
+      } catch (error: any) {
+        console.error('[Delete Message Error]', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+    
+    /**
+     * Add a reaction to a message
+     */
+    export async function addReaction(req: Request, res: Response) {
+      try {
+        const { messageId } = req.params;
+        const { userId, emoji } = req.body;
+    
+        if (!messageId || !userId || !emoji) {
+          return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+    
+        const id = uuidv4();
+        await knex('message_reactions').insert({
+          id,
+          message_id: messageId,
+          user_id: userId,
+          emoji
+        }).onConflict(['message_id', 'user_id', 'emoji']).ignore();
+    
+        return res.json({ success: true, reactionId: id });
+      } catch (error: any) {
+        console.error('[Add Reaction Error]', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+    
+    /**
+     * Remove a reaction from a message
+     */
+    export async function removeReaction(req: Request, res: Response) {
+      try {
+        const { messageId } = req.params;
+        const { userId, emoji } = req.body;
+    
+        if (!messageId || !userId || !emoji) {
+          return res.status(400).json({ success: false, error: 'Missing required fields' });
+        }
+    
+        await knex('message_reactions')
+          .where({ message_id: messageId, user_id: userId, emoji })
+          .delete();
+    
+        return res.json({ success: true });
+      } catch (error: any) {
+        console.error('[Remove Reaction Error]', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+     

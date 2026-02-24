@@ -208,15 +208,75 @@ export const messageBubbleStyles = StyleSheet.create({
     color: COLORS.white,
     fontFamily: TYPOGRAPHY.fontFamily,
   },
-  originalPostHandle: {
-    fontSize: TYPOGRAPHY.size.xs,
-    color: COLORS.greyMid,
-    marginTop: 2,
-    fontFamily: TYPOGRAPHY.fontFamily,
-  },
-});
-
-export const messageHeaderStyles = StyleSheet.create({
+      originalPostHandle: {
+      fontSize: TYPOGRAPHY.size.xs,
+      color: COLORS.greyMid,
+      marginTop: 2,
+      fontFamily: TYPOGRAPHY.fontFamily,
+    },
+    tipCard: {
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      marginTop: 4,
+      minWidth: 200,
+    },
+    tipHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    tipTitle: {
+      color: COLORS.greyMid,
+      fontSize: 12,
+      fontWeight: '600',
+      fontFamily: TYPOGRAPHY.fontFamily,
+    },
+    tipAmount: {
+      color: COLORS.white,
+      fontSize: 18,
+      fontWeight: '800',
+      fontFamily: TYPOGRAPHY.fontFamily,
+    },
+    viewOnSolana: {
+      marginTop: 10,
+      paddingTop: 8,
+      borderTopWidth: 0.5,
+      borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    viewOnSolanaText: {
+      color: COLORS.brandPrimary,
+      fontSize: 11,
+      fontWeight: '600',
+      textAlign: 'center',
+      fontFamily: TYPOGRAPHY.fontFamily,
+    },
+    reactionsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 6,
+    },
+    reactionBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: 12,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      marginRight: 4,
+      marginBottom: 4,
+    },
+    reactionEmoji: {
+      fontSize: 12,
+    },
+    reactionCount: {
+      color: COLORS.white,
+      fontSize: 10,
+      marginLeft: 2,
+      fontWeight: '600',
+    },
+  });
+  export const messageHeaderStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

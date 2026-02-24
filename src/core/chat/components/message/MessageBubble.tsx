@@ -22,7 +22,7 @@ const RetweetIcon = ({ width = 14, height = 14, color = COLORS.greyLight }) => (
   </View>
 );
 
-function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides }: MessageBubbleProps) {
+function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides, onPressReaction }: MessageBubbleProps) {
   const styles = mergeStyles(
     messageBubbleStyles,
     styleOverrides,
@@ -69,6 +69,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
         const ad = (msg as any).additional_data;
         if (ad.tradeData) return 'trade';
         if (ad.nftData) return 'nft';
+        if (ad.type === 'tip') return 'tip';
         if (ad.image_url) return 'image';
     }
 
@@ -131,6 +132,45 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
   const renderPostContent = (msg: any) => {
     const type = getContentType(msg);
     const contentText = msg.content || msg.text || "";
+    const reactions = msg.reactions || [];
+
+    const groupedReactions = reactions.reduce((acc: any, curr: any) => {
+      acc[curr.emoji] = (acc[curr.emoji] || 0) + 1;
+      return acc;
+    }, {});
+
+    const renderReactions = () => {
+      if (reactions.length === 0) return null;
+      return (
+        <View style={styles.reactionsContainer}>
+          {Object.keys(groupedReactions).map((emoji, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={styles.reactionBadge}
+              onPress={() => onPressReaction && onPressReaction(emoji)}
+            >
+              <Text style={styles.reactionEmoji}>{emoji}</Text>
+              <Text style={styles.reactionCount}>{groupedReactions[emoji]}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    };
+
+    const renderQuotedMessage = () => {
+      const replyTo = (message as any).replyTo;
+      if (!replyTo) return null;
+
+      return (
+        <View style={styles.quotedMessageContainer}>
+          <View style={styles.quotedIndicator} />
+          <View style={styles.quotedTextContainer}>
+            <Text style={styles.quotedUser}>{replyTo.username || replyTo.sender?.username || 'User'}</Text>
+            <Text style={styles.quotedContent} numberOfLines={2}>{replyTo.content}</Text>
+          </View>
+        </View>
+      );
+    };
 
     switch (type) {
       case 'image':
@@ -146,6 +186,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
               />
             </View>
             {contentText ? <Text style={[textStyle, styles.imageCaption]}>{contentText}</Text> : null}
+            {renderReactions()}
           </View>
         );
       case 'trade':
@@ -157,6 +198,27 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
       case 'nft':
         if (nftData) return <MessageNFT nftData={nftData} isCurrentUser={isCurrentUser} />;
         break;
+      case 'tip':
+        const tipData = specializedSource;
+        return (
+          <View style={[styles.tipCard, { backgroundColor: isCurrentUser ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)' }]}>
+            <View style={styles.tipHeader}>
+              <Text style={{ fontSize: 24 }}>💸</Text>
+              <View style={{ marginLeft: 12 }}>
+                <Text style={styles.tipTitle}>Tip Sent</Text>
+                <Text style={styles.tipAmount}>{tipData.amount} {tipData.symbol}</Text>
+              </View>
+            </View>
+            {tipData.signature && (
+              <TouchableOpacity 
+                style={styles.viewOnSolana}
+                onPress={() => console.log('View signature:', tipData.signature)}
+              >
+                <Text style={styles.viewOnSolanaText}>View on Solana Explorer</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
       case 'media':
         const urls = getMediaUrls(msg);
         return (
@@ -179,15 +241,17 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides 
         const solanaActionUrl = typeof contentText === 'string' ? contentText.match(/(solana-action:https?:\/\/\S+)|(https?:\/\/actions\.dialect\.to\/\S+)/)?.[0] : null;
         return (
           <View>
+            {renderQuotedMessage()}
             <Text style={textStyle}>{contentText}</Text>
             {solanaActionUrl && <BlinkMessage url={solanaActionUrl} />}
+            {renderReactions()}
           </View>
         );
     }
     return null;
   };
 
-  if (contentType === 'trade' || contentType === 'nft') {
+  if (contentType === 'trade' || contentType === 'nft' || contentType === 'tip') {
     return <View style={bubbleStyle}>{renderPostContent(message)}</View>;
   }
 

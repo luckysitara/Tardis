@@ -120,11 +120,23 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 postsRouter.get('/', async (req: Request, res: Response) => {
     console.log('[GET /api/posts] Fetching posts with query:', req.query);
     try {
-        const { limit = 20, offset = 0, communityId, userId } = req.query; // Added userId for bookmark status
+        const { limit = 20, offset = 0, communityId, userId, followingOnly } = req.query; // Added userId for bookmark status
 
         let query = knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
             .select('posts.*', 'users.profile_picture_url', 'users.handle as author_handle', 'users.public_encryption_key');
+
+        if (followingOnly === 'true' && userId) {
+            // Filter posts to only show those from followed users
+            const followedUserIds = await knex('follows')
+                .where('follower_id', userId as string)
+                .pluck('following_id');
+            
+            // Include user's own posts in following feed too
+            followedUserIds.push(userId as string);
+            
+            query = query.whereIn('posts.author_wallet_address', followedUserIds);
+        }
 
         if (communityId) {
             query = query.where('posts.community_id', communityId as string);

@@ -212,6 +212,18 @@ class SocketService {
       // Implement typing indicator in UI if needed
     });
 
+    // New reaction received
+    this.socket.on('new_reaction', (data: { chatId: string; messageId: string; emoji: string; userId: string }) => {
+      console.log('New reaction received via WebSocket:', data);
+      store.dispatch(receiveReaction(data));
+    });
+
+    // Reaction removed received
+    this.socket.on('reaction_removed', (data: { chatId: string; messageId: string; emoji: string; userId: string }) => {
+      console.log('Reaction removed via WebSocket:', data);
+      store.dispatch(handleReactionRemoved(data));
+    });
+
     // Handle disconnection
     this.socket.on('disconnect', (reason: string) => {
       console.log('Socket disconnected:', reason);
@@ -321,6 +333,18 @@ class SocketService {
     if (!this.socket || !this.socket.connected) return;
 
     this.socket.emit('typing', { chatId, isTyping });
+  }
+
+  // Send a reaction to a message
+  public sendReaction(chatId: string, messageId: string, emoji: string, userId: string): void {
+    if (!this.socket || !this.socket.connected) return;
+    this.socket.emit('add_reaction', { chatId, messageId, emoji, userId });
+  }
+
+  // Remove a reaction from a message
+  public sendRemoveReaction(chatId: string, messageId: string, emoji: string, userId: string): void {
+    if (!this.socket || !this.socket.connected) return;
+    this.socket.emit('remove_reaction', { chatId, messageId, emoji, userId });
   }
 
   // Disconnect socket

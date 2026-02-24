@@ -8,6 +8,9 @@ import MessageHeader from './MessageHeader';
 import { useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { decryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
 import { Buffer } from 'buffer';
+import ReactionPicker from './ReactionPicker';
+import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
+import { addReactionToMessage } from '@/shared/state/chat/slice';
 
 // Update ChatMessageProps to include onLongPress
 interface ExtendedChatMessageProps extends ChatMessageProps {
@@ -33,14 +36,57 @@ function ChatMessage({
   currentUser,
   onPressMessage,
   onLongPress, // Receive the onLongPress prop
+  onPressUser, // Added
   themeOverrides,
   styleOverrides,
   showHeader = true,
   showFooter = false, // Change default to false since we're showing timestamp in the bubble
 }: ExtendedChatMessageProps) {
+  const dispatch = useAppDispatch();
   const encryptionSeed = useAppSelector(state => state.auth.encryptionSeed);
   const chats = useAppSelector(state => state.chat.chats);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
   const materializeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleSelectEmoji = (emoji: string) => {
+    dispatch(addReactionToMessage({
+      messageId: message.id,
+      userId: currentUser.id,
+      emoji,
+      chatId: message.chat_room_id
+    }));
+    
+    // Broadcast via socket
+    socketService.sendReaction(
+      message.chat_room_id,
+      message.id,
+      emoji,
+      currentUser.id
+    );
+  };
+
+  const handlePressReaction = (emoji: string) => {
+    // If user has already reacted with this emoji, remove it
+    const userReaction = message.reactions?.find(r => r.user_id === currentUser.id && r.emoji === emoji);
+    if (userReaction) {
+      dispatch(addReactionToMessage({ // This should actually be a toggle or remove thunk
+        messageId: message.id,
+        userId: currentUser.id,
+        emoji,
+        chatId: message.chat_room_id
+      }));
+      // Need a remove thunk - I'll use the one I added earlier
+      dispatch(removeReactionFromMessage({
+        messageId: message.id,
+        userId: currentUser.id,
+        emoji,
+        chatId: message.chat_room_id
+      }));
+      socketService.sendRemoveReaction(message.chat_room_id, message.id, emoji, currentUser.id);
+    } else {
+      handleSelectEmoji(emoji);
+    }
+  };
 
   useEffect(() => {
     Animated.timing(materializeAnim, {
@@ -223,6 +269,7 @@ function ChatMessage({
     message: displayMessage,
     isCurrentUser,
     themeOverrides,
+    onPressReaction: handlePressReaction,
     styleOverrides: {
       ...styleOverrides,
 
@@ -242,7 +289,7 @@ function ChatMessage({
           <MessageHeader
             message={message}
             showAvatar={true}
-            onPressUser={user => console.log('User pressed:', user.id)}
+            onPressUser={onPressUser || (user => console.log('User pressed:', user.id))}
           />
         </View>
       )}
@@ -268,9 +315,12 @@ function ChatMessage({
         {/* Use Pressable for better touch handling */}
         <Pressable
           onPress={() => onPressMessage && onPressMessage(message)}
-          onLongPress={onLongPress} // Use the passed onLongPress handler
+          onLongPress={() => {
+            setShowReactionPicker(true);
+            onLongPress && onLongPress({} as any);
+          }}
           delayLongPress={500} // Consistent delay
-          disabled={!onPressMessage && !onLongPress} // Disable if no handlers
+          disabled={false} // Enable for reactions
           style={({ pressed }) => [{
             // Allow text messages to fit their content with small max width
             maxWidth: contentType === 'text' ? '75%' : contentType === 'media' ? '80%' : '100%',
@@ -315,6 +365,12 @@ function ChatMessage({
           </View>
         )}
       </Animated.View>
+
+      <ReactionPicker
+        visible={showReactionPicker}
+        onClose={() => setShowReactionPicker(false)}
+        onSelectEmoji={handleSelectEmoji}
+      />
     </View>
   );
 }

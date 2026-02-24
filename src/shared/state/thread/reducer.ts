@@ -16,11 +16,18 @@ console.log('[Thread Reducer] SERVER_BASE_URL resolved to:', SERVER_BASE_URL);
 // fetchAllPosts
 export const fetchAllPosts = createAsyncThunk(
   'thread/fetchAllPosts',
-  async (userId: string | undefined, {rejectWithValue}) => {
+  async ({ userId, followingOnly }: { userId?: string; followingOnly?: boolean }, {rejectWithValue}) => {
     try {
-      const url = userId
-        ? `${SERVER_BASE_URL}/api/posts?userId=${encodeURIComponent(userId)}`
-        : `${SERVER_BASE_URL}/api/posts`;
+      let url = `${SERVER_BASE_URL}/api/posts`;
+      const params = [];
+      
+      if (userId) params.push(`userId=${encodeURIComponent(userId)}`);
+      if (followingOnly) params.push(`followingOnly=true`);
+      
+      if (params.length > 0) {
+        url += `?${params.join('&')}`;
+      }
+      
       const res = await fetch(url);
       const data = await res.json();
       if (!data.success) {

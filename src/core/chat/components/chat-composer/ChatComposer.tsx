@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   View,
   Image,
@@ -34,6 +34,7 @@ import { sendMessage } from '@/shared/state/chat/slice';
 import socketService from '@/shared/services/socketService';
 import { encryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
 import { Buffer } from 'buffer';
+import TipModal from '../tip/TipModal';
 
 /**
  * Props for the ChatComposer component
@@ -49,24 +50,27 @@ interface ChatComposerProps {
   onInputChange?: (value: string) => void;
   disabled?: boolean;
   chatContext?: { chatId: string };
+  replyingTo?: ChatMessage | null;
+  onCancelReply?: () => void;
 }
 
 /**
  * A component for composing new messages in a chat or thread
  */
 export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>((props, ref) => {
-  const {
-    currentUser,
-    parentId,
-    onMessageSent,
-    chatContext,
-    styleOverrides,
-    userStyleSheet,
-    inputValue,
-    onInputChange,
-  } = props;
-
-  const dispatch = useAppDispatch();
+      const {
+      currentUser,
+      parentId,
+      onMessageSent,
+      chatContext,
+      styleOverrides,
+      userStyleSheet,
+      inputValue,
+      onInputChange,
+      replyingTo,
+      onCancelReply
+    } = props;
+    const dispatch = useAppDispatch();
   const inputRef = useRef<TextInput>(null);
 
   // Expose focus method via ref
@@ -87,8 +91,45 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTradeModal, setShowTradeModal] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
 
   const currentTextValue = inputValue !== undefined ? inputValue : textValue;
+
+  const currentChat = useMemo(() => 
+    chatContext?.chatId ? chats.find(c => c.id === chatContext.chatId) : null,
+  [chatContext, chats]);
+
+  const otherParticipant = useMemo(() => 
+    currentChat?.participants.find(p => p.id !== currentUser.id),
+  [currentChat, currentUser.id]);
+
+  const handleTipSent = async (signature: string, amount: number, symbol: string) => {
+    if (!chatContext) return;
+    
+    try {
+      const resultAction = await dispatch(sendMessage({
+        chatId: chatContext.chatId,
+        userId: currentUser.id,
+        content: `Sent a tip of ${amount} ${symbol} 💸`,
+        additionalData: { 
+          type: 'tip', 
+          amount, 
+          symbol, 
+          signature 
+        },
+      })).unwrap();
+
+      if (resultAction && resultAction.id) {
+        socketService.sendMessage(chatContext.chatId, {
+          ...resultAction,
+          senderId: currentUser.id,
+          chatId: chatContext.chatId
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing tip message:', error);
+    }
+  };
 
   const handleTextChange = (newText: string) => {
     if (onInputChange) {
@@ -209,6 +250,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
           imageUrl: uploadedImageUrl,
           nonce,
           isEncrypted,
+          replyToId: replyingTo?.id,
           additionalData: signature ? { signature } : undefined // Attach signature to additionalData
         })).unwrap();
 
@@ -299,15 +341,29 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   }, [chatContext, currentUser.id, dispatch]);
 
   const renderAttachmentPreviews = () => {
-    if (!selectedImage) return null;
+    if (!selectedImage && !replyingTo) return null;
     return (
       <View style={styles.attachmentPreviewsContainer}>
-        <View style={styles.imagePreviewContainer}>
-          <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
-          <TouchableOpacity style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
-            <Text style={styles.removeImageButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
+        {selectedImage && (
+          <View style={styles.imagePreviewContainer}>
+            <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+            <TouchableOpacity style={styles.removeImageButton} onPress={() => setSelectedImage(null)}>
+              <Text style={styles.removeImageButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {replyingTo && (
+          <View style={styles.replyPreviewContainer}>
+            <View style={styles.replyIndicator} />
+            <View style={styles.replyTextContainer}>
+              <Text style={styles.replyToUser}>Replying to {replyingTo.sender?.username || 'User'}</Text>
+              <Text style={styles.replyContent} numberOfLines={1}>{replyingTo.content}</Text>
+            </View>
+            <TouchableOpacity onPress={onCancelReply} style={styles.closeReplyButton}>
+              <Text style={styles.removeImageButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
@@ -344,6 +400,15 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
             >
               {TradeShare && <TradeShare width={22} height={22} />}
             </TouchableOpacity>
+            {!!otherParticipant && (
+              <TouchableOpacity 
+                onPress={() => setShowTipModal(true)} 
+                style={styles.iconButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={{ fontSize: 20 }}>💸</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -371,6 +436,16 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
         onShare={handleShareTrade}
         currentUser={currentUser}
       />
+      
+      {!!otherParticipant && (
+        <TipModal
+          visible={showTipModal}
+          onClose={() => setShowTipModal(false)}
+          recipientAddress={otherParticipant.id}
+          recipientName={otherParticipant.username || 'User'}
+          onTipSent={handleTipSent}
+        />
+      )}
     </View>
   );
 });

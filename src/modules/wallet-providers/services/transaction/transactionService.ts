@@ -920,8 +920,8 @@ export class TransactionService {
           const authResult = await wallet.authorize({
             cluster: CLUSTER || 'mainnet-beta',
             identity: {
-              name: 'Solana App Kit',
-              uri: 'https://solanaappkit.com',
+              name: 'Tardis',
+              uri: 'https://tardis.xyz',
               icon: 'favicon.ico',
             },
           });

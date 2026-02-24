@@ -107,8 +107,8 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
     }
 
     const APP_IDENTITY = {
-      name: 'Solana App Kit',
-      uri: 'https://solanaappkit.com',
+      name: 'Tardis',
+      uri: 'https://tardis.xyz',
       icon: 'favicon.ico',
     };
 
@@ -118,9 +118,9 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
           chain: 'solana:mainnet',
           identity: APP_IDENTITY,
           sign_in_payload: {
-            domain: 'solanaappkit.com',
-            statement: 'You are signing in to Solana App Kit',
-            uri: 'https://solanaappkit.com',
+            domain: 'tardis.xyz',
+            statement: 'You are signing in to Tardis',
+            uri: 'https://tardis.xyz',
           },
         });
       });

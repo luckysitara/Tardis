@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
 import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
 import { toggleBookmark } from '@/shared/state/post/slice';
@@ -16,6 +17,7 @@ import type { ThreadPost } from '@/core/thread/components/thread.types';
 const { width } = Dimensions.get('window');
 
 const PostComponent: React.FC<ThreadPost> = (props) => {
+  const navigation = useNavigation<any>();
   const {
     id,
     user,
@@ -178,18 +180,24 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   return (
     <View style={styles.container}>
       {/* Left Column: Avatar */}
-      <View style={styles.leftColumn}>
+      <TouchableOpacity 
+        style={styles.leftColumn}
+        onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
+      >
         <Image
           source={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
           style={styles.avatar}
         />
-      </View>
+      </TouchableOpacity>
 
       {/* Right Column: Content */}
       <View style={styles.rightColumn}>
         {/* Header: Name, Handle, Time, More */}
         <View style={styles.header}>
-          <View style={styles.headerTextContainer}>
+          <TouchableOpacity 
+            style={styles.headerTextContainer}
+            onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
+          >
             <Text style={styles.displayName} numberOfLines={1}>
               {author_skr_username}
               {/* Optional Verified Icon could go here */}
@@ -197,7 +205,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
             <Text style={styles.handle} numberOfLines={1}>{author_handle}</Text>
             <Text style={styles.dot}>·</Text>
             <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.moreButton}>
             <Icons.Settings width={16} height={16} color={COLORS.greyMid} />
           </TouchableOpacity>

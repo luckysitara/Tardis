@@ -11,25 +11,103 @@ import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 import Icons from '@/assets/svgs';
 import TYPOGRAPHY from '@/assets/typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
+import { SERVER_URL } from '@env';
+
+const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8080';
 
 const { width } = Dimensions.get('window');
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<any>();
-  const { username: skrUsername, address: userId, profilePicUrl, description: userBio } = useSelector((state: RootState) => state.auth);
+  const authState = useSelector((state: RootState) => state.auth);
+  const targetUserId = route.params?.userId || authState.address;
+  const isOwnProfile = targetUserId === authState.address;
+
+  const { username: skrUsername, profilePicUrl, description: userBio } = useSelector((state: RootState) => state.auth);
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
   const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
-  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS'>('POSTS');
+  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS' | 'PORTFOLIO'>('POSTS');
+  const [followStats, setFollowStats] = useState({ followersCount: 0, followingCount: 0 });
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${SERVER_BASE_URL}/api/follows/stats/${targetUserId}`);
+      const data = await response.json();
+      if (data.success) {
+        setFollowStats({
+          followersCount: data.followersCount,
+          followingCount: data.followingCount
+        });
+      }
+
+      if (!isOwnProfile && authState.address) {
+        // Check if I follow them - adding a temporary endpoint for this or just fetch all followers
+        // For efficiency, I'll just check against a list or a new endpoint
+        const followResponse = await fetch(`${SERVER_BASE_URL}/api/follows/is-following?followerId=${authState.address}&followingId=${targetUserId}`);
+        const followData = await followResponse.json();
+        setIsFollowing(followData.isFollowing);
+      }
+    } catch (err) {
+      console.error("Error fetching follow stats:", err);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!targetUserId || !authState.address) return;
+    setIsFollowLoading(true);
+    try {
+      const response = await fetch(`${SERVER_BASE_URL}/api/follows/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followerId: authState.address, followingId: targetUserId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setIsFollowing(true);
+        fetchStats();
+      }
+    } catch (err) {
+      console.error("Error following user:", err);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async () => {
+    if (!targetUserId || !authState.address) return;
+    setIsFollowLoading(true);
+    try {
+      const response = await fetch(`${SERVER_BASE_URL}/api/follows/unfollow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ followerId: authState.address, followingId: targetUserId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setIsFollowing(false);
+        fetchStats();
+      }
+    } catch (err) {
+      console.error("Error unfollowing user:", err);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (userId) {
-      dispatch(fetchUserCommunities(userId));
-      dispatch(fetchBookmarkedPosts(userId));
-      dispatch(fetchPosts({ userId })); // Fetch user's own posts
+    if (targetUserId) {
+      dispatch(fetchUserCommunities(targetUserId));
+      dispatch(fetchBookmarkedPosts(targetUserId));
+      dispatch(fetchPosts({ userId: targetUserId })); // Fetch target user's posts
+      
+      fetchStats();
     }
-  }, [dispatch, userId]);
+  }, [dispatch, targetUserId]);
 
   const profileAvatar = useMemo(() => 
     profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${skrUsername}`,
@@ -102,6 +180,8 @@ const ProfileScreen = ({ navigation }) => {
             )}
           />
         );
+      case 'PORTFOLIO':
+        return <PortfolioView address={userId || ''} />;
     }
   };
 
@@ -138,12 +218,28 @@ const ProfileScreen = ({ navigation }) => {
                 style={styles.profileAvatar}
               />
             </View>
-            <TouchableOpacity 
-              style={styles.editProfileButton}
-              onPress={() => navigation.navigate('EditProfile')}
-            >
-              <Text style={styles.editProfileButtonText}>Edit profile</Text>
-            </TouchableOpacity>
+            {isOwnProfile ? (
+              <TouchableOpacity 
+                style={styles.editProfileButton}
+                onPress={() => navigation.navigate('EditProfile')}
+              >
+                <Text style={styles.editProfileButtonText}>Edit profile</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={[styles.editProfileButton, isFollowing && styles.followingButton]}
+                onPress={isFollowing ? handleUnfollow : handleFollow}
+                disabled={isFollowLoading}
+              >
+                {isFollowLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={styles.editProfileButtonText}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={styles.nameSection}>
@@ -168,11 +264,11 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.statsRow}>
             <TouchableOpacity style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{followStats.followingCount}</Text>
               <Text style={styles.statLabel}>Following</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{followStats.followersCount}</Text>
               <Text style={styles.statLabel}>Followers</Text>
             </TouchableOpacity>
           </View>
@@ -202,6 +298,14 @@ const ProfileScreen = ({ navigation }) => {
           >
             <Text style={[styles.tabLabel, activeTab === 'BOOKMARKS' && styles.activeTabLabel]}>Bookmarks</Text>
             {activeTab === 'BOOKMARKS' && <View style={styles.activeIndicator} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.tab} 
+            onPress={() => setActiveTab('PORTFOLIO')}
+          >
+            <Text style={[styles.tabLabel, activeTab === 'PORTFOLIO' && styles.activeTabLabel]}>Portfolio</Text>
+            {activeTab === 'PORTFOLIO' && <View style={styles.activeIndicator} />}
           </TouchableOpacity>
         </View>
 
@@ -291,6 +395,10 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '700',
     fontSize: 14,
+  },
+  followingButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'transparent',
   },
   nameSection: {
     marginTop: 12,

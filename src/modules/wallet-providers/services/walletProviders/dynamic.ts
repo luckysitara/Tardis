@@ -29,7 +29,7 @@ export function initDynamicClient(
     // Use any type for client config to bypass TS errors with new properties
     const clientConfig: any = {
       environmentId,
-      displayName: appName || 'Solana App Kit',
+      displayName: appName || 'Tardis',
       appLogoUrl: appLogoUrl || '', // We may need to provide a default logo URL
       walletConnectors: ['dynamic_embedded_wallet'],
       evmNetworks: [],
@@ -67,7 +67,7 @@ export function initDynamicClient(
         },
         // Add deeplink configuration for social login - proper format
         deepLinkConfig: {
-          url: 'solanaappkit://dynamic-auth',
+          url: 'tardisapp://dynamic-auth',
         },
       },
       eventsCallbacks: {
@@ -145,7 +145,7 @@ export function initDynamicClient(
         
         // Set deeplink configuration 
         dynamicClient.settings.set('deepLinkConfig', {
-          url: 'solanaappkit://dynamic-auth',
+          url: 'tardisapp://dynamic-auth',
         });
         
         console.log('Dynamic transaction UI settings configured');

@@ -23,6 +23,8 @@ export interface ChatMessage {
   additional_data?: any;
   nonce?: string | null;
   is_encrypted?: boolean;
+  reply_to_id?: string | null;
+  replyTo?: ChatMessage | null;
   created_at: string;
   updated_at: string;
   is_deleted?: boolean;
@@ -124,7 +126,8 @@ export const sendMessage = createAsyncThunk(
     imageUrl,
     additionalData,
     nonce,
-    isEncrypted
+    isEncrypted,
+    replyToId
   }: { 
     chatId: string; 
     userId: string; 
@@ -133,6 +136,7 @@ export const sendMessage = createAsyncThunk(
     additionalData?: any;
     nonce?: string;
     isEncrypted?: boolean;
+    replyToId?: string;
   }, { rejectWithValue }) => {
     try {
       const response = await axios.post(`${SERVER_BASE_URL}/api/chat/messages`, {
@@ -142,7 +146,8 @@ export const sendMessage = createAsyncThunk(
         imageUrl,
         additionalData,
         nonce,
-        isEncrypted
+        isEncrypted,
+        replyToId
       });
       return response.data.message;
     } catch (error: any) {
@@ -264,6 +269,30 @@ export const deleteMessage = createAsyncThunk(
   }
 );
 
+export const addReactionToMessage = createAsyncThunk(
+  'chat/addReaction',
+  async ({ messageId, userId, emoji, chatId }: { messageId: string; userId: string; emoji: string; chatId: string }, { rejectWithValue }) => {
+    try {
+      await axios.post(`${SERVER_BASE_URL}/api/chat/messages/${messageId}/reactions`, { userId, emoji });
+      return { messageId, userId, emoji, chatId };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to add reaction');
+    }
+  }
+);
+
+export const removeReactionFromMessage = createAsyncThunk(
+  'chat/removeReaction',
+  async ({ messageId, userId, emoji, chatId }: { messageId: string; userId: string; emoji: string; chatId: string }, { rejectWithValue }) => {
+    try {
+      await axios.delete(`${SERVER_BASE_URL}/api/chat/messages/${messageId}/reactions`, { data: { userId, emoji } });
+      return { messageId, userId, emoji, chatId };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to remove reaction');
+    }
+  }
+);
+
 export const updateUserOnlineStatus = createAsyncThunk(
   'chat/updateUserOnlineStatus',
   async (payload: { userId: string; isOnline: boolean }, { rejectWithValue }) => {
@@ -323,6 +352,28 @@ const chatSlice = createSlice({
         const updatedChat = state.chats[chatIndex];
         state.chats.splice(chatIndex, 1); // Remove chat from current position
         state.chats.unshift(updatedChat); // Add to beginning of array
+      }
+    },
+    receiveReaction: (state, action) => {
+      const { chatId, messageId, emoji, userId } = action.payload;
+      if (state.messages[chatId]) {
+        const message = state.messages[chatId].find(msg => msg.id === messageId);
+        if (message) {
+          if (!message.reactions) message.reactions = [];
+          const existing = message.reactions.find(r => r.user_id === userId && r.emoji === emoji);
+          if (!existing) {
+            message.reactions.push({ user_id: userId, emoji });
+          }
+        }
+      }
+    },
+    handleReactionRemoved: (state, action) => {
+      const { chatId, messageId, emoji, userId } = action.payload;
+      if (state.messages[chatId]) {
+        const message = state.messages[chatId].find(msg => msg.id === messageId);
+        if (message && message.reactions) {
+          message.reactions = message.reactions.filter(r => !(r.user_id === userId && r.emoji === emoji));
+        }
       }
     },
     clearChatErrors: (state) => {
@@ -486,8 +537,43 @@ const chatSlice = createSlice({
         }
       });
     });
+
+    // Add reaction
+    builder.addCase(addReactionToMessage.fulfilled, (state, action) => {
+      const { messageId, userId, emoji, chatId } = action.payload;
+      if (state.messages[chatId]) {
+        const message = state.messages[chatId].find(msg => msg.id === messageId);
+        if (message) {
+          if (!message.reactions) message.reactions = [];
+          // Check if reaction already exists
+          const existing = message.reactions.find(r => r.user_id === userId && r.emoji === emoji);
+          if (!existing) {
+            message.reactions.push({ user_id: userId, emoji });
+          }
+        }
+      }
+    });
+
+    // Remove reaction
+    builder.addCase(removeReactionFromMessage.fulfilled, (state, action) => {
+      const { messageId, userId, emoji, chatId } = action.payload;
+      if (state.messages[chatId]) {
+        const message = state.messages[chatId].find(msg => msg.id === messageId);
+        if (message && message.reactions) {
+          message.reactions = message.reactions.filter(r => !(r.user_id === userId && r.emoji === emoji));
+        }
+      }
+    });
   },
 });
 
-export const { setSelectedChat, receiveMessage, incrementUnreadCount, clearChatErrors } = chatSlice.actions;
+export const { 
+  setSelectedChat, 
+  receiveMessage, 
+  incrementUnreadCount, 
+  receiveReaction, 
+  handleReactionRemoved, 
+  clearChatErrors 
+} = chatSlice.actions;
 export default chatSlice.reducer; 
+ 

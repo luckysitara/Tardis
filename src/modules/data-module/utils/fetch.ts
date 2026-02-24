@@ -26,6 +26,9 @@ export async function fetchWithRetries(
 
   while (attempt < maxRetries) {
     try {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[fetchWithRetries] Fetching: ${url}`);
+      }
       const res = await fetch(url, options);
       if (!res.ok) {
         // Handle non-200 responses

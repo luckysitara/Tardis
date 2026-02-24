@@ -35,7 +35,7 @@ export type RootStackParamList = {
   TownSquare: undefined; 
   Comms: undefined;
   Communities: undefined;
-  Profile: undefined;
+  Profile: { userId?: string };
   EditProfile: undefined; 
   CreatePost: { communityId?: string; communityName?: string }; 
   ChatScreen: { chatId: string; title?: string };
