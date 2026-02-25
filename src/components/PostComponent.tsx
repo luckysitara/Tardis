@@ -77,8 +77,8 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   const content = getContent();
   const mediaUri = getMedia();
   const timestamp = createdAt || (props as any).timestamp || new Date().toISOString();
-  const initialLikes = reactionCount || like_count || 0;
-  const initialReposts = retweetCount || repost_count || 0;
+  const initialLikes = like_count || reactionCount || 0;
+  const initialReposts = repost_count || retweetCount || 0;
 
   const [likes, setLikes] = useState(initialLikes);
   const [reposts, setReposts] = useState(initialReposts);
@@ -102,6 +102,31 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     if (diff < 3600) return `${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const handleBookmark = async () => {
+    if (!userId) {
+      Alert.alert("Authentication Required", "Please connect your wallet to bookmark posts.");
+      return;
+    }
+    if (isBookmarking) return;
+
+    setIsBookmarking(true);
+    try {
+      const result = await dispatch(toggleBookmark({ postId: id, userId })).unwrap();
+      setIsBookmarked(result.bookmarked);
+    } catch (error) {
+      console.error("Error toggling bookmark:", error);
+    } finally {
+      setIsBookmarking(false);
+    }
+  };
+
+  const handleComment = () => {
+    navigation.navigate('CreatePost', { 
+      parentId: id,
+      authorHandle: handle
+    });
   };
 
   const handleLike = async () => {
@@ -235,10 +260,10 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
 
         {/* Action Bar */}
         <View style={styles.actions}>
-          {/* Reply (Placeholder) */}
-          <TouchableOpacity style={styles.actionButton}>
+          {/* Reply */}
+          <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
             <Icons.CommentIcon width={18} height={18} color={COLORS.greyMid} />
-            <Text style={styles.actionText}>0</Text>
+            <Text style={styles.actionText}>{(props as any).replyCount || 0}</Text>
           </TouchableOpacity>
 
           {/* Repost */}
@@ -261,8 +286,12 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
           </TouchableOpacity>
           
           {/* Share/Bookmark */}
-           <TouchableOpacity style={styles.actionButton}>
-            <Icons.ShareIcon width={18} height={18} color={COLORS.greyMid} />
+           <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
+            <Icons.ShareIcon 
+              width={18} 
+              height={18} 
+              color={isBookmarked ? COLORS.brandPrimary : COLORS.greyMid} 
+            />
           </TouchableOpacity>
         </View>
 

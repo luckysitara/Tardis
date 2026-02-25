@@ -37,7 +37,8 @@ function mapPost(post: any): any {
         quoteCount: 0,
         reactions: {},
         communityId: post.community_id,
-        isPublic: !!post.is_public
+        isPublic: !!post.is_public,
+        replyCount: post.reply_count || 0
     };
 }
 
@@ -104,7 +105,14 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         // Fetch the inserted post with user details
         const savedPost = await knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.username', 'users.public_encryption_key')
+            .select(
+                'posts.*', 
+                'users.profile_picture_url', 
+                'users.display_name', 
+                'users.username', 
+                'users.public_encryption_key',
+                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
+            )
             .where('posts.id', postId)
             .first();
 
@@ -124,7 +132,14 @@ postsRouter.get('/', async (req: Request, res: Response) => {
 
         let query = knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.username', 'users.public_encryption_key');
+            .select(
+                'posts.*', 
+                'users.profile_picture_url', 
+                'users.display_name', 
+                'users.username', 
+                'users.public_encryption_key',
+                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
+            );
 
         if (followingOnly === 'true' && userId) {
             // Filter posts to only show those from followed users
@@ -210,7 +225,14 @@ postsRouter.get('/bookmarks/:userId', async (req: Request, res: Response) => {
             .join('posts', 'bookmarks.post_id', 'posts.id')
             .join('users', 'posts.author_wallet_address', 'users.id')
             .where('bookmarks.user_id', userId)
-            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.username', 'users.public_encryption_key')
+            .select(
+                'posts.*', 
+                'users.profile_picture_url', 
+                'users.display_name', 
+                'users.username', 
+                'users.public_encryption_key',
+                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
+            )
             .orderBy('bookmarks.created_at', 'desc')
             .limit(Number(limit))
             .offset(Number(offset));

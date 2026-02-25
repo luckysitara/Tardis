@@ -29,7 +29,8 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '@/core/chat/services/chatImageService';
 
-const CreatePostScreen = ({ navigation }) => {
+const CreatePostScreen = ({ navigation, route }) => {
+  const { parentId, authorHandle } = route.params || {};
   const [postContent, setPostContent] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
@@ -130,6 +131,7 @@ const CreatePostScreen = ({ navigation }) => {
         timestamp: timestamp,
         community_id: selectedCommunityId || undefined,
         is_public: selectedCommunityId ? isPublic : true,
+        parent_id: parentId || undefined,
       };
 
       await dispatch(createPost(postData)).unwrap();
@@ -224,7 +226,7 @@ const CreatePostScreen = ({ navigation }) => {
 
               <TextInput
                 style={styles.textInput}
-                placeholder="What's happening?"
+                placeholder={parentId ? `Reply to ${authorHandle}...` : "What's happening?"}
                 placeholderTextColor={COLORS.gray || '#888'}
                 multiline
                 autoFocus
