@@ -113,9 +113,10 @@ const ProfileScreen = ({ navigation, route }) => {
     profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${skrUsername}`,
   [profilePicUrl, skrUsername]);
 
-  const displayHandle = useMemo(() => 
-    skrUsername ? `@${skrUsername.toLowerCase()}` : '@seeker',
-  [skrUsername]);
+  const displayHandle = useMemo(() => {
+    if (!skrUsername) return '@seeker';
+    return skrUsername.startsWith('@') ? skrUsername : `@${skrUsername}`;
+  }, [skrUsername]);
 
   const renderCommunityItem = ({ item }: { item: any }) => (
     <TouchableOpacity

@@ -16,9 +16,9 @@ function mapPost(post: any): any {
         parentId: post.parent_id || null,
         user: {
             id: post.author_wallet_address,
-            username: post.author_skr_username,
-            handle: post.display_name || post.author_skr_username,
-            avatar: post.profile_picture_url || 'https://api.dicebear.com/7.x/initials/png?seed=' + post.author_skr_username,
+            username: post.username || post.author_skr_username, // Prefer live username from users table
+            handle: post.display_name || post.username || post.author_skr_username, // Prefer live display_name
+            avatar: post.profile_picture_url || 'https://api.dicebear.com/7.x/initials/png?seed=' + (post.username || post.author_skr_username),
             publicEncryptionKey: post.public_encryption_key,
             verified: true
         },
@@ -104,7 +104,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         // Fetch the inserted post with user details
         const savedPost = await knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.public_encryption_key')
+            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.username', 'users.public_encryption_key')
             .where('posts.id', postId)
             .first();
 
@@ -124,7 +124,7 @@ postsRouter.get('/', async (req: Request, res: Response) => {
 
         let query = knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.public_encryption_key');
+            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.username', 'users.public_encryption_key');
 
         if (followingOnly === 'true' && userId) {
             // Filter posts to only show those from followed users
@@ -210,7 +210,7 @@ postsRouter.get('/bookmarks/:userId', async (req: Request, res: Response) => {
             .join('posts', 'bookmarks.post_id', 'posts.id')
             .join('users', 'posts.author_wallet_address', 'users.id')
             .where('bookmarks.user_id', userId)
-            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.public_encryption_key')
+            .select('posts.*', 'users.profile_picture_url', 'users.display_name', 'users.username', 'users.public_encryption_key')
             .orderBy('bookmarks.created_at', 'desc')
             .limit(Number(limit))
             .offset(Number(offset));

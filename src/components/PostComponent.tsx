@@ -37,7 +37,10 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   // Use user.handle (which contains display_name from server) for displayName
   // Use user.username (immutable .skr) for handle
   const displayName = user?.handle || author_skr_username;
-  const handle = user?.username ? `@${user.username.toLowerCase()}` : `@${(author_skr_username as string).toLowerCase().replace(/\s/g, '')}`;
+  
+  // Ensure handle starts with @ and contains the full username including .skr
+  const rawHandle = user?.username || author_skr_username;
+  const handle = rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`;
   
   const community_id = (props as any).community_id || (props as any).communityId;
   const is_public = (props as any).is_public || (props as any).isPublic;
