@@ -413,7 +413,13 @@ const authSlice = createSlice({
           requestedUserId && 
           requestedUserId.toLowerCase() === state.address.toLowerCase()) {
         state.profilePicUrl = fetchedProfilePicUrl || state.profilePicUrl;
-        state.username = fetchedUsername || state.username;
+        
+        // CRITICAL: Always sync the username (immutable handle) from the DB 
+        // to ensure .skr is present if it was previously missing in Redux.
+        if (fetchedUsername) {
+          state.username = fetchedUsername;
+        }
+        
         state.displayName = fetchedDisplayName || state.displayName;
         state.description = fetchedDescription || state.description;
         state.attachmentData = attachmentData || state.attachmentData || {};

@@ -473,8 +473,8 @@ export default function LoginScreen() {
         // Try to create the user entry in the database
         const response = await axios.post(`${SERVER_BASE_URL}/api/profile/createUser`, {
           userId: info.address,
-          username: info.address.slice(0, 6), // Initially set to wallet address
-          handle: '@' + info.address.slice(0, 6),
+          username: info.address, // Use full address as fallback
+          handle: info.address,
         });
 
         console.log('User creation response:', response.data);

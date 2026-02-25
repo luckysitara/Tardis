@@ -159,17 +159,36 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
 
     // Check if user already exists
     const existingUser = await knex('users').where({ id: userId }).first();
+    
     if (existingUser) {
-      // User already exists, just return success
+      // If the user exists but the username is just the wallet address (or slice of it)
+      // and we now have a proper .skr username, update it!
+      const isPlaceholder = existingUser.username === existingUser.id || 
+                            existingUser.username === existingUser.id.slice(0, 6) ||
+                            !existingUser.username.includes('.skr');
+      
+      const hasProperName = username && username.includes('.skr');
+
+      if (isPlaceholder && hasProperName) {
+        console.log(`[createUser] Updating placeholder username ${existingUser.username} to ${username}`);
+        await knex('users').where({ id: userId }).update({
+          username: username,
+          display_name: handle || username,
+          updated_at: new Date()
+        });
+        const updatedUser = await knex('users').where({ id: userId }).first();
+        return res.json({ success: true, user: updatedUser, updated: true });
+      }
+
       return res.json({ success: true, user: existingUser });
     }
 
-    // Create new user with minimal data
+    // Create new user
     const newUser = {
       id: userId,
-      username: username || userId, // Default to userId if username not provided
-      display_name: handle || username || userId, // Use handle as display_name
-      description: description || '', // Default empty description if not provided
+      username: username || userId,
+      display_name: handle || username || userId,
+      description: description || '',
       profile_picture_url: null,
       attachment_data: null,
       created_at: new Date(),

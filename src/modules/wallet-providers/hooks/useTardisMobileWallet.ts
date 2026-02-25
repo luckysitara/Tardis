@@ -104,12 +104,28 @@ export const useTardisMobileWallet = () => {
 
       if (result?.accounts?.length) {
         const base58Address = new PublicKey(Buffer.from(result.accounts[0].address, 'base64')).toBase58();
-        console.log('[Tardis MWA] Connect successful for address:', base58Address);
+        const skrName = result.accounts[0].label;
+        console.log('[Tardis MWA] Connect successful for address:', base58Address, 'Label:', skrName);
+        
+        // Sync with backend immediately
+        if (skrName) {
+          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
+          fetch(`${SERVER_BASE_URL}/api/profile/createUser`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: base58Address,
+              username: skrName,
+              handle: skrName,
+            })
+          }).catch(err => console.warn('[Tardis MWA] Failed to sync user to backend:', err));
+        }
+
         dispatch(loginSuccess({
           provider: 'mwa',
           address: base58Address,
           authToken: result.auth_token,
-          username: result.accounts[0].label || 'Seeker User',
+          username: skrName || 'Seeker User',
         }));
         
         if (navigationRef.isReady()) {
@@ -189,11 +205,27 @@ export const useTardisMobileWallet = () => {
 
       if (result?.signature && result?.address) {
         const base58Address = new PublicKey(Buffer.from(result.address, 'base64')).toBase58();
+        const skrName = result.label;
+
+        // Sync with backend immediately
+        if (skrName) {
+          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
+          fetch(`${SERVER_BASE_URL}/api/profile/createUser`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: base58Address,
+              username: skrName,
+              handle: skrName,
+            })
+          }).catch(err => console.warn('[Tardis MWA] Failed to sync user to backend:', err));
+        }
+
         dispatch(loginSuccess({
           provider: 'mwa',
           address: base58Address,
           authToken: result.token,
-          username: result.label || authState.username
+          username: skrName || authState.username
         }));
 
         console.log('[Tardis MWA] Hardware signature verified.');

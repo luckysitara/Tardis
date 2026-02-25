@@ -115,6 +115,8 @@ const ProfileScreen = ({ navigation, route }) => {
 
   const displayHandle = useMemo(() => {
     if (!skrUsername) return '@seeker';
+    // If it already starts with @, use it, otherwise add it.
+    // We strictly use the raw skrUsername to ensure .skr is visible.
     return skrUsername.startsWith('@') ? skrUsername : `@${skrUsername}`;
   }, [skrUsername]);
 

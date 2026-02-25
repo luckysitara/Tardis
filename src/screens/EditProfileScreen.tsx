@@ -95,7 +95,7 @@ const EditProfileScreen = ({ navigation }) => {
       <Text style={styles.label}>Username (Immutable)</Text>
       <TextInput
         style={[styles.input, { opacity: 0.6 }]}
-        value={username ? `@${username}` : ''}
+        value={username ? (username.startsWith('@') ? username : `@${username}`) : ''}
         editable={false}
       />
 
