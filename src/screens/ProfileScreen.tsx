@@ -25,7 +25,7 @@ const ProfileScreen = ({ navigation, route }) => {
   const targetUserId = route.params?.userId || authState.address;
   const isOwnProfile = targetUserId === authState.address;
 
-  const { username: skrUsername, profilePicUrl, description: userBio } = useSelector((state: RootState) => state.auth);
+  const { username: skrUsername, displayName, profilePicUrl, description: userBio } = useSelector((state: RootState) => state.auth);
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
   const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
@@ -195,7 +195,7 @@ const ProfileScreen = ({ navigation, route }) => {
           <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.white} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{skrUsername || "Profile"}</Text>
+          <Text style={styles.headerTitle}>{displayName || skrUsername || "Profile"}</Text>
           <Text style={styles.headerSubtitle}>{userPosts.filter(p => p.user.id === (targetUserId || authState.address)).length} Posts</Text>
         </View>
       </View>
@@ -245,7 +245,7 @@ const ProfileScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.nameSection}>
-            <Text style={styles.displayName}>{skrUsername || "Seeker"}</Text>
+            <Text style={styles.displayName}>{displayName || skrUsername || "Seeker"}</Text>
             <Text style={styles.handle}>{displayHandle}</Text>
           </View>
 

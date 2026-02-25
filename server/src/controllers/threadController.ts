@@ -19,7 +19,7 @@ type DBPostRow = {
 type DBUserRow = {
   id: string;
   username: string;
-  handle: string;
+  display_name: string;
   profile_picture_url: string | null;
 };
 
@@ -60,7 +60,7 @@ function mapPostRowToClientShape(postRow: DBPostRow & DBUserRow) {
     user: {
       id: postRow.user_id,
       username: postRow.username,
-      handle: postRow.handle,
+      handle: postRow.display_name,
       avatar: postRow.profile_picture_url
         ? {uri: postRow.profile_picture_url}
         : null,
@@ -83,7 +83,7 @@ async function fetchRetweetOf(postId: string): Promise<any | null> {
     .select(
       'posts.*',
       'users.username',
-      'users.handle',
+      'users.display_name',
       'users.profile_picture_url',
     )
     .leftJoin('users', 'users.id', 'posts.user_id')
@@ -168,7 +168,7 @@ export async function getAllPosts(
       .select(
         'posts.*',
         'users.username',
-        'users.handle',
+        'users.display_name',
         'users.profile_picture_url',
       )
       .leftJoin('users', 'users.id', 'posts.user_id')
@@ -261,7 +261,7 @@ export async function createRootPost(req: Request, res: Response) {
       .select(
         'posts.*',
         'users.username',
-        'users.handle',
+        'users.display_name',
         'users.profile_picture_url',
       )
       .leftJoin('users', 'users.id', 'posts.user_id')
@@ -327,7 +327,7 @@ export async function createReply(req: Request, res: Response) {
       .select(
         'posts.*',
         'users.username',
-        'users.handle',
+        'users.display_name',
         'users.profile_picture_url',
       )
       .leftJoin('users', 'users.id', 'posts.user_id')
@@ -496,7 +496,7 @@ export const addReaction = async (
       .select(
         'posts.*',
         'users.username',
-        'users.handle',
+        'users.display_name',
         'users.profile_picture_url',
       )
       .leftJoin('users', 'users.id', 'posts.user_id')
@@ -572,7 +572,7 @@ export async function createRetweet(req: Request, res: Response) {
       .select(
         'posts.*',
         'users.username',
-        'users.handle',
+        'users.display_name',
         'users.profile_picture_url',
       )
       .leftJoin('users', 'users.id', 'posts.user_id')
@@ -621,7 +621,7 @@ export async function updatePost(req: Request, res: Response) {
       .select(
         'posts.*',
         'users.username',
-        'users.handle',
+        'users.display_name',
         'users.profile_picture_url',
       )
       .leftJoin('users', 'users.id', 'posts.user_id')

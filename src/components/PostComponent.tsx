@@ -33,7 +33,12 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   // Map fields from either direct props (ThreadPost) or backend format
   const author_wallet_address = user?.id || (props as any).author_wallet_address;
   const author_skr_username = user?.username || (props as any).author_skr_username || 'Seeker User';
-  const author_handle = user?.username ? `@${user.username.toLowerCase()}` : `@${(author_skr_username as string).toLowerCase().replace(/\s/g, '')}`;
+  
+  // Use user.handle (which contains display_name from server) for displayName
+  // Use user.username (immutable .skr) for handle
+  const displayName = user?.handle || author_skr_username;
+  const handle = user?.username ? `@${user.username.toLowerCase()}` : `@${(author_skr_username as string).toLowerCase().replace(/\s/g, '')}`;
+  
   const community_id = (props as any).community_id || (props as any).communityId;
   const is_public = (props as any).is_public || (props as any).isPublic;
   
@@ -200,10 +205,10 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
             onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
           >
             <Text style={styles.displayName} numberOfLines={1}>
-              {author_skr_username}
+              {displayName}
               {/* Optional Verified Icon could go here */}
             </Text>
-            <Text style={styles.handle} numberOfLines={1}>{author_handle}</Text>
+            <Text style={styles.handle} numberOfLines={1}>{handle}</Text>
             <Text style={styles.dot}>·</Text>
             <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
           </TouchableOpacity>
