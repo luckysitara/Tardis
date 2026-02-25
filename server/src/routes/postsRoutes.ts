@@ -11,6 +11,8 @@ const postsRouter = Router();
  * Helper to map database post rows to the ThreadPost structure expected by the frontend.
  */
 function mapPost(post: any): any {
+    const isRepost = post.feed_type === 'repost';
+    
     return {
         id: post.id,
         parentId: post.parent_id || null,
@@ -38,7 +40,16 @@ function mapPost(post: any): any {
         reactions: {},
         communityId: post.community_id,
         isPublic: !!post.is_public,
-        replyCount: post.reply_count || 0
+        replyCount: post.reply_count || 0,
+        // New fields for perfect feed behavior
+        feedType: post.feed_type || 'post',
+        originalPostId: post.original_post_id || post.id,
+        repostedBy: isRepost ? {
+            id: post.reposter_id,
+            username: post.reposter_username,
+            displayName: post.reposter_display_name
+        } : null,
+        replyToUsername: post.reply_to_username || null
     };
 }
 
@@ -128,53 +139,140 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 postsRouter.get('/', async (req: Request, res: Response) => {
     console.log('[GET /api/posts] Fetching posts with query:', req.query);
     try {
-        const { limit = 20, offset = 0, communityId, userId, followingOnly } = req.query; // Added userId for bookmark status
+        const { limit = 20, offset = 0, communityId, userId, followingOnly } = req.query;
 
-        let query = knex('posts')
+        /**
+         * We use a UNION to combine:
+         * 1. Regular posts
+         * 2. Reposts (where the content comes from the original post)
+         */
+        
+        // Base select for a post
+        const postSelect = `
+            posts.id as id,
+            posts.id as original_post_id,
+            posts.author_wallet_address,
+            posts.author_skr_username,
+            posts.content,
+            posts.media_urls,
+            posts.signature,
+            posts.timestamp,
+            posts.like_count,
+            posts.repost_count,
+            posts.community_id,
+            posts.parent_id,
+            posts.is_public,
+            posts.created_at,
+            posts.updated_at,
+            users.profile_picture_url, 
+            users.display_name, 
+            users.username, 
+            users.public_encryption_key,
+            parent_users.username as reply_to_username,
+            (SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count,
+            'post' as feed_type,
+            NULL as reposter_id,
+            NULL as reposter_username,
+            NULL as reposter_display_name,
+            posts.timestamp as sort_timestamp
+        `;
+
+        const repostSelect = `
+            reposts.id as id,
+            posts.id as original_post_id,
+            posts.author_wallet_address,
+            posts.author_skr_username,
+            posts.content,
+            posts.media_urls,
+            posts.signature,
+            posts.timestamp,
+            posts.like_count,
+            posts.repost_count,
+            posts.community_id,
+            posts.parent_id,
+            posts.is_public,
+            posts.created_at,
+            posts.updated_at,
+            users.profile_picture_url, 
+            users.display_name, 
+            users.username, 
+            users.public_encryption_key,
+            parent_users.username as reply_to_username,
+            (SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count,
+            'repost' as feed_type,
+            reposts.reposter_wallet_address as reposter_id,
+            repost_users.username as reposter_username,
+            repost_users.display_name as reposter_display_name,
+            reposts.timestamp as sort_timestamp
+        `;
+
+        // 1. Original posts query
+        let postsQuery = knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
-            .select(
-                'posts.*', 
-                'users.profile_picture_url', 
-                'users.display_name', 
-                'users.username', 
-                'users.public_encryption_key',
-                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
-            );
+            .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
+            .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
+            .select(knex.raw(postSelect));
 
+        // 2. Reposts query
+        let repostsQuery = knex('reposts')
+            .join('posts', 'reposts.original_post_id', 'posts.id')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .join('users as repost_users', 'reposts.reposter_wallet_address', 'repost_users.id')
+            .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
+            .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
+            .select(knex.raw(repostSelect));
+
+        // Apply filters
         if (followingOnly === 'true' && userId) {
-            // Filter posts to only show those from followed users
             const followedUserIds = await knex('follows')
                 .where('follower_id', userId as string)
                 .pluck('following_id');
-            
-            // Include user's own posts in following feed too
             followedUserIds.push(userId as string);
             
-            query = query.whereIn('posts.author_wallet_address', followedUserIds);
+            postsQuery = postsQuery.whereIn('posts.author_wallet_address', followedUserIds);
+            repostsQuery = repostsQuery.whereIn('reposts.reposter_wallet_address', followedUserIds);
+        }
+
+        // IMPORTANT: By default, hide replies (posts with a parent_id) from the main feed
+        if (includeReplies !== 'true') {
+            postsQuery = postsQuery.whereNull('posts.parent_id');
         }
 
         if (communityId) {
-            query = query.where('posts.community_id', communityId as string);
+            postsQuery = postsQuery.where('posts.community_id', communityId as string);
+            repostsQuery = repostsQuery.where('posts.community_id', communityId as string);
         } else {
-            // Show global posts (null community_id) OR community posts marked as is_public (Announcement)
-            query = query.where(function() {
+            postsQuery = postsQuery.where(function() {
+                this.whereNull('posts.community_id').orWhere('posts.is_public', true);
+            });
+            repostsQuery = repostsQuery.where(function() {
                 this.whereNull('posts.community_id').orWhere('posts.is_public', true);
             });
         }
 
-        const posts = await query
-            .orderBy('timestamp', 'desc')
+        // Combine using UNION
+        const combinedQuery = knex.union([postsQuery, repostsQuery], true)
+            .as('unified_feed');
+
+        const feedItems = await knex.select('*')
+            .from(combinedQuery)
+            .orderBy('sort_timestamp', 'desc')
             .limit(Number(limit))
             .offset(Number(offset));
 
         // Augment with bookmark status if userId is provided
-        const mappedPosts = await Promise.all(posts.map(async (post) => {
+        const mappedPosts = await Promise.all(feedItems.map(async (post) => {
             const mapped = mapPost(post);
             if (userId) {
                 const bookmark = await knex('bookmarks')
                     .where({ user_id: userId as string, post_id: post.id })
                     .first();
                 mapped.isBookmarked = !!bookmark;
+                
+                const liked = await knex('likes')
+                    .where({ user_wallet_address: userId as string, post_id: post.id })
+                    .first();
+                mapped.isLiked = !!liked;
             }
             return mapped;
         }));
@@ -224,6 +322,8 @@ postsRouter.get('/bookmarks/:userId', async (req: Request, res: Response) => {
         const posts = await knex('bookmarks')
             .join('posts', 'bookmarks.post_id', 'posts.id')
             .join('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
+            .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
             .where('bookmarks.user_id', userId)
             .select(
                 'posts.*', 
@@ -231,6 +331,7 @@ postsRouter.get('/bookmarks/:userId', async (req: Request, res: Response) => {
                 'users.display_name', 
                 'users.username', 
                 'users.public_encryption_key',
+                'parent_users.username as reply_to_username',
                 knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
             )
             .orderBy('bookmarks.created_at', 'desc')
@@ -245,6 +346,126 @@ postsRouter.get('/bookmarks/:userId', async (req: Request, res: Response) => {
         return res.json({ success: true, posts: mappedPosts });
     } catch (error: any) {
         console.error('[GET /api/posts/bookmarks] Error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/posts/:id - Get a single post
+postsRouter.get('/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.query;
+
+        const post = await knex('posts')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
+            .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
+            .select(
+                'posts.*', 
+                'users.profile_picture_url', 
+                'users.display_name', 
+                'users.username', 
+                'users.public_encryption_key',
+                'parent_users.username as reply_to_username',
+                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
+            )
+            .where('posts.id', id)
+            .first();
+
+        if (!post) {
+            return res.status(404).json({ success: false, error: 'Post not found.' });
+        }
+
+        const mapped = mapPost(post);
+        if (userId) {
+            const bookmark = await knex('bookmarks')
+                .where({ user_id: userId as string, post_id: post.id })
+                .first();
+            mapped.isBookmarked = !!bookmark;
+            
+            const liked = await knex('likes')
+                .where({ user_wallet_address: userId as string, post_id: post.id })
+                .first();
+            mapped.isLiked = !!liked;
+        }
+
+        return res.json({ success: true, post: mapped });
+    } catch (error: any) {
+        console.error('[GET /api/posts/:id] Error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/posts/:id/thread - Get a post and its direct replies
+postsRouter.get('/:id/thread', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { userId } = req.query;
+
+        // Fetch parent chain (optional, for now just the direct parent)
+        const currentPost = await knex('posts')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
+            .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
+            .select(
+                'posts.*', 
+                'users.profile_picture_url', 
+                'users.display_name', 
+                'users.username', 
+                'users.public_encryption_key',
+                'parent_users.username as reply_to_username',
+                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
+            )
+            .where('posts.id', id)
+            .first();
+
+        if (!currentPost) {
+            return res.status(404).json({ success: false, error: 'Post not found.' });
+        }
+
+        // Fetch replies
+        const replies = await knex('posts')
+            .join('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
+            .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
+            .select(
+                'posts.*', 
+                'users.profile_picture_url', 
+                'users.display_name', 
+                'users.username', 
+                'users.public_encryption_key',
+                'parent_users.username as reply_to_username',
+                knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
+            )
+            .where('posts.parent_id', id)
+            .orderBy('posts.timestamp', 'asc');
+
+        const mappedCurrent = mapPost(currentPost);
+        const mappedReplies = await Promise.all(replies.map(async (reply) => {
+            const mapped = mapPost(reply);
+            if (userId) {
+                const bookmark = await knex('bookmarks').where({ user_id: userId as string, post_id: reply.id }).first();
+                mapped.isBookmarked = !!bookmark;
+                const liked = await knex('likes').where({ user_wallet_address: userId as string, post_id: reply.id }).first();
+                mapped.isLiked = !!liked;
+            }
+            return mapped;
+        }));
+
+        if (userId) {
+            const bookmark = await knex('bookmarks').where({ user_id: userId as string, post_id: currentPost.id }).first();
+            mappedCurrent.isBookmarked = !!bookmark;
+            const liked = await knex('likes').where({ user_wallet_address: userId as string, post_id: currentPost.id }).first();
+            mappedCurrent.isLiked = !!liked;
+        }
+
+        return res.json({ 
+            success: true, 
+            post: mappedCurrent,
+            replies: mappedReplies
+        });
+    } catch (error: any) {
+        console.error('[GET /api/posts/:id/thread] Error:', error);
         return res.status(500).json({ success: false, error: error.message });
     }
 });

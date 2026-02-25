@@ -31,7 +31,7 @@ class SocketService {
       this.userId = userId;
       this.reconnectAttempts = 0;
 
-      const SOCKET_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085'; // Fallback to host machine IP if EXPO_PUBLIC_SERVER_URL is undefined
+      const SOCKET_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://192.168.1.175:8085'; // Fallback to host machine IP if EXPO_PUBLIC_SERVER_URL is undefined
       console.log('Initializing socket connection to:', SOCKET_SERVER_URL);
       
       // Determine if we should force secure WebSockets based on server URL

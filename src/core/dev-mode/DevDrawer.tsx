@@ -324,7 +324,7 @@ const ServerStatus = () => {
     const { setServerStatus } = useDevMode();
     const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
     const [lastChecked, setLastChecked] = useState<Date | null>(null);
-    const [serverUrl, setServerUrl] = useState<string>(SERVER_URL || 'http://10.203.135.79:8085');
+    const [serverUrl, setServerUrl] = useState<string>(SERVER_URL || 'http://192.168.1.175:8085');
 
     // Check server connection status
     const checkServerStatus = async () => {
@@ -427,10 +427,10 @@ const DevDrawer = () => {
     const checkServerConnection = async () => {
         try {
             setServerConnectionStatus('checking');
-            console.log(`Checking server status in DevDrawer at: ${SERVER_URL || 'http://10.203.135.79:8085'}`);
+            console.log(`Checking server status in DevDrawer at: ${SERVER_URL || 'http://192.168.1.175:8085'}`);
 
             // Use the ws-health endpoint which should be lightweight and fast
-            const response = await fetchWithTimeout(`${SERVER_URL || 'http://10.203.135.79:8085'}/ws-health`, {
+            const response = await fetchWithTimeout(`${SERVER_URL || 'http://192.168.1.175:8085'}/ws-health`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',

@@ -109,7 +109,7 @@ export const useTardisMobileWallet = () => {
         
         // Sync with backend immediately
         if (skrName) {
-          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
+          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://192.168.1.175:8085';
           fetch(`${SERVER_BASE_URL}/api/profile/createUser`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -209,7 +209,7 @@ export const useTardisMobileWallet = () => {
 
         // Sync with backend immediately
         if (skrName) {
-          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
+          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://192.168.1.175:8085';
           fetch(`${SERVER_BASE_URL}/api/profile/createUser`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

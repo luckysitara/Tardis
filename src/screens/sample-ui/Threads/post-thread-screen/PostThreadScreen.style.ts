@@ -189,11 +189,29 @@ export default StyleSheet.create({
   },
   
   // Loading and error states
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   notFoundContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+  },
+  repliesDivider: {
+    height: 1,
+    backgroundColor: COLORS.borderDarkColor,
+    opacity: 0.5,
+  },
+  repliesLabel: {
+    fontSize: TYPOGRAPHY.size.sm,
+    fontWeight: TYPOGRAPHY.fontWeightToString(TYPOGRAPHY.semiBold),
+    color: COLORS.greyMid,
+    fontFamily: TYPOGRAPHY.fontFamily,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   
   notFoundText: {

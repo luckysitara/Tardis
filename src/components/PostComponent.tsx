@@ -27,8 +27,17 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     repost_count,
     reactionCount,
     retweetCount,
-    isBookmarked: initialBookmarked
+    isBookmarked: initialBookmarked,
+    isLiked: initialLiked,
+    feedType,
+    repostedBy,
+    replyToUsername,
+    originalPostId,
+    showThreadLine // New prop to show connector line
   } = props;
+
+  // Interaction ID should be the original post ID (if it's a repost)
+  const interactionId = originalPostId || id;
 
   // Map fields from either direct props (ThreadPost) or backend format
   const author_wallet_address = user?.id || (props as any).author_wallet_address;
@@ -44,6 +53,8 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   
   const community_id = (props as any).community_id || (props as any).communityId;
   const is_public = (props as any).is_public || (props as any).isPublic;
+  
+  const isRepost = feedType === 'repost' || !!repostedBy;
   
   // Content extraction logic
   const getContent = () => {
@@ -84,14 +95,14 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   const [reposts, setReposts] = useState(initialReposts);
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
-  const [userHasLiked, setUserHasLiked] = useState(false);
+  const [userHasLiked, setUserHasLiked] = useState(!!initialLiked);
   const [isBookmarked, setIsBookmarked] = useState(!!initialBookmarked);
   const [isBookmarking, setIsBookmarking] = useState(false);
 
   const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
+  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
 
   const formatRelativeTime = (time: string) => {
     const date = new Date(time);
@@ -113,7 +124,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
 
     setIsBookmarking(true);
     try {
-      const result = await dispatch(toggleBookmark({ postId: id, userId })).unwrap();
+      const result = await dispatch(toggleBookmark({ postId: interactionId, userId })).unwrap();
       setIsBookmarked(result.bookmarked);
     } catch (error) {
       console.error("Error toggling bookmark:", error);
@@ -124,7 +135,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
 
   const handleComment = () => {
     navigation.navigate('CreatePost', { 
-      parentId: id,
+      parentId: interactionId,
       authorHandle: handle
     });
   };
@@ -139,7 +150,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     setIsLiking(true);
     try {
       const timestamp = new Date().toISOString();
-      const messageToSign = `{"post_id":"${id}","user_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
+      const messageToSign = `{"post_id":"${interactionId}","user_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
       const engagementSignature = await signMessage(messageToSign);
 
       if (!engagementSignature) {
@@ -148,7 +159,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
       }
 
       const signatureBase64 = Buffer.from(engagementSignature).toString('base64');
-      const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/like`, {
+      const response = await fetch(`${SERVER_BASE_URL}/api/posts/${interactionId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -180,7 +191,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     setIsReposting(true);
     try {
       const timestamp = new Date().toISOString();
-      const messageToSign = `{"original_post_id":"${id}","reposter_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
+      const messageToSign = `{"original_post_id":"${interactionId}","reposter_wallet_address":"${userId}","timestamp":"${timestamp}"}`;
       const engagementSignature = await signMessage(messageToSign);
 
       if (!engagementSignature) {
@@ -189,7 +200,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
       }
 
       const signatureBase64 = Buffer.from(engagementSignature).toString('base64');
-      const response = await fetch(`${SERVER_BASE_URL}/api/posts/${id}/repost`, {
+      const response = await fetch(`${SERVER_BASE_URL}/api/posts/${interactionId}/repost`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,93 +223,114 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
 
   return (
     <View style={styles.container}>
-      {/* Left Column: Avatar */}
-      <TouchableOpacity 
-        style={styles.leftColumn}
-        onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
-      >
-        <IPFSAwareImage
-          source={getValidImageSource(user?.avatar)}
-          defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
-          style={styles.avatar}
-        />
-      </TouchableOpacity>
-
-      {/* Right Column: Content */}
-      <View style={styles.rightColumn}>
-        {/* Header: Name, Handle, Time, More */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.headerTextContainer}
-            onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
-          >
-            <Text style={styles.displayName} numberOfLines={1}>
-              {displayName}
-              {/* Optional Verified Icon could go here */}
-            </Text>
-            <Text style={styles.handle} numberOfLines={1}>{handle}</Text>
-            <Text style={styles.dot}>·</Text>
-            <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.moreButton}>
-            <Icons.Settings width={16} height={16} color={COLORS.greyMid} />
-          </TouchableOpacity>
+      {/* Repost Header */}
+      {isRepost && (
+        <View style={styles.repostHeader}>
+          <Icons.RepostIcon width={12} height={12} color={COLORS.greyMid} />
+          <Text style={styles.repostHeaderText}>
+            {repostedBy?.displayName || repostedBy?.username || 'Someone'} Reposted
+          </Text>
         </View>
+      )}
 
-        {/* Content Body */}
-        <View style={styles.contentContainer}>
-          <Text style={styles.content}>{content}</Text>
-          
-          {mediaUri && (
-            <IPFSAwareImage 
-              source={getValidImageSource(mediaUri)} 
-              style={styles.media} 
-              resizeMode="cover" 
+      <View style={styles.mainRow}>
+        {/* Left Column: Avatar */}
+        <TouchableOpacity 
+          style={styles.leftColumn}
+          onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
+        >
+          <View style={styles.avatarContainer}>
+            <IPFSAwareImage
+              source={getValidImageSource(user?.avatar)}
+              defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${author_skr_username}` }}
+              style={styles.avatar}
             />
+            {showThreadLine && <View style={styles.threadLine} />}
+          </View>
+        </TouchableOpacity>
+
+        {/* Right Column: Content */}
+        <View style={styles.rightColumn}>
+          {/* Header: Name, Handle, Time, More */}
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.headerTextContainer}
+              onPress={() => navigation.navigate('Profile', { userId: author_wallet_address })}
+            >
+              <Text style={styles.displayName} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Text style={styles.handle} numberOfLines={1}>{handle}</Text>
+              <Text style={styles.dot}>·</Text>
+              <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.moreButton}>
+              <Icons.Settings width={16} height={16} color={COLORS.greyMid} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Reply Context */}
+          {replyToUsername && (
+            <Text style={styles.replyingToText}>
+              Replying to <Text style={styles.replyingToHandle}>@{replyToUsername}</Text>
+            </Text>
           )}
-        </View>
 
-        {/* Action Bar */}
-        <View style={styles.actions}>
-          {/* Reply */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
-            <Icons.CommentIcon width={18} height={18} color={COLORS.greyMid} />
-            <Text style={styles.actionText}>{(props as any).replyCount || 0}</Text>
-          </TouchableOpacity>
+          {/* Content Body */}
+          <View style={styles.contentContainer}>
+            <Text style={styles.content}>{content}</Text>
+            
+            {mediaUri && (
+              <IPFSAwareImage 
+                source={getValidImageSource(mediaUri)} 
+                style={styles.media} 
+                resizeMode="cover" 
+              />
+            )}
+          </View>
 
-          {/* Repost */}
-          <TouchableOpacity onPress={handleRepost} style={styles.actionButton} disabled={isReposting}>
-             <Icons.RepostIcon width={18} height={18} color={isReposting ? COLORS.brandPrimary : COLORS.greyMid} />
-             <Text style={[styles.actionText, reposts > 0 && { color: COLORS.white }]}>{reposts || ''}</Text>
-          </TouchableOpacity>
+          {/* Action Bar */}
+          <View style={styles.actions}>
+            {/* Reply */}
+            <TouchableOpacity style={styles.actionButton} onPress={handleComment}>
+              <Icons.CommentIcon width={18} height={18} color={COLORS.greyMid} />
+              <Text style={styles.actionText}>{(props as any).replyCount || 0}</Text>
+            </TouchableOpacity>
 
-          {/* Like */}
-          <TouchableOpacity onPress={handleLike} style={styles.actionButton} disabled={isLiking}>
-            <Icons.HeartIcon 
-              width={18} 
-              height={18} 
-              color={userHasLiked ? COLORS.brandPink : COLORS.greyMid}
-              fill={userHasLiked ? COLORS.brandPink : 'transparent'} 
-            />
-            <Text style={[styles.actionText, userHasLiked && { color: COLORS.brandPink }]}>
-              {likes || ''}
-            </Text>
-          </TouchableOpacity>
-          
-          {/* Share/Bookmark */}
-           <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
-            <Icons.ShareIcon 
-              width={18} 
-              height={18} 
-              color={isBookmarked ? COLORS.brandPrimary : COLORS.greyMid} 
-            />
-          </TouchableOpacity>
-        </View>
+            {/* Repost */}
+            <TouchableOpacity onPress={handleRepost} style={styles.actionButton} disabled={isReposting}>
+               <Icons.RepostIcon width={18} height={18} color={isReposting ? COLORS.brandPrimary : COLORS.greyMid} />
+               <Text style={[styles.actionText, reposts > 0 && { color: COLORS.white }]}>{reposts || ''}</Text>
+            </TouchableOpacity>
 
-        {/* Footer Hardware Status */}
-        <View style={styles.statusFooter}>
-           <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} style={{ opacity: 0.7 }} />
-           <Text style={styles.statusText}>Signed</Text>
+            {/* Like */}
+            <TouchableOpacity onPress={handleLike} style={styles.actionButton} disabled={isLiking}>
+              <Icons.HeartIcon 
+                width={18} 
+                height={18} 
+                color={userHasLiked ? COLORS.brandPink : COLORS.greyMid}
+                fill={userHasLiked ? COLORS.brandPink : 'transparent'} 
+              />
+              <Text style={[styles.actionText, userHasLiked && { color: COLORS.brandPink }]}>
+                {likes || ''}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Share/Bookmark */}
+             <TouchableOpacity style={styles.actionButton} onPress={handleBookmark}>
+              <Icons.ShareIcon 
+                width={18} 
+                height={18} 
+                color={isBookmarked ? COLORS.brandPrimary : COLORS.greyMid} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer Hardware Status */}
+          <View style={styles.statusFooter}>
+             <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} style={{ opacity: 0.7 }} />
+             <Text style={styles.statusText}>Signed</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -307,15 +339,40 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: COLORS.borderDarkColor || 'rgba(255,255,255,0.1)',
     backgroundColor: COLORS.background,
   },
+  repostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 32,
+    marginBottom: 4,
+  },
+  repostHeaderText: {
+    color: COLORS.greyMid,
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  mainRow: {
+    flexDirection: 'row',
+  },
   leftColumn: {
     marginRight: 12,
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  threadLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: COLORS.borderDarkColor || 'rgba(255,255,255,0.1)',
+    marginTop: 4,
+    marginBottom: -12, // Extend into the padding of the next item
   },
   rightColumn: {
     flex: 1,
@@ -330,7 +387,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerTextContainer: {
     flexDirection: 'row',
@@ -360,6 +417,14 @@ const styles = StyleSheet.create({
   },
   moreButton: {
     padding: 2,
+  },
+  replyingToText: {
+    color: COLORS.greyMid,
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  replyingToHandle: {
+    color: COLORS.brandPrimary,
   },
   contentContainer: {
     marginBottom: 8,

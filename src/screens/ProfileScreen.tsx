@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
 import { SERVER_URL } from '@env';
 
-const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = SERVER_URL || 'http://192.168.1.175:8085';
 
 const { width } = Dimensions.get('window');
 

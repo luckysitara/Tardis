@@ -7,22 +7,43 @@ import type {
 import {allposts as fallbackPosts} from '../../mocks/posts';
 import {SERVER_URL} from '@env';
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
 
 // Debug environment variable loading
 console.log('[Thread Reducer] SERVER_URL from @env:', SERVER_URL);
 console.log('[Thread Reducer] SERVER_BASE_URL resolved to:', SERVER_BASE_URL);
 
+// fetchThread
+export const fetchThread = createAsyncThunk(
+  'thread/fetchThread',
+  async ({ postId, userId }: { postId: string; userId?: string }, {rejectWithValue}) => {
+    try {
+      let url = `${SERVER_BASE_URL}/api/posts/${postId}/thread`;
+      if (userId) url += `?userId=${encodeURIComponent(userId)}`;
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.success) {
+        return rejectWithValue(data.error || 'Failed to fetch thread');
+      }
+      return data; // returns { success: true, post: ..., replies: [...] }
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  },
+);
+
 // fetchAllPosts
 export const fetchAllPosts = createAsyncThunk(
   'thread/fetchAllPosts',
-  async ({ userId, followingOnly }: { userId?: string; followingOnly?: boolean }, {rejectWithValue}) => {
+  async ({ userId, followingOnly, includeReplies }: { userId?: string; followingOnly?: boolean; includeReplies?: boolean }, {rejectWithValue}) => {
     try {
       let url = `${SERVER_BASE_URL}/api/posts`;
       const params = [];
       
       if (userId) params.push(`userId=${encodeURIComponent(userId)}`);
       if (followingOnly) params.push(`followingOnly=true`);
+      if (includeReplies) params.push(`includeReplies=true`);
       
       if (params.length > 0) {
         url += `?${params.join('&')}`;

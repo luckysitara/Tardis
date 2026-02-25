@@ -18,7 +18,7 @@ import {Buffer} from 'buffer';
 import {SERVER_URL} from '@env';
 
 // API base URL - Use local server that implements the SDK
-const API_BASE_URL = `${SERVER_URL || 'http://10.203.135.79:8085'}/api`;
+const API_BASE_URL = `${SERVER_URL || 'http://192.168.1.175:8085'}/api`;
 
 // Helper function to make API calls
 async function apiCall(endpoint: string, method: string = 'GET', data?: any) {
@@ -1431,7 +1431,7 @@ export const addLiquidity = async (
     onStatusUpdate?.('Preparing to add liquidity...');
 
     // Check if we're in development mode or API is not available
-    if (API_BASE_URL.includes('10.203.135.79') || poolAddress.startsWith('pool')) {
+    if (API_BASE_URL.includes('192.168.1.175') || poolAddress.startsWith('pool')) {
       // Simulate API delays for a more realistic experience
       onStatusUpdate?.('Creating transaction...');
       await new Promise(resolve => setTimeout(resolve, 1000));

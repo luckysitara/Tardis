@@ -31,7 +31,7 @@ const TownSquareScreen = () => {
   const fabBottom = isAndroid ? 80 : 100;
 
   useEffect(() => {
-    dispatch(fetchAllPosts({ userId, followingOnly: activeTab === 'FOLLOWING' }));
+    dispatch(fetchAllPosts({ userId, followingOnly: activeTab === 'FOLLOWING', includeReplies: false }));
     if (userId) {
       dispatch(fetchFollowing(userId));
     }
@@ -39,7 +39,7 @@ const TownSquareScreen = () => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await dispatch(fetchAllPosts({ userId, followingOnly: activeTab === 'FOLLOWING' }));
+    await dispatch(fetchAllPosts({ userId, followingOnly: activeTab === 'FOLLOWING', includeReplies: false }));
     setRefreshing(false);
   }, [dispatch, userId, activeTab]);
 
