@@ -3,7 +3,7 @@ import axios from 'axios';
 import { ThreadPost, CreatePostPayload, FetchPostsParams } from './types';
 
 // Replace with your actual server base URL
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://192.168.1.175:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
 
 interface PostState {
   posts: ThreadPost[];

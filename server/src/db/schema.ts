@@ -6,8 +6,8 @@
 export const createTablesSQL = `
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY NOT NULL,
-    username VARCHAR(255) NOT NULL,
-    handle VARCHAR(255) NOT NULL,
+    username VARCHAR(255) NOT NULL, -- Immutable .skr name
+    display_name VARCHAR(255) NOT NULL, -- Mutable display name
     profile_picture_url VARCHAR(255) NULL,
     description TEXT NULL,
     public_encryption_key TEXT NULL, -- X25519 Public Key for E2EE
@@ -152,6 +152,161 @@ CREATE TABLE IF NOT EXISTS follows (
     follower_id VARCHAR(255) NOT NULL,
     following_id VARCHAR(255) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (follower_id, following_id)
+);
+`;
+
+export const createTablesPostgresSQL = `
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(255) PRIMARY KEY NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    profile_picture_url VARCHAR(255) NULL,
+    description TEXT NULL,
+    public_encryption_key TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id UUID PRIMARY KEY NOT NULL,
+    sender_id VARCHAR(255) NOT NULL,
+    recipient_id VARCHAR(255) NOT NULL,
+    ciphertext TEXT NOT NULL,
+    nonce TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+    id UUID PRIMARY KEY NOT NULL,
+    author_wallet_address VARCHAR(255) NOT NULL,
+    author_skr_username VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    media_urls TEXT DEFAULT '[]',
+    signature TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    like_count INTEGER DEFAULT 0,
+    repost_count INTEGER DEFAULT 0,
+    community_id VARCHAR(255) NULL,
+    parent_id UUID NULL,
+    is_public BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (author_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES posts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id UUID PRIMARY KEY NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    post_id UUID NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    UNIQUE (user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS likes (
+    id UUID PRIMARY KEY NOT NULL,
+    post_id UUID NOT NULL,
+    user_wallet_address VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (post_id, user_wallet_address)
+);
+
+CREATE TABLE IF NOT EXISTS reposts (
+    id UUID PRIMARY KEY NOT NULL,
+    original_post_id UUID NOT NULL,
+    reposter_wallet_address VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (original_post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (reposter_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (original_post_id, reposter_wallet_address)
+);
+
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id UUID PRIMARY KEY NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    name VARCHAR(255) NULL,
+    description TEXT NULL,
+    avatar_url VARCHAR(255) NULL,
+    banner_url VARCHAR(255) NULL,
+    is_public BOOLEAN DEFAULT FALSE,
+    creator_id VARCHAR(255) NULL,
+    meta_data TEXT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_room_gates (
+    id UUID PRIMARY KEY NOT NULL,
+    chat_room_id UUID NOT NULL,
+    gate_type VARCHAR(20) NOT NULL,
+    mint_address VARCHAR(255) NULL,
+    min_balance VARCHAR(255) DEFAULT '1',
+    symbol VARCHAR(50) NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS chat_participants (
+    id UUID PRIMARY KEY NOT NULL,
+    chat_room_id UUID NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (chat_room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY NOT NULL,
+    chat_room_id UUID NOT NULL,
+    sender_id VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    image_url VARCHAR(255) NULL,
+    additional_data TEXT NULL,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    nonce TEXT NULL,
+    is_encrypted BOOLEAN DEFAULT FALSE,
+    reply_to_id UUID NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reply_to_id) REFERENCES chat_messages(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(chat_room_id);
+
+CREATE TABLE IF NOT EXISTS message_reactions (
+    id UUID PRIMARY KEY NOT NULL,
+    message_id UUID NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    emoji VARCHAR(10) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES chat_messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (message_id, user_id, emoji)
+);
+
+CREATE TABLE IF NOT EXISTS follows (
+    id UUID PRIMARY KEY NOT NULL,
+    follower_id VARCHAR(255) NOT NULL,
+    following_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (follower_id, following_id)

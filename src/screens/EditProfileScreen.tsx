@@ -9,9 +9,9 @@ import Icons from '@/assets/svgs';
 
 const EditProfileScreen = ({ navigation }) => {
   const dispatch = useAppDispatch();
-  const { address: userId, username, description, profilePicUrl } = useAppSelector(state => state.auth);
+  const { address: userId, username, displayName, description, profilePicUrl } = useAppSelector(state => state.auth);
 
-  const [name, setName] = useState(username || '');
+  const [name, setName] = useState(displayName || username || '');
   const [bio, setBio] = useState(description || '');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,7 +51,7 @@ const EditProfileScreen = ({ navigation }) => {
       }
 
       // 2. Update name
-      if (name !== username) {
+      if (name !== displayName) {
         await dispatch(updateUsername({ userId, newUsername: name })).unwrap();
       }
 
@@ -90,6 +90,13 @@ const EditProfileScreen = ({ navigation }) => {
         placeholderTextColor={COLORS.gray}
         value={name}
         onChangeText={setName}
+      />
+
+      <Text style={styles.label}>Username (Immutable)</Text>
+      <TextInput
+        style={[styles.input, { opacity: 0.6 }]}
+        value={username ? `@${username}` : ''}
+        editable={false}
       />
 
       <Text style={styles.label}>Bio</Text>

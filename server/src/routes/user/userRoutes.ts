@@ -47,14 +47,12 @@ profileImageRouter.get('/', async (req: any, res: any) => {
       return res.status(404).json({success: false, error: 'User not found'});
     }
 
-    // Return the user's data, including the attachment_data field.
-    // attachmentData might still be used for SGT display (e.g. if SGT is stored as attachment_data)
-
     console.log(user , "user.attachment_data");
     return res.json({
       success: true,
       url: user.profile_picture_url,
       username: user.username,
+      display_name: user.display_name,
       description: user.description || '',
       attachmentData: user.attachment_data || {}, 
     });
@@ -66,38 +64,38 @@ profileImageRouter.get('/', async (req: any, res: any) => {
 
 /**
  * ------------------------------------------
- *  EXISTING: Update user's username
+ *  EXISTING: Update user's display name
  * ------------------------------------------
  */
 profileImageRouter.post('/updateUsername', async (req: any, res: any) => {
   try {
-    const {userId, username} = req.body;
-    if (!userId || !username) {
+    const {userId, username: newDisplayName} = req.body;
+    if (!userId || !newDisplayName) {
       return res
         .status(400)
-        .json({success: false, error: 'Missing userId or username'});
+        .json({success: false, error: 'Missing userId or display name'});
     }
 
     const existingUser = await knex('users').where({id: userId}).first();
     if (!existingUser) {
       await knex('users').insert({
         id: userId,
-        username,
-        handle: '@' + userId.slice(0, 6),
+        username: userId, // Fallback
+        display_name: newDisplayName,
         profile_picture_url: null,
         created_at: new Date(),
         updated_at: new Date(),
       });
     } else {
       await knex('users').where({id: userId}).update({
-        username,
+        display_name: newDisplayName,
         updated_at: new Date(),
       });
     }
 
-    return res.json({success: true, username});
+    return res.json({success: true, display_name: newDisplayName});
   } catch (error: any) {
-    console.error('[updateUsername error]', error);
+    console.error('[updateDisplayName error]', error);
     return res.status(500).json({success: false, error: error.message});
   }
 });
@@ -170,7 +168,7 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
     const newUser = {
       id: userId,
       username: username || userId, // Default to userId if username not provided
-      handle: handle || '@' + userId.slice(0, 6), // Default handle if not provided
+      display_name: handle || username || userId, // Use handle as display_name
       description: description || '', // Default empty description if not provided
       profile_picture_url: null,
       attachment_data: null,
@@ -206,7 +204,7 @@ profileImageRouter.post('/updateDescription', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId,
-        handle: '@' + userId.slice(0, 6),
+        display_name: userId,
         description: description || '',
         profile_picture_url: null,
         created_at: new Date(),
@@ -261,8 +259,8 @@ profileImageRouter.post('/updateProfilePic', async (req: any, res: any) => {
       console.log(`[updateProfilePic] User ${userId} not found, creating new record`);
       await knex('users').insert({
         id: userId,
-        username: userId.slice(0, 6), // Default username
-        handle: '@' + userId.slice(0, 6), // Default handle
+        username: userId, // Default username
+        display_name: userId, // Default display_name
         profile_picture_url: profilePicUrl,
         created_at: new Date(),
         updated_at: new Date(),
@@ -310,8 +308,8 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
     if (!existingUser) {
       await knex('users').insert({
         id: userId,
-        username: userId.slice(0, 6),
-        handle: '@' + userId.slice(0, 6),
+        username: userId,
+        display_name: userId,
         public_encryption_key: publicKey,
         created_at: new Date(),
         updated_at: new Date(),

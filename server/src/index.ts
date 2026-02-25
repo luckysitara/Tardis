@@ -15,7 +15,7 @@ import { followRouter } from './routes/followRoutes'; // Add this import
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
 import { setupConnection } from './utils/connection';
-import { createTablesSQL } from './db/schema'; // Add this import
+import { createTablesSQL, createTablesPostgresSQL } from './db/schema'; // Add this import
 
 
 const app = express();
@@ -150,7 +150,7 @@ io.on('connection', (socket) => {
 
 // Start the Express server.
 const PORT = parseInt(process.env.PORT || '8085', 10);
-const HOST = '192.168.1.175'; // Critical for App Runner health checks
+const HOST = '10.203.135.79'; // Critical for App Runner health checks
 
 (async function startServer() {
   // Start server immediately for health checks - critical for App Runner
@@ -166,7 +166,10 @@ const HOST = '192.168.1.175'; // Critical for App Runner health checks
     console.log('Initializing database schema...');
     
     // Split the multi-statement SQL into individual statements
-    const statements = createTablesSQL
+    const isPostgres = (knex.client as any).config.client === 'pg';
+    const rawSQL = isPostgres ? createTablesPostgresSQL : createTablesSQL;
+    
+    const statements = rawSQL
       .split(';')
       .map(s => s.trim())
       .filter(s => s.length > 0);
@@ -175,58 +178,85 @@ const HOST = '192.168.1.175'; // Critical for App Runner health checks
       try {
         await knex.raw(statement);
       } catch (stmtError: any) {
-        console.error(`Error executing statement: ${statement.substring(0, 50)}...`, stmtError.message);
+        if (!stmtError.message.includes('already exists') && !stmtError.message.includes('already a column')) {
+          console.error(`Error executing statement: ${statement.substring(0, 50)}...`, stmtError.message);
+        }
       }
     }
 
-    // Migration: Add public_encryption_key to users if it doesn't exist
+    // Migration: Handle to display_name (for both Postgres and SQLite)
     try {
-      await knex.raw('ALTER TABLE users ADD COLUMN public_encryption_key TEXT NULL;');
-      console.log('✅ Added public_encryption_key column to users table.');
+      if (isPostgres) {
+        // Postgres: Try to rename handle if it exists, or add display_name if missing
+        try {
+          await knex.raw('ALTER TABLE users RENAME COLUMN handle TO display_name;');
+          console.log('✅ Renamed handle to display_name in users table (Postgres).');
+        } catch (e: any) {
+          if (e.message.includes('does not exist')) {
+            await knex.raw('ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(255);');
+            await knex.raw('UPDATE users SET display_name = username WHERE display_name IS NULL;');
+          }
+        }
+      } else {
+        // SQLite: Check if display_name exists, if not try to add it
+        try {
+          await knex.raw('ALTER TABLE users ADD COLUMN display_name VARCHAR(255);');
+          await knex.raw('UPDATE users SET display_name = username WHERE display_name IS NULL;');
+          console.log('✅ Added display_name column to users table (SQLite).');
+        } catch (e) {}
+      }
     } catch (e) {}
 
-    // Migration: Add community columns to chat_rooms if they don't exist
-    try {
-      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN description TEXT NULL;');
-      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN avatar_url TEXT NULL;');
-      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN banner_url TEXT NULL;');
-      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN is_public BOOLEAN DEFAULT FALSE;');
-      await knex.raw('ALTER TABLE chat_rooms ADD COLUMN creator_id TEXT NULL;');
-      console.log('✅ Added community columns to chat_rooms table.');
-    } catch (e) {}
-    // Migration: Add community_id to posts if it doesn't exist
-    try {
-      await knex.raw('ALTER TABLE posts ADD COLUMN community_id VARCHAR(255) NULL;');
-      console.log('✅ Added community_id column to posts table.');
-    } catch (e) {}
+    if (!isPostgres) {
+      // Migration: Add public_encryption_key to users if it doesn't exist
+      try {
+        await knex.raw('ALTER TABLE users ADD COLUMN public_encryption_key TEXT NULL;');
+        console.log('✅ Added public_encryption_key column to users table.');
+      } catch (e) {}
 
-    // Migration: Add parent_id to posts if it doesn't exist
-    try {
-      await knex.raw('ALTER TABLE posts ADD COLUMN parent_id CHAR(36) NULL REFERENCES posts(id) ON DELETE CASCADE;');
-      console.log('✅ Added parent_id column to posts table.');
-    } catch (e) {}
+      // Migration: Add community columns to chat_rooms if they don't exist
+      try {
+        await knex.raw('ALTER TABLE chat_rooms ADD COLUMN description TEXT NULL;');
+        await knex.raw('ALTER TABLE chat_rooms ADD COLUMN avatar_url TEXT NULL;');
+        await knex.raw('ALTER TABLE chat_rooms ADD COLUMN banner_url TEXT NULL;');
+        await knex.raw('ALTER TABLE chat_rooms ADD COLUMN is_public BOOLEAN DEFAULT FALSE;');
+        await knex.raw('ALTER TABLE chat_rooms ADD COLUMN creator_id TEXT NULL;');
+        console.log('✅ Added community columns to chat_rooms table.');
+      } catch (e) {}
+      // Migration: Add community_id to posts if it doesn't exist
+      try {
+        await knex.raw('ALTER TABLE posts ADD COLUMN community_id VARCHAR(255) NULL;');
+        console.log('✅ Added community_id column to posts table.');
+      } catch (e) {}
 
-    // Migration: Add is_public to posts if it doesn't exist
-    try {
-      await knex.raw('ALTER TABLE posts ADD COLUMN is_public BOOLEAN DEFAULT FALSE;');
-      console.log('✅ Added is_public column to posts table.');
-    } catch (e) {}
+      // Migration: Add parent_id to posts if it doesn't exist
+      try {
+        await knex.raw('ALTER TABLE posts ADD COLUMN parent_id CHAR(36) NULL REFERENCES posts(id) ON DELETE CASCADE;');
+        console.log('✅ Added parent_id column to posts table.');
+      } catch (e) {}
 
-    // Migration: Create bookmarks table if it doesn't exist (using raw SQL from schema if possible, or direct)
-    try {
-      await knex.raw(`
-        CREATE TABLE IF NOT EXISTS bookmarks (
-            id CHAR(36) PRIMARY KEY NOT NULL,
-            user_id VARCHAR(255) NOT NULL,
-            post_id CHAR(36) NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-            UNIQUE (user_id, post_id)
-        );
-      `);
-      console.log('✅ Ensured bookmarks table exists.');
-    } catch (e) {}
+      // Migration: Add is_public to posts if it doesn't exist
+      try {
+        await knex.raw('ALTER TABLE posts ADD COLUMN is_public BOOLEAN DEFAULT FALSE;');
+        console.log('✅ Added is_public column to posts table.');
+      } catch (e) {}
+
+      // Migration: Create bookmarks table if it doesn't exist (using raw SQL from schema if possible, or direct)
+      try {
+        await knex.raw(`
+          CREATE TABLE IF NOT EXISTS bookmarks (
+              id CHAR(36) PRIMARY KEY NOT NULL,
+              user_id VARCHAR(255) NOT NULL,
+              post_id CHAR(36) NOT NULL,
+              created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+              FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+              UNIQUE (user_id, post_id)
+          );
+        `);
+        console.log('✅ Ensured bookmarks table exists.');
+      } catch (e) {}
+    }
     
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');

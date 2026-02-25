@@ -10,7 +10,8 @@ export interface AuthState {
   isLoggedIn: boolean;
   isVerified: boolean; // Added: Tracks if SGT/Hardware gate passed
   profilePicUrl: string | null;
-  username: string | null; // storing user's chosen display name
+  username: string | null; // Immutable .skr handle
+  displayName: string | null; // Mutable display name
   description: string | null; // storing user's bio description
   // NEW: attachmentData object to hold any attached profile data (e.g., coin)
   attachmentData?: {
@@ -31,11 +32,12 @@ const initialState: AuthState = {
   isLoggedIn: false,
   profilePicUrl: null,
   username: null,
+  displayName: null,
   description: null,
   attachmentData: {},
 };
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
 
 // Debug environment variable loading
 console.log('[Auth Reducer] SERVER_URL from @env:', SERVER_URL);
@@ -84,6 +86,7 @@ export const fetchUserProfile = createAsyncThunk(
       return {
         profilePicUrl: data.url,
         username: data.username,
+        displayName: data.display_name,
         description: data.description,
         attachmentData: data.attachmentData || {},
       };
@@ -116,10 +119,10 @@ export const updateUsername = createAsyncThunk(
       const data = await response.json();
       if (!data.success) {
         return thunkAPI.rejectWithValue(
-          data.error || 'Failed to update username',
+          data.error || 'Failed to update display name',
         );
       }
-      return data.username as string;
+      return data.display_name as string;
     } catch (error: any) {
       return thunkAPI.rejectWithValue(
         error.message || 'Error updating username',
@@ -332,6 +335,7 @@ const authSlice = createSlice({
         authToken?: string | null; // Added for MWA reauthorization
         profilePicUrl?: string;
         username?: string;
+        displayName?: string;
         description?: string;
       }>,
     ) {
@@ -348,16 +352,14 @@ const authSlice = createSlice({
         state.profilePicUrl = action.payload.profilePicUrl || state.profilePicUrl;
       }
       
-      // For username: 
-      // 1. Use provided username if available
-      // 2. Keep existing username if we already have one
-      // 3. Otherwise use first 6 chars of wallet address
       if (action.payload.username) {
         state.username = action.payload.username;
-      } else if (!state.username && action.payload.address) {
-        // Default username is first 6 characters of wallet address
-        state.username = action.payload.address.substring(0, 6);
-        console.log('[AuthReducer] Setting default username from wallet address:', state.username);
+      }
+
+      if (action.payload.displayName) {
+        state.displayName = action.payload.displayName;
+      } else if (!state.displayName && action.payload.username) {
+        state.displayName = action.payload.username;
       }
       
       if (action.payload.description || !state.description) {
@@ -395,6 +397,7 @@ const authSlice = createSlice({
       const {
         profilePicUrl: fetchedProfilePicUrl,
         username: fetchedUsername,
+        displayName: fetchedDisplayName,
         description: fetchedDescription,
         attachmentData,
       } = action.payload as any;
@@ -411,6 +414,7 @@ const authSlice = createSlice({
           requestedUserId.toLowerCase() === state.address.toLowerCase()) {
         state.profilePicUrl = fetchedProfilePicUrl || state.profilePicUrl;
         state.username = fetchedUsername || state.username;
+        state.displayName = fetchedDisplayName || state.displayName;
         state.description = fetchedDescription || state.description;
         state.attachmentData = attachmentData || state.attachmentData || {};
       }
@@ -419,7 +423,7 @@ const authSlice = createSlice({
     });
 
     builder.addCase(updateUsername.fulfilled, (state, action) => {
-      state.username = action.payload;
+      state.displayName = action.payload;
     });
 
     builder.addCase(updateDescription.fulfilled, (state, action) => {

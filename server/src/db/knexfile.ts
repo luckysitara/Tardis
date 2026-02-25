@@ -15,6 +15,24 @@ const config: { [key: string]: Knex.Config } = {
       directory: './src/db/migrations', 
     },
   },
+  supabase: {
+    client: 'pg',
+    connection: process.env.DATABASE_URL || {
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT) || 5432,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      ssl: { rejectUnauthorized: false } // Required for Supabase
+    },
+    migrations: {
+      directory: './src/db/migrations',
+    },
+    pool: {
+      min: 2,
+      max: 10
+    }
+  },
   production: {
     client: 'sqlite3',
     connection: {
