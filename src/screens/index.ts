@@ -13,3 +13,5 @@ export { default as ChatScreen } from './ChatScreen';
 export { default as StartChatScreen } from './StartChatScreen';
 export { default as CreateCommunityScreen } from './CreateCommunityScreen';
 export { default as CommunityFeedScreen } from './CommunityFeedScreen';
+export { default as SwapScreen } from '../modules/swap/screens/SwapScreen';
+export { default as SendScreen } from '../modules/swap/screens/SendScreen';

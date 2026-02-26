@@ -81,6 +81,7 @@ profileImageRouter.post('/updateUsername', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId, // Fallback
+        handle: userId, // Added handle
         display_name: newDisplayName,
         profile_picture_url: null,
         created_at: new Date(),
@@ -187,6 +188,7 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
     const newUser = {
       id: userId,
       username: username || userId,
+      handle: handle || username || userId, // Added handle
       display_name: handle || username || userId,
       description: description || '',
       profile_picture_url: null,
@@ -223,6 +225,7 @@ profileImageRouter.post('/updateDescription', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId,
+        handle: userId, // Added handle
         display_name: userId,
         description: description || '',
         profile_picture_url: null,
@@ -279,6 +282,7 @@ profileImageRouter.post('/updateProfilePic', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId, // Default username
+        handle: userId, // Added handle
         display_name: userId, // Default display_name
         profile_picture_url: profilePicUrl,
         created_at: new Date(),
@@ -328,6 +332,7 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId,
+        handle: userId, // Added handle
         display_name: userId,
         public_encryption_key: publicKey,
         created_at: new Date(),

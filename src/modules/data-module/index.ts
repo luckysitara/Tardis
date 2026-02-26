@@ -60,6 +60,15 @@ export * from './hooks/useCoingecko';
 // Export utilities
 export * from './utils/tokenUtils';
 export * from './utils/fetch';
+export {
+  fetchTokenBalance,
+  fetchTokenPrice,
+  fetchTokenMetadata,
+  ensureCompleteTokenInfo,
+  toBaseUnits,
+  DEFAULT_SOL_TOKEN,
+  DEFAULT_USDC_TOKEN
+} from './services/tokenService';
 // Removed: export * from './utils/tokenDetailsFormatters';
 
 // Removed: Export components

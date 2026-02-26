@@ -23,7 +23,9 @@ import {
   ChatScreen,
   StartChatScreen,
   CreateCommunityScreen,
-  CommunityFeedScreen 
+  CommunityFeedScreen,
+  SwapScreen,
+  SendScreen
 } from '@/screens';
 import TardisShield from '@/components/auth/TardisShield';
 import socketService from '@/shared/services/socketService';
@@ -41,7 +43,9 @@ export type RootStackParamList = {
   ChatScreen: { chatId: string; title?: string };
   StartChatScreen: undefined;
   CreateCommunityScreen: undefined;
-  CommunityFeed: { communityId: string; communityName?: string }; 
+  CommunityFeed: { communityId: string; communityName?: string };
+  Swap: { inputMint?: string; outputMint?: string };
+  Send: { token?: any; amount?: string; recipientAddress?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -68,6 +72,20 @@ const AuthenticatedStack: React.FC = () => {
         <Stack.Screen name="Comms" component={CommsListScreen} />
         <Stack.Screen name="Communities" component={CommunitiesScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen 
+          name="Swap" 
+          component={SwapScreen}
+          options={{
+            animation: 'slide_from_right'
+          }}
+        />
+        <Stack.Screen 
+          name="Send" 
+          component={SendScreen}
+          options={{
+            animation: 'slide_from_right'
+          }}
+        />
         <Stack.Screen 
           name="ChatScreen" 
           component={ChatScreen} 
