@@ -27,48 +27,6 @@ export const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  providerButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  providerButton: {
-    backgroundColor: COLORS.lighterBackground,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    flex: 1,
-    marginHorizontal: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.borderDarkColor,
-  },
-  providerButtonText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.size.sm,
-    fontWeight: String(TYPOGRAPHY.medium) as any,
-  },
-  poolAddressContainer: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: COLORS.lightBackground,
-    borderRadius: 12,
-    padding: 12,
-  },
-  poolAddressLabel: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.size.sm,
-    fontWeight: String(TYPOGRAPHY.medium) as any,
-    marginBottom: 8,
-  },
-  poolAddressInput: {
-    backgroundColor: COLORS.lighterBackground,
-    borderRadius: 8,
-    padding: 12,
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.size.md,
-  },
   swapContainer: {
     marginHorizontal: 20,
     marginBottom: 16,
@@ -273,50 +231,6 @@ export const styles = StyleSheet.create({
     fontWeight: String(TYPOGRAPHY.medium) as any,
     flexShrink: 1,
     textAlign: 'right',
-  },
-  slippageButtonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  slippageButton: {
-    backgroundColor: COLORS.lighterBackground,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: (width - 80) / 4, // 4 buttons per row with spacing
-    borderWidth: 1,
-    borderColor: COLORS.borderDarkColor,
-  },
-  slippageButtonActive: {
-    backgroundColor: COLORS.brandPrimary + '20', // 20% opacity
-    borderColor: COLORS.brandPrimary,
-  },
-  slippageButtonText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.size.sm,
-    fontWeight: String(TYPOGRAPHY.medium) as any,
-  },
-  slippageButtonTextActive: {
-    color: COLORS.brandPrimary,
-    fontWeight: String(TYPOGRAPHY.bold) as any,
-  },
-  pumpSwapWarningContainer: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: COLORS.errorRed + '15', // Slight red tint with low opacity
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.errorRed,
-  },
-  pumpSwapWarningText: {
-    color: COLORS.white,
-    fontSize: TYPOGRAPHY.size.xs,
-    lineHeight: 16,
   },
   fullWidthScroll: {
     width: '100%',

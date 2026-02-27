@@ -1,112 +1,32 @@
 # Swap Module
 
-A comprehensive token swapping module that integrates multiple DEX providers (Jupiter, Raydium, PumpSwap) into a unified interface for the Solana blockchain.
+A comprehensive token swapping module that integrates Jupiter Ultra into a unified interface for the Solana blockchain.
 
-## Core Features
+## Features
 
-### Multi-Provider Support
-- **Jupiter**: Primary DEX aggregator for optimal swap routes
-- **Raydium**: Direct pool swaps with concentrated liquidity
-- **PumpSwap**: Custom pool swaps with configurable slippage
+- **Jupiter Ultra**: Powered by Jupiter's most advanced routing and Z (RFQ) technology for the best prices and seamless execution.
+- **Unified Interface**: Simple, intuitive UI for swapping any SPL token.
+- **Real-time Price Quotes**: Accurate price estimation and price impact calculations.
+- **Integrated Fee Collection**: Automated small platform fee collection on successful swaps.
+- **Transaction Monitoring**: Built-in status updates and Solscan links for all transactions.
 
-### Components
-- **SwapScreen**: Main swap interface with token selection, amount input, and provider selection
-- **SelectTokenModal**: Token selection interface with search and popular tokens
-- **SwapComponents**:
-  - `Shimmer`: Loading animation component
-  - `ProviderSelector`: DEX provider selection interface
-  - `PumpSwapControls`: Pool address and slippage configuration for PumpSwap
-  - `SwapInfo`: Displays conversion rates and transaction details
-  - `StatusDisplay`: Shows loading states and transaction status
-  - `Keypad`: Numeric input interface
+## Components
 
-### Services
-- **TradeService**: A provider-agnostic service for executing swaps. It delegates to the appropriate provider-specific service.
-- **JupiterUltraService**: Jupiter-specific operations, such as getting quotes and building swap transactions.
-- **RaydiumService**: Raydium-specific swap logic.
-- **PumpSwapService**: Handles swaps on Pump.fun.
-
-### Hooks
-- **useSwapLogic**: Custom hook managing swap functionality
-  - Token state management
-  - Price and balance updates
-  - Transaction execution
-  - UI state handling
+- `SwapScreen`: The main user interface for token swapping.
+- `TokenRow`: Elegant display for input and output token selection and amount entry.
+- `Keypad`: Custom numerical keypad optimized for mobile trading.
+- `SwapInfo`: Detailed transaction information including rates and price impact.
+- `SelectTokenModal`: Searchable list for finding any SPL token on Solana.
 
 ## Usage
 
 ```typescript
-import { SwapScreen, useSwapLogic, TradeService } from '@/modules/swap';
+import { SwapScreen } from '@/modules/swap';
 
-// Basic screen implementation
-export default function CustomSwapScreen() {
-  return <SwapScreen />;
-}
-
-// Custom implementation using hook
-function CustomSwapImplementation() {
-  const {
-    inputToken,
-    outputToken,
-    handleSwap,
-    // ... other swap logic
-  } = useSwapLogic(routeParams, publicKey, connected, sendTransaction);
-  
-  // Custom UI implementation
-}
-
-// Direct service usage
-const swapResult = await TradeService.executeSwap(
-  inputToken,
-  outputToken,
-  amount,
-  walletPublicKey,
-  sendTransaction
-);
+// In your navigator
+<Stack.Screen name="Swap" component={SwapScreen} />
 ```
 
-## Features
+## Service Architecture
 
-### Token Selection
-- Search functionality with token metadata
-- Popular tokens list
-- Token balance display
-- Price information
-- Custom token import
-
-### Swap Interface
-- Real-time price updates
-- Slippage control
-- Transaction fee display
-- Transaction status tracking
-- Error handling and recovery
-
-### Provider-Specific Features
-- **Jupiter**: 
-  - Route optimization
-  - Price impact calculation
-  - Multiple hop swaps
-  
-- **Raydium**:
-  - Direct pool swaps
-  - Concentrated liquidity pools
-  - Fee sharing options
-  
-- **PumpSwap**:
-  - Custom pool address input
-  - Configurable slippage (1-30%)
-  - High impact warning system
-
-## Error Handling
-- Connection state validation
-- Balance checks
-- Transaction simulation
-- Fee calculation validation
-- Provider availability checks
-
-## Styling
-- Dark mode support
-- Responsive design
-- Loading states with shimmer effects
-- Animated transitions
-- Platform-specific adjustments (iOS/Android) 
+The module uses `TradeService` as a coordinator that communicates with `JupiterUltraService`. All swap orders are requested and executed via the secure backend proxy to protect API keys.

@@ -40,14 +40,6 @@ const modules = [
   //   backgroundColor: '#BBDEFB',
   //   navigateTo: 'PumpSwap',
   // },
-  {
-    key: 'launchlab',
-    title: 'Launch Lab',
-    subtitle: 'Launch Tokens via Raydium',
-    navigateTo: 'LaunchlabsScreen',
-    iconComponent: Icons.RadyuimIcom,
-    backgroundImage: require('@/assets/images/Rayduim_bg.png'),
-  },
 
   {
     key: 'meteora',

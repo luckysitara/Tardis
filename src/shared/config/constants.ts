@@ -12,11 +12,6 @@ export const ENDPOINTS = {
     quote: 'https://api.jup.ag/swap/v1/quote',
     swap: SERVER_URL + '/api/jupiter/swap',
   },
-  // Raydium endpoints
-  raydium: {
-    swapApi: 'https://transaction-v1.raydium.io',
-    v3Api: 'https://api-v3.raydium.io',
-  },
   // Jito block engine endpoint.
   jito: {
     blockEngine: 'https://mainnet.block-engine.jito.wtf:443/api/v1/bundles',

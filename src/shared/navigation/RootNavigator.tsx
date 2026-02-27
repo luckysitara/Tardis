@@ -24,6 +24,7 @@ import {
   StartChatScreen,
   CreateCommunityScreen,
   CommunityFeedScreen,
+  ThreadDetailScreen,
   SwapScreen,
   SendScreen
 } from '@/screens';

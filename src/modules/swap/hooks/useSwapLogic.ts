@@ -11,8 +11,6 @@ import {
 } from '@/modules/data-module';
 import { TradeService, SwapProvider } from '@/modules/swap/services/tradeService';
 
-// Time after which to assume PumpSwap transactions have succeeded (in milliseconds)
-const PUMPSWAP_SUCCESS_TIMEOUT = 10000; // 10 seconds
 // Debounce time for updating price-related values (in milliseconds)
 const PRICE_UPDATE_DEBOUNCE = 1000;
 
@@ -40,8 +38,6 @@ export function useSwapLogic(
   const [inputValue, setInputValue] = useState(routeParams.inputAmount || '0');
   const [showSelectTokenModal, setShowSelectTokenModal] = useState(false);
   const [selectingWhichSide, setSelectingWhichSide] = useState<'input' | 'output'>('input');
-  const [poolAddress, setPoolAddress] = useState('');
-  const [slippage, setSlippage] = useState(10);
 
   // Token States
   const [inputToken, setInputToken] = useState<TokenInfo | null>(null);
@@ -683,8 +679,7 @@ export function useSwapLogic(
 
   // Check if a provider is available for selection
   const isProviderAvailable = useCallback((provider: SwapProvider) => {
-    // Now Jupiter, Raydium, and PumpSwap are fully implemented
-    return provider === 'JupiterUltra' || provider === 'Raydium' || provider === 'PumpSwap';
+    return provider === 'JupiterUltra';
   }, []);
 
   // Check if the swap button should be enabled
@@ -693,9 +688,6 @@ export function useSwapLogic(
 
     // Check if the provider is available
     if (!isProviderAvailable(activeProvider)) return false;
-
-    // For PumpSwap, we need a pool address
-    if (activeProvider === 'PumpSwap' && !poolAddress) return false;
 
     // Check if input amount is valid and not greater than balance
     const inputAmount = parseFloat(inputValue || '0');
@@ -707,7 +699,7 @@ export function useSwapLogic(
     }
 
     return true;
-  }, [connected, loading, activeProvider, isProviderAvailable, poolAddress, inputValue, currentBalance]);
+  }, [connected, loading, activeProvider, isProviderAvailable, inputValue, currentBalance]);
 
   // Function to handle keypad input
   const handleKeyPress = (key: string) => {
@@ -750,68 +742,16 @@ export function useSwapLogic(
       return;
     }
 
-    // Check if the selected provider is implemented
-    if (!isProviderAvailable(activeProvider)) {
-      console.log('[SwapScreen] Error: Provider not available:', activeProvider);
-      Alert.alert(
-        'Provider Not Available',
-        `${activeProvider} integration is coming soon! Please use Jupiter, Raydium, or PumpSwap for now.`
-      );
-      return;
-    }
-
-    // For PumpSwap, check if pool address is provided
-    if (activeProvider === 'PumpSwap' && !poolAddress) {
-      console.log('[SwapScreen] Error: PumpSwap selected but no pool address provided');
-      Alert.alert(
-        'Pool Address Required',
-        'Please enter a pool address for PumpSwap.'
-      );
-      return;
-    }
-
     console.log('[SwapScreen] Starting swap with:', {
       provider: activeProvider,
       inputToken: inputToken.symbol,
       outputToken: outputToken.symbol,
-      amount: inputValue,
-      poolAddress: activeProvider === 'PumpSwap' ? poolAddress : 'N/A'
+      amount: inputValue
     });
 
     setLoading(true);
     setResultMsg('');
     setErrorMsg('');
-
-    // For PumpSwap, set a timeout that will assume success
-    let pumpSwapTimeoutId: NodeJS.Timeout | null = null;
-    if (activeProvider === 'PumpSwap') {
-      console.log(`[SwapScreen] Setting up PumpSwap success timeout for ${PUMPSWAP_SUCCESS_TIMEOUT}ms`);
-      pumpSwapTimeoutId = setTimeout(() => {
-        if (isMounted.current && loading) {
-          console.log('[SwapScreen] PumpSwap timeout reached - assuming transaction success');
-          setLoading(false);
-          setResultMsg('Transaction likely successful! PumpSwap transactions often succeed despite timeout errors.');
-
-          Alert.alert(
-            'PumpSwap Transaction Likely Successful',
-            'Your transaction has been sent and likely processed successfully. PumpSwap transactions often succeed despite not receiving confirmation in the app.',
-            [
-              {
-                text: 'Check Wallet Balance',
-                onPress: () => {
-                  setInputValue('0');
-                  fetchBalance();
-                }
-              },
-              {
-                text: 'OK',
-                style: 'default'
-              }
-            ]
-          );
-        }
-      }, PUMPSWAP_SUCCESS_TIMEOUT);
-    }
 
     try {
       // Execute the swap using the trade service with the selected provider
@@ -839,26 +779,16 @@ export function useSwapLogic(
           },
           isComponentMounted: () => isMounted.current
         },
-        activeProvider,
-        // Pass pool address for PumpSwap
-        activeProvider === 'PumpSwap' ? { poolAddress, slippage } : undefined
+        activeProvider
       );
 
       console.log('[SwapScreen] TradeService.executeSwap response:', JSON.stringify(response));
-      console.log('[SwapScreen] Output amount for fee calculation:', response.outputAmount);
 
       if (response.success && response.signature) {
         if (isMounted.current) {
           console.log('[SwapScreen] Swap successful! Signature:', response.signature);
           setResultMsg(`Swap successful!`);
           setSolscanTxSig(response.signature);
-
-          // Wait a moment for the fee collection alert to show
-          setTimeout(() => {
-            console.log('[SwapScreen] Checking if fee alert is visible...');
-          }, 500);
-
-          
         }
       } else {
         console.log('[SwapScreen] Swap response not successful:', response);
@@ -866,52 +796,6 @@ export function useSwapLogic(
         if (errorString.includes('Component unmounted')) {
           console.log('[SwapScreen] Component unmounted during swap, ignoring error.');
           return; // Exit silently
-        }
-        // For PumpSwap, check if we might have had a transaction timeout but it could have succeeded
-        if (activeProvider === 'PumpSwap' && response.error) {
-          const errorMsg = response.error.toString();
-          const signatureMatch = errorMsg.match(/Signature: ([a-zA-Z0-9]+)/);
-
-          // If we have a signature, it might have succeeded despite the timeout
-          if (errorMsg.includes('may have succeeded') ||
-            errorMsg.includes('confirmation timed out') ||
-            (signatureMatch && signatureMatch[1] !== 'Unknown')) {
-
-            // Extract signature if available
-            const signature = signatureMatch ? signatureMatch[1] : null;
-
-            console.log('[SwapScreen] PumpSwap transaction may have succeeded despite timeout. Signature:', signature);
-
-            if (signature && signature !== 'Unknown') {
-              setResultMsg('Transaction appears successful! Check Solscan for confirmation.');
-              setSolscanTxSig(signature);
-              setLoading(false);
-
-              Alert.alert(
-                'PumpSwap Transaction Likely Successful',
-                'Your transaction was sent and likely processed, though confirmation timed out in our app. PumpSwap transactions often succeed despite timeout errors.',
-                [
-                  {
-                    text: 'View on Solscan',
-                    onPress: () => {
-                      const url = `https://solscan.io/tx/${signature}`;
-                      Linking.openURL(url).catch(err => {
-                        console.error('[SwapScreen] Error opening Solscan URL:', err);
-                      });
-                    }
-                  },
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      setInputValue('0');
-                      fetchBalance();
-                    }
-                  }
-                ]
-              );
-              return;
-            }
-          }
         }
 
         throw new Error(response.error?.toString() || 'Transaction failed');
@@ -930,7 +814,7 @@ export function useSwapLogic(
         } else if (err.message.includes('0x1771')) {
           errorMessage += 'Insufficient balance or price impact too high.';
         } else if (err.message.includes('ExceededSlippage') || err.message.includes('0x1774')) {
-          errorMessage += 'Price impact too high. Try increasing your slippage tolerance.';
+          errorMessage += 'Price impact too high.';
         } else if (err.message.includes('confirmation failed') || err.message.includes('may have succeeded')) {
           // Handle the case where transaction might have succeeded
           mayHaveSucceeded = true;
@@ -943,44 +827,7 @@ export function useSwapLogic(
             errorMessage = 'Transaction sent but confirmation timed out. ';
             setSolscanTxSig(signature);
 
-            // For PumpSwap, we're more confident the transaction succeeded if we have a signature
-            if (activeProvider === 'PumpSwap') {
-              // Clear the success timeout since we're handling it now
-              if (pumpSwapTimeoutId) {
-                clearTimeout(pumpSwapTimeoutId);
-                pumpSwapTimeoutId = null;
-              }
-
-              setResultMsg('PumpSwap transaction likely successful! Check Solscan for confirmation.');
-              setLoading(false);
-
-              Alert.alert(
-                'PumpSwap Transaction Likely Successful',
-                'Your transaction was sent and likely processed, though confirmation timed out in our app. PumpSwap transactions often succeed despite timeout errors.',
-                [
-                  {
-                    text: 'View on Solscan',
-                    onPress: () => {
-                      // Open transaction on Solscan
-                      const url = `https://solscan.io/tx/${signature}`;
-                      Linking.openURL(url).catch(err => {
-                        console.error('[SwapScreen] Error opening Solscan URL:', err);
-                      });
-                    }
-                  },
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      setInputValue('0');
-                      fetchBalance();
-                    }
-                  }
-                ]
-              );
-              return;
-            }
-
-            // Show a different alert for this case (for other providers)
+            // Show a different alert for this case
             Alert.alert(
               'Transaction Status Uncertain',
               'Your transaction was sent but confirmation timed out. It may have succeeded. You can check the status on Solscan.',
@@ -1024,13 +871,6 @@ export function useSwapLogic(
     } finally {
       if (isMounted.current) {
         console.log('[SwapScreen] Swap process completed, resetting loading state');
-
-        // Clean up the PumpSwap timeout if it's still active
-        if (pumpSwapTimeoutId) {
-          console.log('[SwapScreen] Clearing PumpSwap success timeout');
-          clearTimeout(pumpSwapTimeoutId);
-        }
-
         setLoading(false);
       }
     }
@@ -1042,10 +882,7 @@ export function useSwapLogic(
     outputToken,
     transactionSender,
     fetchBalance,
-    estimatedOutputAmount,
     activeProvider,
-    poolAddress,
-    slippage,
     isProviderAvailable,
     loading
   ]);

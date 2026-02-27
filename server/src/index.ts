@@ -12,6 +12,7 @@ import { chatRouter } from './routes/chat/chatRoutes'; // Add this import
 import { communityRouter } from './routes/chat/communityRoutes'; // Add this import
 import { followRouter } from './routes/followRoutes'; // Add this import
 import heliusRouter from './routes/helius'; // Add this import
+import jupiterUltraSwapRouter from './routes/swap/jupiterUltraSwapRoutes'; // Add this import
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -95,6 +96,7 @@ app.use('/api/chat', chatRouter); // Add this line
 app.use('/api/communities', communityRouter); // Add this line
 app.use('/api/follows', followRouter); // Add this line
 app.use('/api/helius', heliusRouter); // Add this line
+app.use('/api/jupiter/ultra', jupiterUltraSwapRouter); // Add this line
 
 // Socket.io handlers
 io.on('connection', (socket) => {

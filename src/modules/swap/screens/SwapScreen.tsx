@@ -23,8 +23,6 @@ import Icons from '@/assets/svgs';
 
 // Import our new components and hook
 import {
-  ProviderSelector,
-  PumpSwapControls,
   TokenRow,
   SwapInfo,
   StatusDisplay,
@@ -39,7 +37,7 @@ type SwapScreenRouteProp = RouteProp<RootStackParamList, 'Swap'>;
 type SwapScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Swap'>;
 
 // Swap providers
-const swapProviders: SwapProvider[] = ['JupiterUltra', 'Raydium'/* , 'PumpSwap' */];
+const swapProviders: SwapProvider[] = ['JupiterUltra'];
 
 export default function SwapScreen() {
   const navigation = useNavigation<SwapScreenNavigationProp>();
@@ -116,14 +114,6 @@ export default function SwapScreen() {
       return 'Connect Wallet to Swap';
     }
 
-    if (!isProviderAvailable(activeProvider)) {
-      return `${activeProvider} Coming Soon`;
-    }
-
-    if (activeProvider === 'PumpSwap' && !poolAddress) {
-      return 'Enter Pool Address';
-    }
-
     if (loading) {
       return 'Swapping...';
     }
@@ -139,7 +129,7 @@ export default function SwapScreen() {
       return 'Enter Amount to Swap';
     }
 
-    return `Swap via ${activeProvider}`;
+    return 'Swap via Jupiter Ultra';
   };
 
   // Helper function to determine if we're in insufficient balance state
@@ -184,24 +174,6 @@ export default function SwapScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 250 }} // Extra padding for keypad
             >
-              {/* Swap Providers */}
-              <ProviderSelector
-                providers={swapProviders}
-                activeProvider={activeProvider}
-                setActiveProvider={setActiveProvider}
-                isProviderAvailable={isProviderAvailable}
-              />
-
-              {/* PumpSwap Pool Address Input */}
-              {activeProvider === 'PumpSwap' && (
-                <PumpSwapControls
-                  poolAddress={poolAddress}
-                  setPoolAddress={setPoolAddress}
-                  slippage={slippage}
-                  setSlippage={setSlippage}
-                />
-              )}
-
               {/* Swap Container with Input and Output */}
               <View style={styles.swapContainer}>
                 {/* Input Token (From) */}

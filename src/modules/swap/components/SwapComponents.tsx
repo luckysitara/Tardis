@@ -152,205 +152,18 @@ const TokenRowSkeleton = ({ isInput = true }: { isInput?: boolean }) => (
   </View>
 );
 
-// Provider Selection Component
-export const ProviderSelector = ({
-  providers,
-  activeProvider,
-  setActiveProvider,
-  isProviderAvailable
-}: {
-  providers: SwapProvider[];
-  activeProvider: SwapProvider;
-  setActiveProvider: (provider: SwapProvider) => void;
-  isProviderAvailable: (provider: SwapProvider) => boolean;
-}) => (
-  <View style={styles.providerButtons}>
-    {providers.map(provider => (
-      <TouchableOpacity
-        key={provider}
-        style={[
-          styles.providerButton,
-          activeProvider === provider && {
-            backgroundColor: COLORS.lightBackground,
-            borderWidth: 1,
-            borderColor: provider === 'Raydium' ? COLORS.brandPrimary : COLORS.white
-          },
-          !isProviderAvailable(provider) && { opacity: 0.5 }
-        ]}
-        onPress={() => {
-          if (isProviderAvailable(provider)) {
-            setActiveProvider(provider);
-          } else {
-            // Alert is handled in the main component
-          }
-        }}
-      >
-        <Text
-          style={[
-            styles.providerButtonText,
-            activeProvider === provider && {
-              color: provider === 'Raydium' ? COLORS.brandPrimary : COLORS.white
-            }
-          ]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {provider === 'JupiterUltra' ? 'Jupiter' : provider}{!isProviderAvailable(provider) ? ' (soon)' : ''}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-);
-
-// PumpSwap Pool Address Component
-export const PumpSwapControls = ({
-  poolAddress,
-  setPoolAddress,
-  slippage,
-  setSlippage
-}: {
-  poolAddress: string;
-  setPoolAddress: (address: string) => void;
-  slippage: number;
-  setSlippage: (slippage: number) => void;
-}) => (
-  <>
-    <View style={styles.poolAddressContainer}>
-      <Text style={styles.poolAddressLabel}>Pool Address</Text>
-      <TextInput
-        style={styles.poolAddressInput}
-        placeholder="Enter PumpSwap pool address"
-        placeholderTextColor={COLORS.greyDark}
-        value={poolAddress}
-        onChangeText={setPoolAddress}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-    </View>
-    <View style={styles.poolAddressContainer}>
-      <Text style={styles.poolAddressLabel}>Slippage Tolerance</Text>
-      <View style={styles.slippageButtonsContainer}>
-        {[1, 3, 5, 10, 15, 20, 25, 30].map((value) => (
-          <TouchableOpacity
-            key={`slippage-${value}`}
-            style={[
-              styles.slippageButton,
-              slippage === value && styles.slippageButtonActive
-            ]}
-            onPress={() => setSlippage(value)}
-          >
-            <Text
-              style={[
-                styles.slippageButtonText,
-                slippage === value && styles.slippageButtonTextActive
-              ]}
-            >
-              {value}%
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.pumpSwapWarningContainer}>
-        <Text style={styles.pumpSwapWarningText}>
-          ⚠️ Warning: This pool may have very high price impact. Trades are executed with extreme slippage tolerance for successful execution.
-        </Text>
-      </View>
-    </View>
-  </>
-);
-
 // Token Selection Row Component (memoized to prevent re-renders)
 export const TokenRow = memo(({
-  token,
-  balance,
-  isInput,
-  value,
-  fiatValue,
-  onPress,
-  connected,
-  isLoading = false
-}: {
-  token: TokenInfo | null;
-  balance: number | null;
-  isInput: boolean;
-  value: string;
-  fiatValue: string;
-  onPress: () => void;
-  connected?: boolean;
-  isLoading?: boolean;
-}) => {
-  // If loading, render the skeleton version
-  if (isLoading) {
-    return (
-      <TokenRowSkeleton isInput={isInput} />
-    );
-  }
-
-  // Render the full content when loaded
-  return (
-    <TouchableOpacity style={styles.tokenRow} onPress={onPress}>
-      {token?.logoURI ? (
-        <Image source={{ uri: token.logoURI }} style={styles.tokenIcon} />
-      ) : (
-        <View style={[styles.tokenIcon, { backgroundColor: COLORS.lighterBackground, justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={{ color: COLORS.white, fontWeight: 'bold', fontSize: 10 }}>
-            {token?.symbol?.charAt(0) || '?'}
-          </Text>
-        </View>
-      )}
-      <View style={styles.tokenInfo}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={styles.tokenSymbol} numberOfLines={1} ellipsizeMode="tail">
-            {token?.symbol || 'Select'}
-          </Text>
-          <Ionicons
-            name="chevron-down"
-            size={16}
-            color={COLORS.greyMid}
-            style={{ marginLeft: 6 }}
-          />
-        </View>
-        {isInput && (
-          <Text style={styles.tokenBalance} numberOfLines={1} ellipsizeMode="tail">
-            {balance !== null
-              ? `Balance: ${balance.toFixed(6)} ${token?.symbol || ''}`
-              : 'Loading...'}
-          </Text>
-        )}
-      </View>
-      <View style={styles.valueContainer}>
-        <Text style={styles.valueLabel}>{isInput ? 'You Pay' : 'You Receive'}</Text>
-        <Text style={isInput ? styles.tokenValue : styles.receiveValue} numberOfLines={1} ellipsizeMode="tail">
-          {!isInput && '+'}
-          {value}
-        </Text>
-        <Text style={styles.fiatValue} numberOfLines={1} ellipsizeMode="tail">
-          {fiatValue}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}, (prevProps, nextProps) => {
-  // Only re-render if these props actually changed
-  return (
-    prevProps.isLoading === nextProps.isLoading &&
-    prevProps.token?.address === nextProps.token?.address &&
-    prevProps.balance === nextProps.balance &&
-    prevProps.value === nextProps.value &&
-    prevProps.fiatValue === nextProps.fiatValue
-  );
-});
-
+...
 // Swap Info Component
 export const SwapInfo = ({
   conversionRate,
   solscanTxSig,
-  activeProvider,
   onViewTransaction
 }: {
   conversionRate: string;
   solscanTxSig: string;
-  activeProvider: SwapProvider;
+  activeProvider?: SwapProvider;
   onViewTransaction: () => void;
 }) => (
   <View style={styles.swapInfoContainer}>
@@ -373,7 +186,7 @@ export const SwapInfo = ({
     <View style={styles.swapInfoRow}>
       <Text style={styles.swapInfoLabel}>Provider</Text>
       <Text style={[styles.swapInfoValue, { color: COLORS.brandPrimary }]}>
-        {activeProvider}
+        Jupiter Ultra
       </Text>
     </View>
     {solscanTxSig && (

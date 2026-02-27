@@ -1,6 +1,7 @@
 import { Connection, Transaction, VersionedTransaction, PublicKey, SystemProgram } from '@solana/web3.js';
 import { TokenInfo } from '../../data-module/types/tokenTypes';
 import { JupiterUltraService } from './jupiterUltraService';
+import { getRpcUrl } from '@/modules/data-module';
 
 import { TransactionService } from '../../wallet-providers/services/transaction/transactionService';
 
@@ -75,7 +76,7 @@ export class TradeService {
       }
       
       // Create direct RPC connection
-      const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+      const connection = new Connection(getRpcUrl(), 'confirmed');
       
       // Get a fresh blockhash
       console.log('[TradeService] 🔗 Getting latest blockhash');
@@ -171,7 +172,7 @@ export class TradeService {
     console.log(`[TradeService] 🚀 executeSwap called with provider: ${provider}`);
     try {
       // Create a connection object that might be reused for fee collection
-      const connection = new Connection('https://api.mainnet-beta.solana.com');
+      const connection = new Connection(getRpcUrl());
       let swapResponse: TradeResponse;
 
       // Select provider implementation

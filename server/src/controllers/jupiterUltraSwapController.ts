@@ -64,7 +64,12 @@ export class JupiterUltraController {
       });
 
       const response = await fetch(
-        `${JUPITER_API_URL_GET_ORDER}?${params.toString()}`
+        `${JUPITER_API_URL_GET_ORDER}?${params.toString()}`,
+        {
+          headers: {
+            'x-api-key': process.env.JUPITER_API_KEY || ''
+          }
+        }
       );
 
       if (!response.ok) {
@@ -113,6 +118,7 @@ export class JupiterUltraController {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': process.env.JUPITER_API_KEY || ''
         },
         body: JSON.stringify({
           signedTransaction,
@@ -253,7 +259,11 @@ export async function getUltraBalancesHandler(
 
     const balancesUrl = `${JUPITER_ULTRA_API_BASE_URL}/balances?wallet=${wallet}`;
     
-    const response = await fetch(balancesUrl);
+    const response = await fetch(balancesUrl, {
+      headers: {
+        'x-api-key': process.env.JUPITER_API_KEY || ''
+      }
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);

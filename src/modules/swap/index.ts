@@ -2,8 +2,6 @@
 export { default as SelectTokenModal } from './components/SelectTokenModal';
 export {
   Shimmer,
-  ProviderSelector,
-  PumpSwapControls,
   SwapInfo,
   StatusDisplay,
   Keypad

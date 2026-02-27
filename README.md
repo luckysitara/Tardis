@@ -24,10 +24,10 @@
 ## Key Protocol Integrations
 
 1. **Swaps:**  
-   In-App trading via [Jupiter](https://jup.ag/) for the best prices across all DEXs, and native [Pump AMM](https://swap.pump.fun/)
+   In-App trading via [Jupiter Ultra](https://jup.ag/) for the best prices across all DEXs using advanced routing and RFQ technology.
 
 2. **Launchpads:**  
-   The three biggest Solana launchpads with configurable bonding curves – [Pump.fun](https://pump.fun/), [Raydium](https://raydium.io/launchpad/), and [Meteora](https://app.meteora.ag/) – along with [Token Mill](https://tokenmill.xyz/)
+   The two biggest Solana launchpads with configurable bonding curves – [Pump.fun](https://pump.fun/) and [Meteora](https://app.meteora.ag/) – along with [Token Mill](https://tokenmill.xyz/)
 
 3. **Embedded Wallets:**  
    Top wallets like [Privy](https://www.privy.io/), [Turnkey](https://turnkey.com/), and [Dynamic](https://www.dynamic.xyz/), along with Mobile Wallet Adapter support by [Solana Mobile](https://solanamobile.com/) for external wallet connections.
@@ -81,7 +81,7 @@
 | 👛 **Wallet Integration** | • Multiple wallet connection methods<br>• Embedded wallet support via Privy, Dynamic, and Turnkey<br>• External wallet connections via Solana Mobile MWA<br>• Transaction signing and management<br>                                                                          |
 | 👥 **Social Features**    | • User profiles and following system<br>• Social feed with posts and interactions<br>• Community engagement features<br>• NFT display and management<br>• IPFS storage for metadata                                                                                           |
 | 🎨 **UI/UX**              | • Modern, responsive design<br>• Tab-based navigation<br>• Interactive charts and visualizations<br>• Elegant loading states and error handling<br>• Platform-specific optimizations                                                                                          |
-| 🖥️ **Backend Features**   | • RESTful API for token operations<br>• Social data storage and retrieval<br>• Token market creation and management<br>• Token swapping via Jupiter and PumpSwap<br>• Token launching via different launchpads like Pump, Raydium, and Meteora <br>• Image upload and storage |
+| 🖥️ **Backend Features**   | • RESTful API for token operations<br>• Social data storage and retrieval<br>• Token market creation and management<br>• Token swapping via Jupiter Ultra<br>• Token launching via different launchpads like Pump and Meteora <br>• Image upload and storage |
 
 ---
 
@@ -527,7 +527,7 @@ The Solana App Kit provides several modular features that can be used independen
 | 🖼️ **nft**              | • NFT display, management, and trading<br>• Collection viewing with floor prices<br>• Compressed NFT support<br>• Integration with threads and posts                                                                                                                             |
 | 💱 **swap**             | • Token swapping using multiple DEX SDKs<br>• Liquidity pool creation with custom token pairs<br>• Liquidity management (add and remove liquidity)<br>• Pool creation with custom parameters<br>• Real-time quotes and price impact estimates<br>• Transaction status monitoring |
 | 🚀 **pump-fun**         | • Integration with the Pump.fun ecosystem<br>• Meme token creation and management<br>• Community engagement tools                                                                                                                                                                |
-| 💹 **raydium**          | • Raydium DEX integration<br>• Token launching and trading<br>• Pool creation and management                                                                                                                                                                                     |
+| 💹 **Jupiter Ultra**     | • Jupiter Ultra DEX integration<br>• Advanced routing and RFQ (Z)<br>• Integrated platform fee collection                                                                                                                                                                                     |
 | 🌊 **meteora**          | • Meteora protocol integration<br>• Token launching capabilities<br>• Pool and liquidity management                                                                                                                                                                              |
 | 💸 **moonpay**          | • Fiat on-ramp integration<br>• Buy crypto with credit cards and Apple Pay<br>• Seamless payment flow                                                                                                                                                                            |
 | 🏦 **mercuryo**         | • Fiat gateway integration *(work in progress)*<br>• On-ramp functionality<br>• Multiple payment methods support<br>• Real-time exchange rates                                                                                                                      |
