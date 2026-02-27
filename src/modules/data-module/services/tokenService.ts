@@ -21,6 +21,32 @@ export const DEFAULT_USDC_TOKEN: TokenInfo = {
   logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
 };
 
+export const EXTENDED_DEFAULT_TOKENS: TokenInfo[] = [
+  DEFAULT_SOL_TOKEN,
+  DEFAULT_USDC_TOKEN,
+  {
+    address: 'So11111111111111111111111111111111111111112', // WSOL is the same address as SOL but is an SPL token
+    symbol: 'WSOL',
+    name: 'Wrapped Solana',
+    decimals: 9,
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+  },
+  {
+    address: '3FMf92c2U54UcNn1b5aCjS5wVwK2g6rT52E34k26pL2T', // Example BTC (Wrapped Bitcoin on Solana)
+    symbol: 'WBTC',
+    name: 'Wrapped Bitcoin',
+    decimals: 8,
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/3FMf92c2U54UcNn1b5aCjS5wVwK2g6rT52E34k26pL2T/logo.png',
+  },
+  {
+    address: '2FPyTwcZgRPZEo7oW2t5DgUWKpYkJBkR8K3g8T5d5e2m', // Example ETH (Wrapped Ethereum on Solana)
+    symbol: 'WETH',
+    name: 'Wrapped Ethereum',
+    decimals: 8,
+    logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/2FPyTwcZgRPZEo7oW2t5DgUWKpYkJBkR8K3g8T5d5e2m/logo.png',
+  },
+];
+
 /**
  * Fetches the balance for a specific token
  */
@@ -283,7 +309,7 @@ export async function fetchTokenList(params: TokenListParams = {}): Promise<Toke
     return tokens.slice(offset, offset + limit);
   } catch (err) {
     console.error('[TokenService] Error fetching token list:', err);
-    return [DEFAULT_SOL_TOKEN, DEFAULT_USDC_TOKEN];
+    return EXTENDED_DEFAULT_TOKENS;
   }
 }
 
@@ -293,7 +319,7 @@ export async function fetchTokenList(params: TokenListParams = {}): Promise<Toke
 export async function searchTokens(params: TokenSearchParams): Promise<TokenInfo[]> {
   try {
     if (!params.keyword || params.keyword.length < 2) {
-      return fetchTokenList({ limit: params.limit, offset: params.offset });
+      return EXTENDED_DEFAULT_TOKENS;
     }
 
     // Since Jupiter doesn't have a direct "search" endpoint in their v1 public API that works with keywords,
@@ -321,7 +347,7 @@ export async function searchTokens(params: TokenSearchParams): Promise<TokenInfo
     }));
   } catch (err) {
     console.error('[TokenService] Error searching tokens:', err);
-    return [];
+    return EXTENDED_DEFAULT_TOKENS;
   }
 }
 

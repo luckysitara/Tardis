@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TokenInfo } from '../types/tokenTypes';
-import { fetchTokenList, searchTokens, TokenSearchParams, TokenListParams } from '../services/tokenService';
+import { fetchTokenList, searchTokens, TokenSearchParams, TokenListParams, EXTENDED_DEFAULT_TOKENS } from '../services/tokenService';
 
 // Timeout for token fetch operations (in milliseconds)
 const TOKEN_FETCH_TIMEOUT = 15000;
@@ -167,22 +167,7 @@ export function useTokenSearch(
       // Don't clear tokens on load more failure
       if (!isLoadingMore && tokens.length === 0) {
         // Set some fallback tokens if we couldn't load any
-        setTokens([
-          {
-            address: 'So11111111111111111111111111111111111111112',
-            symbol: 'SOL',
-            name: 'Solana',
-            decimals: 9,
-            logoURI: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',
-          },
-          {
-            address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-            logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
-          }
-        ]);
+        setTokens(EXTENDED_DEFAULT_TOKENS);
       }
     } finally {
       if (isMounted.current) {
