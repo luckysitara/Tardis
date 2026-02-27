@@ -14,6 +14,7 @@ import {
   fetchTokenPrice,
   fetchTokenMetadata,
   ensureCompleteTokenInfo,
+  getRpcUrl,
 } from '@/modules/data-module';
 import { TransactionService } from '@/modules/wallet-providers/services/transaction/transactionService';
 
@@ -137,7 +138,7 @@ export function useSendLogic(
     setErrorMsg('');
 
     try {
-      const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+      const connection = new Connection(getRpcUrl(), 'confirmed');
       const transaction = new Transaction();
 
       if (selectedToken.symbol === 'SOL') {

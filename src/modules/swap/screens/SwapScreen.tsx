@@ -35,8 +35,8 @@ import { useSwapLogic, SwapRouteParams } from '@/modules/swap/hooks/useSwapLogic
 import { SwapProvider } from '@/modules/swap/services/tradeService';
 
 // Define types for navigation and route
-type SwapScreenRouteProp = RouteProp<RootStackParamList, 'SwapScreen'>;
-type SwapScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SwapScreen'>;
+type SwapScreenRouteProp = RouteProp<RootStackParamList, 'Swap'>;
+type SwapScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Swap'>;
 
 // Swap providers
 const swapProviders: SwapProvider[] = ['JupiterUltra', 'Raydium'/* , 'PumpSwap' */];

@@ -20,6 +20,8 @@ import ArrowIcon from './arrow.svg';
 import RocketIcon from './rocket.svg';
 import ArrowDownIcon from './ArrowDown.svg';
 import ArrowLeftIcon from './arrowLeft.svg';
+import WalletIcon from './Wallet_icon.svg';
+import SwapIconComponent from './Swap.svg';
 import BookmarkActiveIcon from './bookmark-active.svg';
 import BookmarkIdleIcon from './bookmark-idle.svg';
 import CommentIcon from './comment-idle.svg';
@@ -45,6 +47,8 @@ export {
   ImageIcon,
   TradeShare,
   ArrowLeftIcon,
+  WalletIcon,
+  SwapIconComponent as SwapIcon,
   BookmarkActiveIcon,
   BookmarkIdleIcon,
   CommentIcon,
@@ -61,6 +65,12 @@ export const tensor = RocketIcon;
 export const listedNft = NftIconComponent;
 export const ChevronDownIcon = ArrowDownIcon;
 export const LockIcon = Shield;
+export const ArrowLeft = ArrowLeftIcon;
+export const walletIcon = WalletIcon;
+export const SwapIcon = SwapIconComponent;
+export const Arrow = ArrowIcon;
+export const ArrowDown = ArrowDownIcon;
+export const infoIcon = PlusCircleIcon;
 
 export default {
   TownSquareIcon,
@@ -85,8 +95,15 @@ export default {
   tensor: RocketIcon,
   listedNft: NftIconComponent,
   ArrowLeftIcon,
+  WalletIcon,
+  SwapIcon: SwapIconComponent,
   ChevronDownIcon: ArrowDownIcon,
   LockIcon: Shield,
+  ArrowLeft: ArrowLeftIcon,
+  walletIcon: WalletIcon,
+  Arrow: ArrowIcon,
+  ArrowDown: ArrowDownIcon,
+  infoIcon: PlusCircleIcon,
   BookmarkActiveIcon,
   BookmarkIdleIcon,
   CommentIcon,

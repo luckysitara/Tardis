@@ -4,9 +4,9 @@
  * Service for fetching and handling profile actions/transactions.
  */
 
-import { HELIUS_API_KEY, HELIUS_STAKED_API_KEY } from '@env';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { Action, TokenTransfer } from '../types/index';
+import { ENDPOINTS } from '@/shared/config/constants';
 
 /**
  * Redux thunk for fetching wallet actions
@@ -18,25 +18,21 @@ export const fetchWalletActionsAsync = createAsyncThunk(
       return rejectWithValue('Wallet address is required');
     }
 
-    const heliusApiKey = HELIUS_STAKED_API_KEY || HELIUS_API_KEY;
-    if (!heliusApiKey) {
-      return rejectWithValue('Helius API key is not configured');
-    }
-
     const maxRetries = 3;
     let lastError = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`Fetching actions for wallet: ${walletAddress} (attempt ${attempt}/${maxRetries})`);
-        const heliusUrl = `https://api.helius.xyz/v0/addresses/${walletAddress}/transactions?api-key=${heliusApiKey}&limit=20`;
+        const serverBase = ENDPOINTS.serverBase || 'http://10.203.135.79:8085';
+        const proxyUrl = `${serverBase}/api/helius/transactions/${walletAddress}?limit=20`;
 
         const controller = new AbortController();
         // Increase timeout to 30 seconds
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         try {
-          const res = await fetch(heliusUrl, { 
+          const res = await fetch(proxyUrl, { 
             signal: controller.signal,
             headers: {
               'Accept': 'application/json',
@@ -47,7 +43,7 @@ export const fetchWalletActionsAsync = createAsyncThunk(
 
           if (!res.ok) {
             const errorText = await res.text();
-            throw new Error(`Helius API error: ${res.status} - ${errorText}`);
+            throw new Error(`Proxy error: ${res.status} - ${errorText}`);
           }
 
           const data = await res.json();
@@ -95,16 +91,17 @@ export const fetchWalletActions = async (walletAddress: string, limit: number = 
 
   try {
     console.log('Fetching actions for wallet:', walletAddress);
-    const heliusUrl = `https://api.helius.xyz/v0/addresses/${walletAddress}/transactions?api-key=${HELIUS_API_KEY}&limit=${limit}`;
+    const serverBase = ENDPOINTS.serverBase || 'http://10.203.135.79:8085';
+    const proxyUrl = `${serverBase}/api/helius/transactions/${walletAddress}?limit=${limit}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const res = await fetch(heliusUrl, { signal: controller.signal });
+    const res = await fetch(proxyUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      throw new Error(`Helius fetch failed with status ${res.status}`);
+      throw new Error(`Proxy fetch failed with status ${res.status}`);
     }
 
     const data = await res.json();

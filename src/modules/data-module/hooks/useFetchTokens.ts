@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { HELIUS_API_KEY } from '@env';
 import { fetchUserAssets } from '../utils/fetch';
 import { AssetItem, PortfolioData } from '../types/assetTypes';
 

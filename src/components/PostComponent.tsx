@@ -16,7 +16,11 @@ import type { ThreadPost } from '@/core/thread/components/thread.types';
 
 const { width } = Dimensions.get('window');
 
-const PostComponent: React.FC<ThreadPost> = (props) => {
+interface PostComponentProps extends ThreadPost {
+  isThreadView?: boolean;
+}
+
+const PostComponent: React.FC<PostComponentProps> = (props) => {
   const navigation = useNavigation<any>();
   const {
     id,
@@ -33,11 +37,17 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
     repostedBy,
     replyToUsername,
     originalPostId,
-    showThreadLine // New prop to show connector line
+    showThreadLine,
+    isThreadView = false
   } = props;
 
   // Interaction ID should be the original post ID (if it's a repost)
   const interactionId = originalPostId || id;
+
+  const handlePostPress = () => {
+    if (isThreadView) return;
+    navigation.navigate('ThreadDetail', { postId: interactionId });
+  };
 
   // Map fields from either direct props (ThreadPost) or backend format
   const author_wallet_address = user?.id || (props as any).author_wallet_address;
@@ -222,7 +232,11 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   };
 
   return (
-    <View style={styles.container}>
+    <TouchableOpacity 
+      style={styles.container} 
+      onPress={handlePostPress}
+      activeOpacity={0.9}
+    >
       {/* Repost Header */}
       {isRepost && (
         <View style={styles.repostHeader}>
@@ -333,7 +347,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

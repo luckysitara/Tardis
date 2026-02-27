@@ -19,7 +19,7 @@ async function seed() {
     {
       id: 'SeekeR1111111111111111111111111111111111111',
       username: 'Rose Tyler',
-      handle: 'rose.skr',
+      display_name: 'rose.skr',
       description: 'The Bad Wolf.',
       public_encryption_key: rosePublicKey,
       keypair: roseKeypair // Store locally for encryption
@@ -27,7 +27,7 @@ async function seed() {
     {
       id: 'SeekeR2222222222222222222222222222222222222',
       username: 'Captain Jack',
-      handle: 'jack.skr',
+      display_name: 'jack.skr',
       description: 'Face of Boe.',
       public_encryption_key: jackPublicKey,
       keypair: jackKeypair // Store locally for encryption

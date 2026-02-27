@@ -1,6 +1,6 @@
 // File: src/utils/common/fetch.ts
 
-import {CLUSTER, HELIUS_API_KEY, HELIUS_STAKED_URL} from '@env';
+import {CLUSTER, HELIUS_API_KEY, HELIUS_STAKED_URL, RPC_URL} from '@env';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TokenEntry } from '../types/tokenTypes';
 import { ENDPOINTS } from '@/shared/config/constants';
@@ -9,7 +9,7 @@ import { ENDPOINTS } from '@/shared/config/constants';
  * Gets the correct RPC URL based on the API key
  */
 export function getRpcUrl(): string {
-  return HELIUS_STAKED_URL || ENDPOINTS.helius;
+  return (ENDPOINTS.serverBase || 'http://10.203.135.79:8085') + '/api/helius/rpc';
 }
 
 /**

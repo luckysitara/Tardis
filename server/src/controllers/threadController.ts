@@ -128,7 +128,7 @@ async function fetchRetweetOf(postId: string): Promise<any | null> {
     user: {
       id: row.user_id,
       username: row.username,
-      handle: row.handle,
+      handle: row.display_name,
       avatar: row.profile_picture_url ? {uri: row.profile_picture_url} : null,
       verified: false,
     },

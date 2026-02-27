@@ -4,7 +4,7 @@
  * Service for fetching and processing swap transactions for a user
  */
 
-import {CLUSTER, HELIUS_STAKED_URL} from '@env';
+import {CLUSTER} from '@env';
 import {PublicKey, Connection, clusterApiUrl, Cluster} from '@solana/web3.js';
 import { ENDPOINTS } from '@/shared/config/constants';
 
@@ -43,7 +43,7 @@ export const fetchRecentSwaps = async (
     }
 
     // Use Helius API or fallback to cluster API URL
-    const rpcUrl = HELIUS_STAKED_URL || ENDPOINTS.helius || clusterApiUrl(CLUSTER as Cluster);
+    const rpcUrl = ENDPOINTS.helius || clusterApiUrl(CLUSTER as Cluster);
 
     // Use a more specific method to target swap transactions
     const swapsResponse = await fetch(rpcUrl, {

@@ -81,7 +81,6 @@ profileImageRouter.post('/updateUsername', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId, // Fallback
-        handle: userId, // Added handle
         display_name: newDisplayName,
         profile_picture_url: null,
         created_at: new Date(),
@@ -174,7 +173,7 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
         console.log(`[createUser] Updating placeholder username ${existingUser.username} to ${username}`);
         await knex('users').where({ id: userId }).update({
           username: username,
-          display_name: handle || username,
+          display_name: username,
           updated_at: new Date()
         });
         const updatedUser = await knex('users').where({ id: userId }).first();
@@ -188,8 +187,7 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
     const newUser = {
       id: userId,
       username: username || userId,
-      handle: handle || username || userId, // Added handle
-      display_name: handle || username || userId,
+      display_name: username || userId,
       description: description || '',
       profile_picture_url: null,
       attachment_data: null,
@@ -225,7 +223,6 @@ profileImageRouter.post('/updateDescription', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId,
-        handle: userId, // Added handle
         display_name: userId,
         description: description || '',
         profile_picture_url: null,
@@ -282,7 +279,6 @@ profileImageRouter.post('/updateProfilePic', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId, // Default username
-        handle: userId, // Added handle
         display_name: userId, // Default display_name
         profile_picture_url: profilePicUrl,
         created_at: new Date(),
@@ -332,7 +328,6 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
       await knex('users').insert({
         id: userId,
         username: userId,
-        handle: userId, // Added handle
         display_name: userId,
         public_encryption_key: publicKey,
         created_at: new Date(),
@@ -363,14 +358,14 @@ profileImageRouter.post('/seed-test-users', async (req: any, res: any) => {
       {
         id: 'SeekeR1111111111111111111111111111111111111',
         username: 'Rose Tyler',
-        handle: 'rose.skr',
+        display_name: 'rose.skr',
         description: 'The Bad Wolf.',
         public_encryption_key: 'rose_test_key_base64_placeholder',
       },
       {
         id: 'SeekeR2222222222222222222222222222222222222',
         username: 'Captain Jack',
-        handle: 'jack.skr',
+        display_name: 'jack.skr',
         description: 'Face of Boe.',
         public_encryption_key: 'jack_test_key_base64_placeholder',
       }

@@ -44,6 +44,7 @@ export type RootStackParamList = {
   StartChatScreen: undefined;
   CreateCommunityScreen: undefined;
   CommunityFeed: { communityId: string; communityName?: string };
+  ThreadDetail: { postId: string };
   Swap: { inputMint?: string; outputMint?: string };
   Send: { token?: any; amount?: string; recipientAddress?: string };
 };
@@ -108,6 +109,14 @@ const AuthenticatedStack: React.FC = () => {
           name="CommunityFeed" 
           component={CommunityFeedScreen} 
           options={{
+            animation: 'slide_from_right'
+          }}
+        />
+        <Stack.Screen 
+          name="ThreadDetail" 
+          component={ThreadDetailScreen} 
+          options={{
+            headerShown: false,
             animation: 'slide_from_right'
           }}
         />

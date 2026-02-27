@@ -2,13 +2,14 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device'; 
 import { Connection, PublicKey } from '@solana/web3.js';
 import { unpackMint, getTokenGroupMemberState, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import { ENDPOINTS } from '@/shared/config/constants';
 
 // Constants from Official Solana Mobile Seeker Docs
 const SGT_MINT_AUTHORITY = 'GT2zuHVaZQYZSyQMgJPLzvkmyztfyXg2NJunqFp4p3A4';
 const SGT_GROUP_ADDRESS = 'GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te';
 
 const getRpcUrl = () => {
-  return process.env.EXPO_PUBLIC_HELIUS_STAKED_URL || process.env.EXPO_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com';
+  return ENDPOINTS.helius;
 };
 
 export const verifyHardware = async (): Promise<boolean> => {

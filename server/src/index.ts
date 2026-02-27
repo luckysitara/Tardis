@@ -11,6 +11,7 @@ import postsRouter from './routes/postsRoutes'; // Add this import
 import { chatRouter } from './routes/chat/chatRoutes'; // Add this import
 import { communityRouter } from './routes/chat/communityRoutes'; // Add this import
 import { followRouter } from './routes/followRoutes'; // Add this import
+import heliusRouter from './routes/helius'; // Add this import
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -93,6 +94,7 @@ app.use('/api/posts', postsRouter); // Add this line
 app.use('/api/chat', chatRouter); // Add this line
 app.use('/api/communities', communityRouter); // Add this line
 app.use('/api/follows', followRouter); // Add this line
+app.use('/api/helius', heliusRouter); // Add this line
 
 // Socket.io handlers
 io.on('connection', (socket) => {
@@ -183,29 +185,6 @@ const HOST = '10.203.135.79'; // Critical for App Runner health checks
         }
       }
     }
-
-    // Migration: Handle to display_name (for both Postgres and SQLite)
-    try {
-      if (isPostgres) {
-        // Postgres: Try to rename handle if it exists, or add display_name if missing
-        try {
-          await knex.raw('ALTER TABLE users RENAME COLUMN handle TO display_name;');
-          console.log('✅ Renamed handle to display_name in users table (Postgres).');
-        } catch (e: any) {
-          if (e.message.includes('does not exist')) {
-            await knex.raw('ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(255);');
-            await knex.raw('UPDATE users SET display_name = username WHERE display_name IS NULL;');
-          }
-        }
-      } else {
-        // SQLite: Check if display_name exists, if not try to add it
-        try {
-          await knex.raw('ALTER TABLE users ADD COLUMN display_name VARCHAR(255);');
-          await knex.raw('UPDATE users SET display_name = username WHERE display_name IS NULL;');
-          console.log('✅ Added display_name column to users table (SQLite).');
-        } catch (e) {}
-      }
-    } catch (e) {}
 
     if (!isPostgres) {
       // Migration: Add public_encryption_key to users if it doesn't exist

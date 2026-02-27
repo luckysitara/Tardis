@@ -35,7 +35,7 @@ export async function fetchTokenBalance(
   }
 
   try {
-    const rpcUrl = process.env.EXPO_PUBLIC_HELIUS_STAKED_URL || ENDPOINTS.helius || clusterApiUrl(process.env.EXPO_PUBLIC_CLUSTER as Cluster);
+    const rpcUrl = ENDPOINTS.helius;
     const connection = new Connection(rpcUrl, 'confirmed');
 
     if (
@@ -156,6 +156,90 @@ export async function fetchTokenMetadata(tokenAddress: string): Promise<TokenInf
   } catch (err) {
     console.error(`[TokenService] Error fetching metadata for ${tokenAddress}:`, err);
     return null;
+  }
+}
+
+export interface TokenListParams {
+  sort_by?: 'market_cap' | 'volume_24h_usd' | 'price_change_24h_percent';
+  sort_type?: 'asc' | 'desc';
+  offset?: number;
+  limit?: number;
+}
+
+export interface TokenSearchParams {
+  keyword: string;
+  sort_by?: 'market_cap' | 'volume_24h_usd' | 'price_change_24h_percent';
+  sort_type?: 'asc' | 'desc';
+  offset?: number;
+  limit?: number;
+}
+
+/**
+ * Fetches a list of top tokens from Jupiter
+ */
+export async function fetchTokenList(params: TokenListParams = {}): Promise<TokenInfo[]> {
+  try {
+    // Note: Jupiter's /tokens/v1/all is large, typically we'd use a more specific list or a cached version.
+    // For this implementation, we'll use their "strict" list which is smaller and safer.
+    const response = await fetch('https://token.jup.ag/strict');
+    if (!response.ok) throw new Error('Failed to fetch token list');
+    const data = await response.json();
+    
+    // Jupiter's list is just an array. We'll handle pagination and sorting locally for now
+    // as their public CDN-hosted lists don't support these query params directly.
+    let tokens = data.map((item: any) => ({
+      address: item.address,
+      symbol: item.symbol,
+      name: item.name,
+      decimals: item.decimals,
+      logoURI: item.logoURI || '',
+    }));
+
+    // Simple mock pagination for the list
+    const offset = params.offset || 0;
+    const limit = params.limit || 20;
+    return tokens.slice(offset, offset + limit);
+  } catch (err) {
+    console.error('[TokenService] Error fetching token list:', err);
+    return [DEFAULT_SOL_TOKEN, DEFAULT_USDC_TOKEN];
+  }
+}
+
+/**
+ * Searches for tokens by keyword using Jupiter API
+ */
+export async function searchTokens(params: TokenSearchParams): Promise<TokenInfo[]> {
+  try {
+    if (!params.keyword || params.keyword.length < 2) {
+      return fetchTokenList({ limit: params.limit, offset: params.offset });
+    }
+
+    // Since Jupiter doesn't have a direct "search" endpoint in their v1 public API that works with keywords,
+    // we'll fetch the strict list and filter locally. In a real production app, 
+    // this should be done on a backend with a proper search index.
+    const response = await fetch('https://token.jup.ag/strict');
+    if (!response.ok) throw new Error('Failed to fetch tokens for search');
+    const data = await response.json();
+    
+    const keyword = params.keyword.toLowerCase();
+    const filtered = data.filter((item: any) => 
+      item.symbol.toLowerCase().includes(keyword) || 
+      item.name.toLowerCase().includes(keyword) ||
+      item.address.toLowerCase() === keyword
+    );
+
+    const offset = params.offset || 0;
+    const limit = params.limit || 20;
+    return filtered.slice(offset, offset + limit).map((item: any) => ({
+      address: item.address,
+      symbol: item.symbol,
+      name: item.name,
+      decimals: item.decimals,
+      logoURI: item.logoURI || '',
+    }));
+  } catch (err) {
+    console.error('[TokenService] Error searching tokens:', err);
+    return [];
   }
 }
 

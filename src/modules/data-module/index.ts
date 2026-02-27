@@ -1,5 +1,5 @@
 // Export types
-// export * from './types/tokenTypes'; // Re-evaluate if this is needed later
+export * from './types/tokenTypes';
 // export * from './types/assetTypes'; // Re-evaluate if this is needed later
 
 // Removed explicit exports for tokenDetails.types as they are no longer relevant
@@ -53,6 +53,7 @@
 // Export hooks
 export * from './hooks/useFetchTokens';
 export * from './hooks/useCoingecko';
+export { useTokenSearch } from './hooks/useTokenSearch';
 // Removed: export * from './hooks/useBirdeye';
 // Removed: export * from './hooks/useTokenDetails';
 // Removed: export { useTokenSearch } from './hooks/useTokenSearch'; // Removed previously
@@ -65,6 +66,8 @@ export {
   fetchTokenPrice,
   fetchTokenMetadata,
   ensureCompleteTokenInfo,
+  fetchTokenList,
+  searchTokens,
   toBaseUnits,
   DEFAULT_SOL_TOKEN,
   DEFAULT_USDC_TOKEN

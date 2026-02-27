@@ -4,13 +4,13 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Post, User, SocialFeedState } from '@/shared/types/socialFeed.types'; // Assuming Like and Repost are not directly used in slice state
 
 // --- Backend API Base URL ---
-const BACKEND_API_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL ? `${process.env.EXPO_PUBLIC_SERVER_URL}/api/posts` : 'http://10.203.135.79:8085/api/posts'; // Use EXPO_PUBLIC_SERVER_URL or default
+const BACKEND_API_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL ? process.env.EXPO_PUBLIC_SERVER_URL : 'http://10.203.135.79:8085'; // Use EXPO_PUBLIC_SERVER_URL or default
 
 // --- Async Thunks for API Interactions ---
 
 export const fetchPosts = createAsyncThunk('socialFeed/fetchPosts', async (currentUserId: string | undefined, { rejectWithValue }) => {
   try {
-    const url = currentUserId ? `${BACKEND_API_BASE_URL}/posts?userId=${currentUserId}` : `${BACKEND_API_BASE_URL}/posts`;
+    const url = currentUserId ? `${BACKEND_API_BASE_URL}/api/posts?userId=${currentUserId}` : `${BACKEND_API_BASE_URL}/api/posts`;
     const response = await fetch(url);
     if (!response.ok) {
       const errorData = await response.json();
@@ -44,7 +44,7 @@ export const createPost = createAsyncThunk('socialFeed/createPost', async (postD
       mediaUrls: postData.media, // Backend expects mediaUrls
       signature: postData.signature,
     };
-    const response = await fetch(`${BACKEND_API_BASE_URL}/posts`, {
+    const response = await fetch(`${BACKEND_API_BASE_URL}/api/posts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const createPost = createAsyncThunk('socialFeed/createPost', async (postD
 export const likePost = createAsyncThunk('socialFeed/likePost', async (payload: { postId: string; userId: string; isLiking: boolean; signature: string }, { rejectWithValue }) => {
   try {
     const { postId, userId, signature } = payload;
-    const response = await fetch(`${BACKEND_API_BASE_URL}/posts/like`, {
+    const response = await fetch(`${BACKEND_API_BASE_URL}/api/posts/like`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ export const likePost = createAsyncThunk('socialFeed/likePost', async (payload: 
 export const repostPost = createAsyncThunk('socialFeed/repostPost', async (payload: { postId: string; userId: string; isReposting: boolean; signature: string; originalPostId?: string }, { rejectWithValue }) => {
   try {
     const { postId, userId, signature, originalPostId } = payload;
-    const response = await fetch(`${BACKEND_API_BASE_URL}/posts/repost`, {
+    const response = await fetch(`${BACKEND_API_BASE_URL}/api/posts/repost`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

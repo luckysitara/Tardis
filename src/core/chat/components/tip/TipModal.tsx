@@ -31,6 +31,7 @@ import {
   createTransferCheckedInstruction 
 } from '@solana/spl-token';
 import { useFetchTokens, fixImageUrl } from '@/modules/data-module/hooks/useFetchTokens';
+import { getRpcUrl } from '@/modules/data-module';
 
 interface TipModalProps {
   visible: boolean;
@@ -39,8 +40,6 @@ interface TipModalProps {
   recipientName: string;
   onTipSent: (signature: string, amount: number, symbol: string) => void;
 }
-
-const RPC_URL = 'https://api.mainnet-beta.solana.com';
 
 const TipModal: React.FC<TipModalProps> = ({
   visible,
@@ -88,7 +87,7 @@ const TipModal: React.FC<TipModalProps> = ({
 
     setIsSending(true);
     try {
-      const connection = new Connection(RPC_URL, 'confirmed');
+      const connection = new Connection(getRpcUrl(), 'confirmed');
       const recipientPubkey = new PublicKey(recipientAddress);
       const transaction = new Transaction();
 

@@ -36,8 +36,8 @@ import {
   deleteChat as deleteChatAPI,
 } from "../lib/utils";
 import { myProvider } from "../lib/ai/providers";
-import { HELIUS_STAKED_URL } from "@env";
 import { useWallet } from "@/modules/wallet-providers";
+import { ENDPOINTS } from "@/shared/config/constants";
 
 type ResponseMessageWithoutId = CoreToolMessage | CoreAssistantMessage;
 type ResponseMessage = ResponseMessageWithoutId & { id: string };
@@ -149,7 +149,7 @@ export function useChat({ id, initialMessages = [], isExistingChat = false }: Us
           },
           sendTransaction: async tx => {
             setCurrentOperation("Sending transaction to Solana network...");
-            const connection = new Connection(HELIUS_STAKED_URL, 'confirmed');
+            const connection = new Connection(ENDPOINTS.helius, 'confirmed');
             return await sendTransaction(tx, connection);
           },
           signAllTransactions: async txs => {
@@ -158,12 +158,12 @@ export function useChat({ id, initialMessages = [], isExistingChat = false }: Us
           },
           signAndSendTransaction: async tx => {
             setCurrentOperation("Signing and sending transaction...");
-            const connection = new Connection(HELIUS_STAKED_URL, 'confirmed');
+            const connection = new Connection(ENDPOINTS.helius, 'confirmed');
             const signature = await sendTransaction(tx, connection);
             return { signature };
           },
         },
-        HELIUS_STAKED_URL,
+        ENDPOINTS.helius,
         {},
       ).use(TokenPlugin as any);
       const tools = createVercelAITools(agent, agent.actions);

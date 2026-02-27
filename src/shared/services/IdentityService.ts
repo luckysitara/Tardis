@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { performReverseLookup } from '@bonfida/spl-name-service';
 import { Buffer } from 'buffer';
+import { ENDPOINTS } from '@/shared/config/constants';
 
 // Ensure global Buffer is available for the SDK
 if (typeof global.Buffer === 'undefined') {
@@ -11,7 +12,7 @@ if (typeof global.Buffer === 'undefined') {
 
 
 const getRpcUrl = () => {
-  return process.env.HELIUS_STAKED_URL || process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
+  return ENDPOINTS.helius;
 };
 
 const connection = new Connection(getRpcUrl());

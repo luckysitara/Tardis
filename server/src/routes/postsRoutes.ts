@@ -19,7 +19,7 @@ function mapPost(post: any): any {
         user: {
             id: post.author_wallet_address,
             username: post.username || post.author_skr_username, // Prefer live username from users table
-            handle: post.display_name || post.username || post.author_skr_username, // Prefer live display_name
+            handle: post.display_name || post.username || post.author_skr_username, // Use display_name as handle
             avatar: post.profile_picture_url || 'https://api.dicebear.com/7.x/initials/png?seed=' + (post.username || post.author_skr_username),
             publicEncryptionKey: post.public_encryption_key,
             verified: true
@@ -87,7 +87,6 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         await knex('users').insert({
             id: author_wallet_address,
             username: author_skr_username,
-            handle: author_skr_username,
             display_name: author_skr_username,
             created_at: new Date(),
             updated_at: new Date()
