@@ -102,7 +102,7 @@ const PostComponent: React.FC<ThreadPost> = (props) => {
   const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
+  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
 
   const formatRelativeTime = (time: string) => {
     const date = new Date(time);

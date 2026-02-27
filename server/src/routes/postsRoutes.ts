@@ -139,7 +139,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 postsRouter.get('/', async (req: Request, res: Response) => {
     console.log('[GET /api/posts] Fetching posts with query:', req.query);
     try {
-        const { limit = 20, offset = 0, communityId, userId, followingOnly } = req.query;
+        const { limit = 20, offset = 0, communityId, userId, followingOnly, includeReplies } = req.query;
 
         /**
          * We use a UNION to combine:

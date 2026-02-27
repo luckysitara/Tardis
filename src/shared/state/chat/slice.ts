@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { SERVER_URL } from '@env';
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
 
 // Types
 export interface ChatParticipant {

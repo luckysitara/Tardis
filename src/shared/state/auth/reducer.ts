@@ -37,7 +37,7 @@ const initialState: AuthState = {
   attachmentData: {},
 };
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://192.168.1.175:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
 
 // Debug environment variable loading
 console.log('[Auth Reducer] SERVER_URL from @env:', SERVER_URL);
