@@ -24,10 +24,12 @@ export async function fetchWithRetries(
   let attempt = 0;
   let lastError: Error | undefined;
 
+  console.warn(`[fetchWithRetries] Requesting URL: ${url}`);
+
   while (attempt < maxRetries) {
     try {
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`[fetchWithRetries] Fetching: ${url}`);
+        console.warn(`[fetchWithRetries] Fetching: ${url}`);
       }
       const res = await fetch(url, options);
       if (!res.ok) {

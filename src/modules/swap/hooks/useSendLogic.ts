@@ -15,6 +15,7 @@ import {
   fetchTokenMetadata,
   ensureCompleteTokenInfo,
   getRpcUrl,
+  DEFAULT_SOL_TOKEN,
 } from '@/modules/data-module';
 import { TransactionService } from '@/modules/wallet-providers/services/transaction/transactionService';
 
@@ -31,6 +32,8 @@ export function useSendLogic(
   sendTransaction: (transaction: any, connection: any, options?: any) => Promise<string>,
   navigation: any
 ) {
+  console.warn('[SendLogic] Hook initialized with params:', JSON.stringify(routeParams));
+
   // UI States
   const [inputValue, setInputValue] = useState(routeParams.amount || '0');
   const [recipientAddress, setRecipientAddress] = useState(routeParams.recipientAddress || '');
@@ -60,13 +63,29 @@ export function useSendLogic(
     if (!isMounted.current) return;
 
     try {
+      console.warn('[SendLogic] Initializing token with routeParams:', JSON.stringify(routeParams));
       let initialToken: TokenInfo | null = null;
+      
       if (routeParams.token && routeParams.token.address) {
+        console.warn('[SendLogic] Using full token from route params:', routeParams.token.symbol);
+        initialToken = routeParams.token;
+      } else if (routeParams.token?.address) {
+        // Handle case where routeParams.token is just a partial object with address
+        console.warn('[SendLogic] Fetching metadata for token address:', routeParams.token.address);
         initialToken = await fetchTokenMetadata(routeParams.token.address);
       } else {
         // Default to SOL
-        initialToken = await fetchTokenMetadata('So11111111111111111111111111111111111111112');
+        console.warn('[SendLogic] No token in route params, using default SOL constant');
+        initialToken = DEFAULT_SOL_TOKEN;
       }
+
+      // Final fallback
+      if (!initialToken) {
+        console.warn('[SendLogic] Final fallback to default SOL constant');
+        initialToken = DEFAULT_SOL_TOKEN;
+      }
+
+      console.warn('[SendLogic] Setting selected token:', initialToken?.symbol);
 
       if (isMounted.current && initialToken) {
         setSelectedToken(initialToken);
@@ -82,6 +101,11 @@ export function useSendLogic(
       }
     } catch (error) {
       console.error('[SendLogic] Error initializing token:', error);
+      // Ensure we have at least SOL if initialization failed
+      if (isMounted.current) {
+        setSelectedToken(DEFAULT_SOL_TOKEN);
+        setTokensInitialized(true);
+      }
     }
   }, [userPublicKey, routeParams]);
 

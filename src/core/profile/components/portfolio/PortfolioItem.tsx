@@ -6,6 +6,8 @@ import { AssetItem } from '@/modules/data-module/types/assetTypes';
 import { fixImageUrl } from '@/modules/data-module/hooks/useFetchTokens';
 import { useNavigation } from '@react-navigation/native';
 
+import { DEFAULT_SOL_TOKEN, DEFAULT_USDC_TOKEN } from '@/modules/data-module/services/tokenService';
+
 interface PortfolioItemProps {
   item: AssetItem;
 }
@@ -20,6 +22,14 @@ const PortfolioItem: React.FC<PortfolioItemProps> = ({ item }) => {
     ? `$${item.token_info.price_info.total_price.toFixed(2)}`
     : '';
 
+  const tokenInfo = {
+    address: item.id,
+    symbol: item.symbol || item.token_info?.symbol || 'Unknown',
+    name: item.name || 'Unknown Token',
+    decimals: item.token_info?.decimals || 9,
+    logoURI: item.image || ''
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.leftContent}>
@@ -32,31 +42,47 @@ const PortfolioItem: React.FC<PortfolioItemProps> = ({ item }) => {
           <View style={styles.symbolRow}>
             <Text style={styles.tokenSymbol}>{item.symbol}</Text>
             <View style={localStyles.actionContainer}>
+              {/* SELL Button */}
+              <TouchableOpacity 
+                style={[styles.swapBadge, { backgroundColor: 'rgba(248, 113, 113, 0.1)' }]}
+                onPress={() => {
+                  // If selling USDC, sell for SOL. Otherwise sell for USDC.
+                  const outputToken = item.id === DEFAULT_USDC_TOKEN.address ? DEFAULT_SOL_TOKEN : DEFAULT_USDC_TOKEN;
+                  navigation.navigate('Swap', { 
+                    inputMint: item.id, 
+                    inputToken: tokenInfo,
+                    outputMint: outputToken.address,
+                    outputToken: outputToken
+                  });
+                }}
+              >
+                <Text style={[styles.swapBadgeText, { color: '#F87171' }]}>Sell</Text>
+              </TouchableOpacity>
+
+              {/* BUY Button */}
               <TouchableOpacity 
                 style={styles.swapBadge}
-                onPress={() => navigation.navigate('Swap', { inputMint: item.id })}
+                onPress={() => {
+                  // If buying SOL, buy with USDC. Otherwise buy with SOL.
+                  const inputToken = item.id === DEFAULT_SOL_TOKEN.address ? DEFAULT_USDC_TOKEN : DEFAULT_SOL_TOKEN;
+                  navigation.navigate('Swap', { 
+                    inputMint: inputToken.address,
+                    inputToken: inputToken,
+                    outputMint: item.id,
+                    outputToken: tokenInfo
+                  });
+                }}
               >
-                <Text style={styles.swapBadgeText}>Swap</Text>
+                <Text style={styles.swapBadgeText}>Buy</Text>
               </TouchableOpacity>
               
+              {/* SEND Button */}
               <TouchableOpacity 
                 style={[styles.swapBadge, { backgroundColor: 'rgba(74, 222, 128, 0.1)' }]}
-                onPress={() => navigation.navigate('Send', { token: item })}
+                onPress={() => navigation.navigate('Send', { token: tokenInfo })}
               >
                 <Text style={[styles.swapBadgeText, { color: '#4ADE80' }]}>Send</Text>
               </TouchableOpacity>
-
-              {item.id !== 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && (
-                <TouchableOpacity 
-                  style={[styles.swapBadge, { backgroundColor: 'rgba(248, 113, 113, 0.1)' }]}
-                  onPress={() => navigation.navigate('Swap', { 
-                    inputMint: item.id, 
-                    outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' 
-                  })}
-                >
-                  <Text style={[styles.swapBadgeText, { color: '#F87171' }]}>Sell</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
         </View>

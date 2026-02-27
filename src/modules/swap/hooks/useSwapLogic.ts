@@ -8,6 +8,8 @@ import {
   fetchTokenPrice,
   fetchTokenMetadata,
   ensureCompleteTokenInfo,
+  DEFAULT_SOL_TOKEN,
+  DEFAULT_USDC_TOKEN
 } from '@/modules/data-module';
 import { TradeService, SwapProvider } from '@/modules/swap/services/tradeService';
 
@@ -33,11 +35,15 @@ export function useSwapLogic(
   },
   navigation: any
 ) {
+  console.warn('[SwapLogic] Hook initialized with params:', JSON.stringify(routeParams));
+
   // UI States
   const [activeProvider, setActiveProvider] = useState<SwapProvider>('JupiterUltra');
   const [inputValue, setInputValue] = useState(routeParams.inputAmount || '0');
   const [showSelectTokenModal, setShowSelectTokenModal] = useState(false);
   const [selectingWhichSide, setSelectingWhichSide] = useState<'input' | 'output'>('input');
+  const [poolAddress, setPoolAddress] = useState<string>('');
+  const [slippage, setSlippage] = useState<number>(0.5);
 
   // Token States
   const [inputToken, setInputToken] = useState<TokenInfo | null>(null);
@@ -75,12 +81,13 @@ export function useSwapLogic(
   // Debounce timer refs
   const priceUpdateTimer = useRef<NodeJS.Timeout | null>(null);
   const estimateSwapTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastInitializedMints = useRef<string>('');
 
   // Cleanup on unmount
   useEffect(() => {
     isMounted.current = true;
     return () => {
-      console.log('[SwapScreen] Component unmounting, cleaning up');
+      console.warn('[SwapScreen] Component unmounting, cleaning up');
       isMounted.current = false;
       setPendingTokenOps({ input: false, output: false });
       
@@ -96,56 +103,103 @@ export function useSwapLogic(
 
   // Initialize tokens with details
   const initializeTokens = useCallback(async () => {
+    // Prevent redundant initialization with same params
+    const mintsKey = `${routeParams.inputMint || routeParams.inputToken?.address}-${routeParams.outputMint || routeParams.outputToken?.address}`;
+    if (tokensInitialized && lastInitializedMints.current === mintsKey) {
+      console.warn('[SwapScreen] Tokens already initialized for these parameters, skipping.');
+      return;
+    }
+
     // Don't initialize if already initializing or completed
     if (!isMounted.current || (pendingTokenOps.input && pendingTokenOps.output)) {
       return;
     }
 
+    lastInitializedMints.current = mintsKey;
+
     try {
       // Mark operations as pending
       setPendingTokenOps({ input: true, output: true });
-      console.log('[SwapScreen] Initializing tokens...', routeParams);
+      console.warn('[SwapScreen] Initializing tokens...', routeParams);
 
       // Fetch initial tokens
       let initialInputToken: TokenInfo | null = null;
       let initialOutputToken: TokenInfo | null = null;
 
-      // Use tokens from route params if available, otherwise fetch SOL and USDC
+      // 1. INPUT TOKEN INITIALIZATION
+      console.warn('[SwapScreen] Starting input token init, routeParams:', JSON.stringify(routeParams));
       try {
-        if (routeParams.inputMint) {
-          console.log('[SwapScreen] Using input mint from route params:', routeParams.inputMint);
+        if (routeParams.inputToken) {
+          console.warn('[SwapScreen] Using full input token from route params:', routeParams.inputToken.symbol);
+          initialInputToken = routeParams.inputToken;
+        } else if (routeParams.inputMint) {
+          console.warn('[SwapScreen] Fetching input token metadata for mint:', routeParams.inputMint);
           initialInputToken = await fetchTokenMetadata(routeParams.inputMint);
-        } else if (routeParams.inputToken && routeParams.inputToken.address) {
-          console.log('[SwapScreen] Using input token from route params:', routeParams.inputToken);
-          initialInputToken = await fetchTokenMetadata(routeParams.inputToken.address);
-        } else {
-          // Default to SOL if not specified
-          initialInputToken = await fetchTokenMetadata('So11111111111111111111111111111111111111112');
+          
+          // Special case: if fetching fails but it's SOL, use the default
+          if (!initialInputToken && routeParams.inputMint === DEFAULT_SOL_TOKEN.address) {
+            console.warn('[SwapScreen] Fetching SOL metadata failed, using default SOL constant');
+            initialInputToken = DEFAULT_SOL_TOKEN;
+          }
+        }
+        
+        // Final fallback for input token
+        if (!initialInputToken) {
+          console.warn('[SwapScreen] No input token after checks, falling back to default SOL');
+          initialInputToken = DEFAULT_SOL_TOKEN;
         }
       } catch (err) {
-        console.error('[SwapScreen] Error fetching input token:', err);
-        // If we can't fetch the input token, try with SOL as a fallback
-        initialInputToken = await fetchTokenMetadata('So11111111111111111111111111111111111111112');
+        console.error('[SwapScreen] Error during input token initialization:', err);
+        initialInputToken = DEFAULT_SOL_TOKEN;
       }
 
+      console.warn('[SwapScreen] Input token initialized:', initialInputToken?.symbol);
+
+      // 2. OUTPUT TOKEN INITIALIZATION
+      console.warn('[SwapScreen] Starting output token init');
       try {
-        if (routeParams.outputMint) {
-          console.log('[SwapScreen] Using output mint from route params:', routeParams.outputMint);
+        if (routeParams.outputToken) {
+          console.warn('[SwapScreen] Using full output token from route params:', routeParams.outputToken.symbol);
+          initialOutputToken = routeParams.outputToken;
+        } else if (routeParams.outputMint) {
+          console.warn('[SwapScreen] Fetching output token metadata for mint:', routeParams.outputMint);
           initialOutputToken = await fetchTokenMetadata(routeParams.outputMint);
-        } else if (routeParams.outputToken && routeParams.outputToken.address) {
-          console.log('[SwapScreen] Using output token from route params:', routeParams.outputToken);
-          initialOutputToken = await fetchTokenMetadata(routeParams.outputToken.address);
-        } else {
-          // Default to USDC if not specified
-          initialOutputToken = await fetchTokenMetadata('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+          
+          // Special case: if fetching fails but it's USDC, use the default
+          if (!initialOutputToken && routeParams.outputMint === DEFAULT_USDC_TOKEN.address) {
+            console.warn('[SwapScreen] Fetching USDC metadata failed, using default USDC constant');
+            initialOutputToken = DEFAULT_USDC_TOKEN;
+          }
+        }
+        
+        // Final fallback for output token (ensure it's different from input)
+        if (!initialOutputToken) {
+          console.warn('[SwapScreen] No output token after checks, falling back to default USDC');
+          initialOutputToken = DEFAULT_USDC_TOKEN;
+          
+          // If input and output would be the same, use SOL/USDC combo correctly
+          if (initialInputToken?.address === initialOutputToken?.address) {
+            console.warn('[SwapScreen] Input and output match, adjusting output token to prevent same-token swap');
+            if (initialInputToken?.address === DEFAULT_SOL_TOKEN.address) {
+              initialOutputToken = DEFAULT_USDC_TOKEN;
+            } else {
+              initialOutputToken = DEFAULT_SOL_TOKEN;
+            }
+          }
         }
       } catch (err) {
-        console.error('[SwapScreen] Error fetching output token:', err);
-        // If we can't fetch the output token, try with USDC as a fallback
-        initialOutputToken = await fetchTokenMetadata('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+        console.error('[SwapScreen] Error during output token initialization:', err);
+        initialOutputToken = DEFAULT_USDC_TOKEN;
       }
 
-      // Handle case where token fetching fails
+      console.warn('[SwapScreen] Output token initialized:', initialOutputToken?.symbol);
+
+      console.warn('[SwapScreen] Initial tokens set:', {
+        input: initialInputToken?.symbol,
+        output: initialOutputToken?.symbol
+      });
+
+      // Handle extreme case where everything failed (should be impossible now)
       if (!initialInputToken || !initialOutputToken) {
         console.error('[SwapScreen] Failed to initialize tokens after multiple attempts');
         setErrorMsg('Failed to load token information. Please try again.');
@@ -162,7 +216,7 @@ export function useSwapLogic(
 
         // If route provided an amount, set it
         if (routeParams.inputAmount) {
-          console.log('[SwapScreen] Setting input amount from route:', routeParams.inputAmount);
+          console.warn('[SwapScreen] Setting input amount from route:', routeParams.inputAmount);
           setInputValue(routeParams.inputAmount);
         }
 
@@ -170,28 +224,35 @@ export function useSwapLogic(
         if (userPublicKey && initialInputToken) {
           // Load token details in sequence to avoid parallel fetch issues
           const balance = await fetchTokenBalance(userPublicKey, initialInputToken);
-            if (isMounted.current && balance !== null) {
-              setCurrentBalance(balance);
+          if (isMounted.current && balance !== null) {
+            setCurrentBalance(balance);
             
             // Fetch price after balance is loaded
             const price = await fetchTokenPrice(initialInputToken);
-                  if (isMounted.current && price !== null) {
-                    setCurrentTokenPrice(price);
+            if (isMounted.current && price !== null) {
+              setCurrentTokenPrice(price);
               currentPriceRef.current = price; // Update the price ref
-                  }
-              }
+            }
+          }
         }
       }
     } catch (error) {
-      console.error('[SwapScreen] Error initializing tokens:', error);
+      console.error('[SwapScreen] Unexpected error during token initialization:', error);
       setPendingTokenOps({ input: false, output: false });
     }
-  }, [userPublicKey, routeParams, setPendingTokenOps]);
+  }, [
+    userPublicKey, 
+    routeParams.inputMint, 
+    routeParams.outputMint, 
+    routeParams.inputToken, 
+    routeParams.outputToken, 
+    routeParams.inputAmount
+  ]);
 
   // Fetch token balance
   const fetchBalance = useCallback(async (tokenToUse?: TokenInfo | null) => {
     if (!connected || !userPublicKey) {
-      console.log("[SwapScreen] No wallet connected, cannot fetch balance");
+      console.warn("[SwapScreen] No wallet connected, cannot fetch balance");
       return null;
     }
 
@@ -199,19 +260,19 @@ export function useSwapLogic(
 
     // Cannot fetch balance if token is null
     if (!tokenForBalance) {
-      console.log("[SwapScreen] No token provided, cannot fetch balance");
+      console.warn("[SwapScreen] No token provided, cannot fetch balance");
       return null;
     }
 
     try {
-      console.log(`[SwapScreen] Fetching balance for ${tokenForBalance.symbol}...`);
+      console.warn(`[SwapScreen] Fetching balance for ${tokenForBalance.symbol}...`);
       const balance = await fetchTokenBalance(userPublicKey, tokenForBalance);
 
       // Only update state if component is still mounted and balance is non-null
       if (isMounted.current) {
         // Only update if the balance actually changed
         if (balance !== null && balance !== currentBalance) {
-        console.log(`[SwapScreen] Token balance fetched for ${tokenForBalance.symbol}: ${balance}`);
+        console.warn(`[SwapScreen] Token balance fetched for ${tokenForBalance.symbol}: ${balance}`);
         setCurrentBalance(balance);
         }
         return balance;
@@ -233,16 +294,16 @@ export function useSwapLogic(
 
     // Cannot fetch price if token is null
     if (!tokenForPrice) {
-      console.log("[SwapScreen] No token provided, cannot fetch price");
+      console.warn("[SwapScreen] No token provided, cannot fetch price");
       return null;
     }
 
     try {
-      console.log(`[SwapScreen] Fetching price for ${tokenForPrice.symbol}...`);
+      console.warn(`[SwapScreen] Fetching price for ${tokenForPrice.symbol}...`);
       const price = await fetchTokenPrice(tokenForPrice);
       
       if (isMounted.current) {
-        console.log(`[SwapScreen] Token price fetched for ${tokenForPrice.symbol}: ${price}`);
+        console.warn(`[SwapScreen] Token price fetched for ${tokenForPrice.symbol}: ${price}`);
         
         // Only update state if it's the input token and the price actually changed
         if (tokenForPrice === inputToken && price !== null && price !== currentPriceRef.current) {
@@ -365,7 +426,7 @@ export function useSwapLogic(
             outputPrice
           };
 
-          console.log(`[SwapScreen] Estimate: ${inputValueNum} ${inputToken.symbol} (${inputPrice} USD) → ${estimatedOutput} ${outputToken.symbol} (${outputPrice} USD)`);
+          console.warn(`[SwapScreen] Estimate: ${inputValueNum} ${inputToken.symbol} (${inputPrice} USD) → ${estimatedOutput} ${outputToken.symbol} (${outputPrice} USD)`);
         }
       }, 300); // Short debounce for estimate calculation
     } catch (error) {
@@ -378,7 +439,7 @@ export function useSwapLogic(
     if (!isMounted.current) return;
 
     try {
-      console.log(`[SwapScreen] Token selected: ${token.symbol || 'Unknown'}`);
+      console.warn(`[SwapScreen] Token selected: ${token.symbol || 'Unknown'}`);
 
       // Mark token operation as pending
       if (selectingWhichSide === 'input') {
@@ -404,7 +465,7 @@ export function useSwapLogic(
       // Set up a timeout promise that will resolve after 8 seconds
       const timeoutPromise = new Promise<TokenInfo>(resolve => {
         setTimeout(() => {
-          console.log(`[SwapScreen] Token fetch timeout for ${token.symbol}, using available data`);
+          console.warn(`[SwapScreen] Token fetch timeout for ${token.symbol}, using available data`);
           resolve(token); // Return original token on timeout
         }, 8000);
       });
@@ -428,7 +489,7 @@ export function useSwapLogic(
       }
 
       if (selectingWhichSide === 'input') {
-        console.log('[SwapScreen] Input token changed to', completeToken.symbol);
+        console.warn('[SwapScreen] Input token changed to', completeToken.symbol);
 
         // Update input token state immediately
         setInputToken(completeToken);
@@ -490,7 +551,7 @@ export function useSwapLogic(
           }
         }, 200);
       } else {
-        console.log('[SwapScreen] Output token changed to', completeToken.symbol);
+        console.warn('[SwapScreen] Output token changed to', completeToken.symbol);
         
         // Update output token state
         setOutputToken(completeToken);
@@ -530,7 +591,7 @@ export function useSwapLogic(
 
   // Handle max button click
   const handleMaxButtonClick = useCallback(async () => {
-    console.log("[SwapScreen] MAX button clicked, current balance:", currentBalance);
+    console.warn("[SwapScreen] MAX button clicked, current balance:", currentBalance);
 
     if (isMounted.current) {
       setErrorMsg(''); // Clear any existing error messages
@@ -569,10 +630,10 @@ export function useSwapLogic(
 
       // Check if we have a balance after fetching
       if (balance !== null && balance > 0 && isMounted.current) {
-        console.log("[SwapScreen] Setting max amount from fetched balance:", balance);
+        console.warn("[SwapScreen] Setting max amount from fetched balance:", balance);
         setInputValue(String(balance));
       } else if (isMounted.current) {
-        console.log("[SwapScreen] Balance fetch returned:", balance);
+        console.warn("[SwapScreen] Balance fetch returned:", balance);
         Alert.alert(
           "Balance Unavailable",
           `Could not get your ${inputToken.symbol} balance. Please check your wallet connection.`
@@ -591,7 +652,7 @@ export function useSwapLogic(
 
   // Handle percentage button clicks (25%, 50%)
   const handlePercentageButtonClick = useCallback(async (percentage: number) => {
-    console.log(`[SwapScreen] ${percentage}% button clicked, current balance:`, currentBalance);
+    console.warn(`[SwapScreen] ${percentage}% button clicked, current balance:`, currentBalance);
 
     if (isMounted.current) {
       setErrorMsg(''); // Clear any existing error messages
@@ -631,11 +692,11 @@ export function useSwapLogic(
 
       // Check if we have a balance after fetching
       if (balance !== null && balance > 0 && isMounted.current) {
-        console.log(`[SwapScreen] Setting ${percentage}% amount from fetched balance:`, balance);
+        console.warn(`[SwapScreen] Setting ${percentage}% amount from fetched balance:`, balance);
         const percentageAmount = (balance * percentage) / 100;
         setInputValue(String(percentageAmount));
       } else if (isMounted.current) {
-        console.log("[SwapScreen] Balance fetch returned:", balance);
+        console.warn("[SwapScreen] Balance fetch returned:", balance);
         Alert.alert(
           "Balance Unavailable",
           `Could not get your ${inputToken.symbol} balance. Please check your wallet connection.`
@@ -654,7 +715,7 @@ export function useSwapLogic(
 
   // Handle clear button click
   const handleClearButtonClick = useCallback(() => {
-    console.log("[SwapScreen] Clear button clicked");
+    console.warn("[SwapScreen] Clear button clicked");
     setInputValue('0');
     if (isMounted.current) {
       setErrorMsg(''); // Clear any existing error messages
@@ -721,28 +782,28 @@ export function useSwapLogic(
 
   // Execute swap
   const handleSwap = useCallback(async () => {
-    console.log('[SwapScreen] ⚠️⚠️⚠️ SWAP BUTTON CLICKED ⚠️⚠️⚠️');
-    console.log(`[SwapScreen] Provider: ${activeProvider}, Amount: ${inputValue} ${inputToken?.symbol || 'token'}`);
+    console.warn('[SwapScreen] ⚠️⚠️⚠️ SWAP BUTTON CLICKED ⚠️⚠️⚠️');
+    console.warn(`[SwapScreen] Provider: ${activeProvider}, Amount: ${inputValue} ${inputToken?.symbol || 'token'}`);
 
     if (!connected || !userPublicKey) {
-      console.log('[SwapScreen] Error: Wallet not connected');
+      console.warn('[SwapScreen] Error: Wallet not connected');
       Alert.alert('Wallet not connected', 'Please connect your wallet first.');
       return;
     }
 
     if (!inputToken || !outputToken) {
-      console.log('[SwapScreen] Error: Tokens not initialized');
+      console.warn('[SwapScreen] Error: Tokens not initialized');
       Alert.alert('Tokens not loaded', 'Please wait for tokens to load or select tokens first.');
       return;
     }
 
     if (isNaN(parseFloat(inputValue)) || parseFloat(inputValue) <= 0) {
-      console.log('[SwapScreen] Error: Invalid amount input:', inputValue);
+      console.warn('[SwapScreen] Error: Invalid amount input:', inputValue);
       Alert.alert('Invalid amount', 'Please enter a valid amount to swap.');
       return;
     }
 
-    console.log('[SwapScreen] Starting swap with:', {
+    console.warn('[SwapScreen] Starting swap with:', {
       provider: activeProvider,
       inputToken: inputToken.symbol,
       outputToken: outputToken.symbol,
@@ -755,7 +816,7 @@ export function useSwapLogic(
 
     try {
       // Execute the swap using the trade service with the selected provider
-      console.log('[SwapScreen] Calling TradeService.executeSwap');
+      console.warn('[SwapScreen] Calling TradeService.executeSwap');
       const response = await TradeService.executeSwap(
         inputToken,
         outputToken,
@@ -764,7 +825,7 @@ export function useSwapLogic(
         transactionSender,
         {
           statusCallback: (status) => {
-            console.log('[SwapScreen] Status update:', status);
+            console.warn('[SwapScreen] Status update:', status);
             if (isMounted.current) {
               setResultMsg(status);
 
@@ -772,29 +833,33 @@ export function useSwapLogic(
               if (status.toLowerCase().includes('complete') ||
                 status.toLowerCase().includes('successful') ||
                 status === 'Transaction complete! ✓') {
-                console.log('[SwapScreen] Completion status received, resetting loading state');
+                console.warn('[SwapScreen] Completion status received, resetting loading state');
                 setLoading(false);
               }
             }
           },
           isComponentMounted: () => isMounted.current
         },
-        activeProvider
+        activeProvider,
+        {
+          poolAddress,
+          slippage
+        }
       );
 
-      console.log('[SwapScreen] TradeService.executeSwap response:', JSON.stringify(response));
+      console.warn('[SwapScreen] TradeService.executeSwap response:', JSON.stringify(response));
 
       if (response.success && response.signature) {
         if (isMounted.current) {
-          console.log('[SwapScreen] Swap successful! Signature:', response.signature);
+          console.warn('[SwapScreen] Swap successful! Signature:', response.signature);
           setResultMsg(`Swap successful!`);
           setSolscanTxSig(response.signature);
         }
       } else {
-        console.log('[SwapScreen] Swap response not successful:', response);
+        console.warn('[SwapScreen] Swap response not successful:', response);
         const errorString = response.error?.toString() || '';
         if (errorString.includes('Component unmounted')) {
-          console.log('[SwapScreen] Component unmounted during swap, ignoring error.');
+          console.warn('[SwapScreen] Component unmounted during swap, ignoring error.');
           return; // Exit silently
         }
 
@@ -861,7 +926,7 @@ export function useSwapLogic(
           errorMessage += err.message;
         }
 
-        console.log('[SwapScreen] Setting error message:', errorMessage);
+        console.warn('[SwapScreen] Setting error message:', errorMessage);
         setErrorMsg(errorMessage);
 
         if (!mayHaveSucceeded) {
@@ -870,7 +935,7 @@ export function useSwapLogic(
       }
     } finally {
       if (isMounted.current) {
-        console.log('[SwapScreen] Swap process completed, resetting loading state');
+        console.warn('[SwapScreen] Swap process completed, resetting loading state');
         setLoading(false);
       }
     }
@@ -900,11 +965,11 @@ export function useSwapLogic(
   // Function to swap input and output tokens
   const handleSwapTokens = useCallback(async () => {
     if (!isMounted.current || pendingTokenOps.input || pendingTokenOps.output) {
-      console.log('[SwapScreen] Token operations pending, cannot swap tokens now.');
+      console.warn('[SwapScreen] Token operations pending, cannot swap tokens now.');
       return;
     }
 
-    console.log('[SwapScreen] Swapping input and output tokens.');
+    console.warn('[SwapScreen] Swapping input and output tokens.');
 
     // Store current values temporarily
     const tempInputToken = inputToken;
@@ -956,7 +1021,7 @@ export function useSwapLogic(
     if (parseFloat(tempEstimatedOutputAmount || '0') > 0) {
       // We need to call estimateSwap or a similar function here
       // For now, this will be handled by the useEffect that depends on inputValue or inputToken
-      console.log('[SwapScreen] Triggering swap estimation after token swap.');
+      console.warn('[SwapScreen] Triggering swap estimation after token swap.');
     }
   }, [
     inputToken, 
@@ -976,7 +1041,7 @@ export function useSwapLogic(
       initializeTokens();
     } else if (routeParams.shouldInitialize) {
       // If the component needs to re-initialize with new route params
-      console.log('[SwapScreen] Re-initializing from route params', routeParams);
+      console.warn('[SwapScreen] Re-initializing from route params', routeParams);
       setTokensInitialized(false); // This will trigger initializeTokens() in the next effect
 
       // Clear the shouldInitialize flag to prevent re-initialization loops
@@ -994,7 +1059,9 @@ export function useSwapLogic(
     setErrorMsg('');
     setSolscanTxSig('');
 
-    console.log('[SwapScreen] Component mounted/became visible. Current token price:', currentTokenPrice);
+    if (tokensInitialized) {
+      console.warn('[SwapScreen] Component visible, scheduling background updates...');
+    }
 
     // Initialize tokens if not already initialized
     if (!tokensInitialized) {
@@ -1002,8 +1069,7 @@ export function useSwapLogic(
     } else if (connected && userPublicKey && inputToken) {
       // If tokens are already initialized and we have a wallet connected, 
       // fetch data in a controlled, sequential manner with proper debouncing
-      console.log('[SwapScreen] Initialized tokens already exist, scheduling updates...');
-
+      
       // Clear any pending timers to avoid conflicts
       if (priceUpdateTimer.current) {
         clearTimeout(priceUpdateTimer.current);

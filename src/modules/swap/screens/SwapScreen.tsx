@@ -49,8 +49,8 @@ export default function SwapScreen() {
     sendBase64Transaction
   } = useWallet();
 
-  // Get parameters from route if they exist
-  const routeParams = route.params || {};
+  // Get parameters from route and memoize them to prevent re-renders
+  const routeParams = React.useMemo(() => route.params || {}, [route.params]);
 
   // Handle back button press
   const handleBack = () => {

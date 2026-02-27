@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import { useFetchPortfolio } from '@/modules/data-module/hooks/useFetchTokens';
 import PortfolioItem from './PortfolioItem';
@@ -6,6 +6,7 @@ import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
 import { TouchableOpacity } from 'react-native-gesture-handler';
+import { fetchMultipleTokenPrices, DEFAULT_SOL_TOKEN } from '@/modules/data-module/services/tokenService';
 
 interface PortfolioViewProps {
   address: string;
@@ -13,6 +14,97 @@ interface PortfolioViewProps {
 
 const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
   const { portfolio, loading, error, refetch } = useFetchPortfolio(address);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
+
+  // Fetch prices for all tokens when portfolio changes
+  useEffect(() => {
+    if (portfolio.items.length > 0 || (portfolio.nativeBalance && portfolio.nativeBalance.lamports > 0)) {
+      const addresses = portfolio.items
+        .filter(item => item.assetType === 'token')
+        .map(item => item.id);
+      
+      // Add SOL if not already present
+      if (!addresses.includes(DEFAULT_SOL_TOKEN.address)) {
+        addresses.push(DEFAULT_SOL_TOKEN.address);
+      }
+
+      const getPrices = async () => {
+        const prices = await fetchMultipleTokenPrices(addresses);
+        setTokenPrices(prices);
+      };
+      
+      getPrices();
+    }
+  }, [portfolio]);
+
+  // Memoize tokens list including native SOL and injected price info
+  const tokens = useMemo(() => {
+    const list = portfolio.items
+      .filter(item => item.assetType === 'token')
+      .map(item => {
+        // Inject price info if we have it
+        if (tokenPrices[item.id]) {
+          const price = tokenPrices[item.id];
+          const balance = parseFloat(item.token_info?.balance || '0') / Math.pow(10, item.token_info?.decimals || 0);
+          return {
+            ...item,
+            token_info: {
+              ...item.token_info,
+              price_info: {
+                price_per_token: price,
+                total_price: price * balance
+              }
+            }
+          };
+        }
+        return item;
+      });
+
+    // Add native SOL to the list if balance exists
+    if (portfolio.nativeBalance && portfolio.nativeBalance.lamports > 0) {
+      const solAddress = DEFAULT_SOL_TOKEN.address;
+      const solPrice = tokenPrices[solAddress] || 0;
+      const solBalance = portfolio.nativeBalance.lamports / 1e9;
+      
+      const solItem: any = {
+        id: solAddress,
+        mint: solAddress,
+        symbol: 'SOL',
+        name: 'Solana',
+        image: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',
+        assetType: 'token',
+        token_info: {
+          symbol: 'SOL',
+          decimals: 9,
+          balance: portfolio.nativeBalance.lamports.toString(),
+          price_info: solPrice ? {
+            price_per_token: solPrice,
+            total_price: solPrice * solBalance
+          } : undefined
+        }
+      };
+      
+      // Check if SOL is already in the list
+      const hasSol = list.some(t => t.id === solItem.id);
+      if (!hasSol) {
+        list.unshift(solItem);
+      } else {
+        // If it is, update it with our synthetic one which has correct price info
+        const index = list.findIndex(t => t.id === solItem.id);
+        list[index] = solItem;
+      }
+    }
+    return list;
+  }, [portfolio, tokenPrices]);
+
+  // Calculate total USD value
+  const totalUsdValue = useMemo(() => {
+    let total = 0;
+    tokens.forEach(item => {
+      total += item.token_info?.price_info?.total_price || 0;
+    });
+    return total;
+  }, [tokens]);
 
   if (loading && portfolio.items.length === 0) {
     return (
@@ -30,8 +122,6 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
     );
   }
 
-  const tokens = portfolio.items.filter(item => item.assetType === 'token');
-
   return (
     <View style={styles.container}>
       <View style={styles.summaryCard}>
@@ -42,9 +132,11 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
           </TouchableOpacity>
         </View>
         <Text style={styles.summaryValue}>
-          {portfolio.nativeBalance 
-            ? `${(portfolio.nativeBalance.lamports / 1e9).toFixed(4)} SOL` 
-            : '0.00 SOL'}
+          {totalUsdValue > 0 
+            ? `$${totalUsdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+            : portfolio.nativeBalance 
+              ? `${(portfolio.nativeBalance.lamports / 1e9).toFixed(4)} SOL`
+              : '$0.00'}
         </Text>
       </View>
       

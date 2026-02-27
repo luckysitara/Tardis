@@ -44,7 +44,7 @@ export async function fetchTokenBalance(
     ) {
       // For native SOL
       const balance = await connection.getBalance(walletPublicKey);
-      console.log("[TokenService] SOL balance in lamports:", balance);
+      console.warn("[TokenService] SOL balance in lamports:", balance);
       
       // Convert lamports to SOL
       const SOL_DECIMALS = 9;
@@ -53,7 +53,7 @@ export async function fetchTokenBalance(
       // without reserving any for fees, since the user likely just wants to see what they have
       if (balance < 1_000_000) { // 0.001 SOL in lamports
         const fullSolBalance = balance / Math.pow(10, SOL_DECIMALS);
-        console.log("[TokenService] SOL balance is very small, returning full amount:", fullSolBalance);
+        console.warn("[TokenService] SOL balance is very small, returning full amount:", fullSolBalance);
         return fullSolBalance;
       }
       
@@ -65,7 +65,7 @@ export async function fetchTokenBalance(
       const usableBalance = Math.max(0, balance - MIN_LAMPORTS_RESERVE);
       const solBalance = usableBalance / Math.pow(10, SOL_DECIMALS);
       
-      console.log("[TokenService] SOL balance converted to SOL:", solBalance, 
+      console.warn("[TokenService] SOL balance converted to SOL:", solBalance, 
         `(Reserved ${MIN_SOL_RESERVE} SOL for fees, raw balance: ${balance / Math.pow(10, SOL_DECIMALS)} SOL)`);
       
       return solBalance;
@@ -82,10 +82,10 @@ export async function fetchTokenBalance(
           // Get the token amount from the first account
           const tokenBalance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount;
           const amount = parseFloat(tokenBalance.amount) / Math.pow(10, tokenBalance.decimals);
-          console.log(`[TokenService] ${tokenInfo.symbol} balance:`, amount);
+          console.warn(`[TokenService] ${tokenInfo.symbol} balance:`, amount);
           return amount;
         } else {
-          console.log(`[TokenService] No ${tokenInfo.symbol} token account found`);
+          console.warn(`[TokenService] No ${tokenInfo.symbol} token account found`);
           return 0;
         }
       } catch (err) {
@@ -114,24 +114,74 @@ export function toBaseUnits(amount: string, decimals: number): number {
 export async function fetchTokenPrice(tokenInfo: TokenInfo | null): Promise<number | null> {
   if (!tokenInfo || !tokenInfo.address) return null;
   
+  console.warn(`[TokenService] Fetching price for: ${tokenInfo.symbol} (${tokenInfo.address})`);
+  
   // Special case for SOL
   if (tokenInfo.symbol === 'SOL' || tokenInfo.address === 'So11111111111111111111111111111111111111112') {
     try {
       const response = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
+      if (!response.ok) return null;
       const data = await response.json();
-      return parseFloat(data.data['So11111111111111111111111111111111111111112']?.price || '0');
+      
+      if (data && data.data && data.data['So11111111111111111111111111111111111111112']) {
+        const price = parseFloat(data.data['So11111111111111111111111111111111111111112'].price || '0');
+        console.warn(`[TokenService] SOL Price: ${price}`);
+        return price;
+      }
+      return null;
     } catch (e) {
+      console.warn('[TokenService] SOL Price fetch error:', e);
       return null;
     }
   }
 
   try {
     const response = await fetch(`https://api.jup.ag/price/v2?ids=${tokenInfo.address}`);
+    if (!response.ok) return null;
     const data = await response.json();
-    return parseFloat(data.data[tokenInfo.address]?.price || '0');
-  } catch (err) {
-    console.error(`[TokenService] Error fetching price for ${tokenInfo.symbol}:`, err);
+    
+    if (data && data.data && data.data[tokenInfo.address]) {
+      const price = parseFloat(data.data[tokenInfo.address].price || '0');
+      console.warn(`[TokenService] ${tokenInfo.symbol} Price: ${price}`);
+      return price;
+    }
+    
+    console.warn(`[TokenService] No price data found for ${tokenInfo.symbol}`);
     return null;
+  } catch (err) {
+    console.warn(`[TokenService] Error fetching price for ${tokenInfo.symbol}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Fetches prices for multiple tokens at once from Jupiter API
+ */
+export async function fetchMultipleTokenPrices(addresses: string[]): Promise<Record<string, number>> {
+  if (!addresses || addresses.length === 0) return {};
+
+  try {
+    const ids = addresses.join(',');
+    const url = `https://api.jup.ag/price/v2?ids=${ids}`;
+    console.warn(`[TokenService] Fetching bulk prices for ${addresses.length} tokens`);
+    
+    const response = await fetch(url);
+    if (!response.ok) return {};
+    const data = await response.json();
+    
+    const prices: Record<string, number> = {};
+    if (data && data.data) {
+      Object.keys(data.data).forEach(address => {
+        if (data.data[address]) {
+          prices[address] = parseFloat(data.data[address].price || '0');
+        }
+      });
+    }
+    
+    return prices;
+  } catch (err) {
+    console.warn('[TokenService] Error fetching bulk prices:', err);
+    return {};
   }
 }
 
@@ -141,22 +191,54 @@ export async function fetchTokenPrice(tokenInfo: TokenInfo | null): Promise<numb
 export async function fetchTokenMetadata(tokenAddress: string): Promise<TokenInfo | null> {
   if (!tokenAddress) return null;
 
+  // Try the main API first
   try {
-    const response = await fetch(`https://api.jup.ag/tokens/v1/token/${tokenAddress}`);
-    if (!response.ok) return null;
-    const data = await response.json();
+    const url = `https://api.jup.ag/tokens/v1/token/${tokenAddress}`;
+    console.warn(`[TokenService] Fetching metadata from: ${url}`);
     
-    return {
-      address: data.address,
-      symbol: data.symbol,
-      name: data.name,
-      decimals: data.decimals,
-      logoURI: data.logoURI || '',
-    };
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      console.warn(`[TokenService] Metadata received from api.jup.ag for ${tokenAddress}: ${data.symbol}`);
+      return {
+        address: data.address,
+        symbol: data.symbol,
+        name: data.name,
+        decimals: data.decimals,
+        logoURI: data.logoURI || '',
+      };
+    }
+    console.warn(`[TokenService] api.jup.ag fetch failed: ${response.status}`);
   } catch (err) {
-    console.error(`[TokenService] Error fetching metadata for ${tokenAddress}:`, err);
-    return null;
+    console.warn(`[TokenService] api.jup.ag fetch error:`, err);
   }
+
+  // Try the search API as a fallback
+  try {
+    const searchUrl = `https://api.jup.ag/tokens/v2/search?query=${tokenAddress}`;
+    console.warn(`[TokenService] Trying search fallback: ${searchUrl}`);
+    const searchResponse = await fetch(searchUrl);
+    if (searchResponse.ok) {
+      const searchData = await searchResponse.json();
+      // Search returns an array, pick the first exact match or first result
+      const tokens = searchData.data || searchData;
+      if (Array.isArray(tokens) && tokens.length > 0) {
+        const token = tokens.find((t: any) => t.address === tokenAddress) || tokens[0];
+        console.warn(`[TokenService] Metadata received from search fallback for ${tokenAddress}: ${token.symbol}`);
+        return {
+          address: token.address,
+          symbol: token.symbol,
+          name: token.name,
+          decimals: token.decimals,
+          logoURI: token.logoURI || '',
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`[TokenService] Search fallback error:`, err);
+  }
+
+  return null;
 }
 
 export interface TokenListParams {

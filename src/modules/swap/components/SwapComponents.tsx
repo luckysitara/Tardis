@@ -154,12 +154,101 @@ const TokenRowSkeleton = ({ isInput = true }: { isInput?: boolean }) => (
 
 // Token Selection Row Component (memoized to prevent re-renders)
 export const TokenRow = memo(({
-...
+  token,
+  balance,
+  isInput,
+  value,
+  fiatValue,
+  onPress,
+  connected,
+  isLoading
+}: {
+  token: TokenInfo | null;
+  balance: string | number | null;
+  isInput: boolean;
+  value: string;
+  fiatValue: string;
+  onPress: () => void;
+  connected?: boolean;
+  isLoading?: boolean;
+}) => {
+  if (isLoading) {
+    return <TokenRowSkeleton isInput={isInput} />;
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.tokenRow}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Token icon */}
+      <View style={styles.tokenIcon}>
+        {token?.logoURI ? (
+          <Image
+            source={{ uri: token.logoURI }}
+            style={styles.tokenIcon}
+          />
+        ) : (
+          <View style={[styles.tokenIcon, { backgroundColor: COLORS.greyDark, justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ color: COLORS.white, fontSize: 10 }}>{token?.symbol?.[0] || '?'}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.tokenInfo}>
+        {/* Token symbol with chevron */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.tokenSymbol}>{token?.symbol || 'Select Token'}</Text>
+          <Ionicons
+            name="chevron-down"
+            size={16}
+            color={COLORS.greyMid}
+            style={{ marginLeft: 6 }}
+          />
+        </View>
+
+        {/* Balance - only show for input token or if connected */}
+        {isInput && connected && balance !== null && (
+          <Text style={styles.tokenBalance}>
+            Balance: {typeof balance === 'number' ? balance.toLocaleString(undefined, { maximumFractionDigits: 6 }) : parseFloat(balance).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.valueContainer}>
+        {/* Value label */}
+        <Text style={styles.valueLabel}>{isInput ? 'You Pay' : 'You Receive'}</Text>
+
+        {/* Token value */}
+        <Text
+          style={[
+            styles.tokenValue,
+            !isInput && parseFloat(value) > 0 && { color: COLORS.brandPrimary }
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {value || '0'}
+        </Text>
+
+        {/* Fiat value */}
+        {fiatValue && (
+          <Text style={styles.fiatValue}>
+            {fiatValue}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 // Swap Info Component
 export const SwapInfo = ({
   conversionRate,
   solscanTxSig,
-  onViewTransaction
+  onViewTransaction,
+  activeProvider = 'JupiterUltra'
 }: {
   conversionRate: string;
   solscanTxSig: string;
@@ -186,7 +275,7 @@ export const SwapInfo = ({
     <View style={styles.swapInfoRow}>
       <Text style={styles.swapInfoLabel}>Provider</Text>
       <Text style={[styles.swapInfoValue, { color: COLORS.brandPrimary }]}>
-        Jupiter Ultra
+        {activeProvider === 'JupiterUltra' ? 'Jupiter Ultra' : activeProvider}
       </Text>
     </View>
     {solscanTxSig && (
@@ -294,4 +383,4 @@ export const androidStyles = StyleSheet.create({
   swapActionButton: {
     marginBottom: 80, // Increased bottom margin for Android to avoid overlap with navigation bar
   }
-}); 
+});
