@@ -108,6 +108,76 @@ export function toBaseUnits(amount: string, decimals: number): number {
   return val * Math.pow(10, decimals);
 }
 
+/**
+ * Fetches the current price of a token from Jupiter API
+ */
+export async function fetchTokenPrice(tokenInfo: TokenInfo | null): Promise<number | null> {
+  if (!tokenInfo || !tokenInfo.address) return null;
+  
+  // Special case for SOL
+  if (tokenInfo.symbol === 'SOL' || tokenInfo.address === 'So11111111111111111111111111111111111111112') {
+    try {
+      const response = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
+      const data = await response.json();
+      return parseFloat(data.data['So11111111111111111111111111111111111111112']?.price || '0');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  try {
+    const response = await fetch(`https://api.jup.ag/price/v2?ids=${tokenInfo.address}`);
+    const data = await response.json();
+    return parseFloat(data.data[tokenInfo.address]?.price || '0');
+  } catch (err) {
+    console.error(`[TokenService] Error fetching price for ${tokenInfo.symbol}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Fetches token metadata from Jupiter
+ */
+export async function fetchTokenMetadata(tokenAddress: string): Promise<TokenInfo | null> {
+  if (!tokenAddress) return null;
+
+  try {
+    const response = await fetch(`https://api.jup.ag/tokens/v1/token/${tokenAddress}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    
+    return {
+      address: data.address,
+      symbol: data.symbol,
+      name: data.name,
+      decimals: data.decimals,
+      logoURI: data.logoURI || '',
+    };
+  } catch (err) {
+    console.error(`[TokenService] Error fetching metadata for ${tokenAddress}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Ensures a partial TokenInfo object is populated with full metadata
+ */
+export async function ensureCompleteTokenInfo(token: TokenInfo): Promise<TokenInfo> {
+  if (token.name && token.decimals !== undefined && token.logoURI) {
+    return token;
+  }
+
+  const metadata = await fetchTokenMetadata(token.address);
+  if (metadata) {
+    return {
+      ...token,
+      ...metadata,
+    };
+  }
+
+  return token;
+}
+
 // All Jupiter token list/price/search functions removed as per user request.
 // All Birdeye related code was already removed.
 // The frontend will now rely on external services for token prices/lists

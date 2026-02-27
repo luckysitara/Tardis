@@ -58,6 +58,7 @@ import React, { useEffect, useState } from 'react';
 import { Provider as ReduxProvider } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import RootNavigator from './src/shared/navigation/RootNavigator';
 import { navigationRef } from './src/shared/hooks/useAppNavigation';
 import { store, persistor } from './src/shared/state/store';
@@ -181,44 +182,46 @@ export default function App() {
 
   // Wrap the app with EnvErrorProvider for global env variable error handling
   return (
-    <CustomizationProvider config={config}>
-      <SafeAreaProvider>
-        <StatusBar backgroundColor={COLORS.background} barStyle="light-content" translucent={true} />
-        <ReduxProvider store={store}>
-          <PersistGate loading={<PersistLoading />} persistor={persistor}>
-            <DevModeProvider>
-              <EnvErrorProvider>
-                <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-                  {/* Removed conditional rendering for turnkey */}
-                  {/* {config.auth.provider === 'turnkey' ? (
-                    <TurnkeyProvider config={turnkeySessionConfig}>
-                      <NavigationContainer ref={navigationRef}>
-                        <RootNavigator />
-                      </NavigationContainer>
-                      {getDynamicWebView()}
-                      <GlobalUIElements />
-                    </TurnkeyProvider>
-                  ) : ( */}
-                    <>
-                      <NavigationContainer ref={navigationRef}>
-                        <RootNavigator />
-                      </NavigationContainer>
-                      {/* Removed Dynamic WebView */}
-                      <GlobalUIElements />
-                    </>
-                  {/* )} */}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <CustomizationProvider config={config}>
+        <SafeAreaProvider>
+          <StatusBar backgroundColor={COLORS.background} barStyle="light-content" translucent={true} />
+          <ReduxProvider store={store}>
+            <PersistGate loading={<PersistLoading />} persistor={persistor}>
+              <DevModeProvider>
+                <EnvErrorProvider>
+                  <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+                    {/* Removed conditional rendering for turnkey */}
+                    {/* {config.auth.provider === 'turnkey' ? (
+                      <TurnkeyProvider config={turnkeySessionConfig}>
+                        <NavigationContainer ref={navigationRef}>
+                          <RootNavigator />
+                        </NavigationContainer>
+                        {getDynamicWebView()}
+                        <GlobalUIElements />
+                      </TurnkeyProvider>
+                    ) : ( */}
+                      <>
+                        <NavigationContainer ref={navigationRef}>
+                          <RootNavigator />
+                        </NavigationContainer>
+                        {/* Removed Dynamic WebView */}
+                        <GlobalUIElements />
+                      </>
+                    {/* )} */}
 
-                  {/* DevMode components will only render in dev mode */}
-                  <DevModeComponents />
+                    {/* DevMode components will only render in dev mode */}
+                    <DevModeComponents />
 
-                  {/* Standard mode warnings will only render in standard mode */}
-                  <StandardModeComponents />
-                </View>
-              </EnvErrorProvider>
-            </DevModeProvider>
-          </PersistGate>
-        </ReduxProvider>
-      </SafeAreaProvider>
-    </CustomizationProvider>
+                    {/* Standard mode warnings will only render in standard mode */}
+                    <StandardModeComponents />
+                  </View>
+                </EnvErrorProvider>
+              </DevModeProvider>
+            </PersistGate>
+          </ReduxProvider>
+        </SafeAreaProvider>
+      </CustomizationProvider>
+    </GestureHandlerRootView>
   );
 }

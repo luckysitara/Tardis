@@ -31,12 +31,33 @@ const PortfolioItem: React.FC<PortfolioItemProps> = ({ item }) => {
           <Text style={styles.tokenName}>{item.name}</Text>
           <View style={styles.symbolRow}>
             <Text style={styles.tokenSymbol}>{item.symbol}</Text>
-            <TouchableOpacity 
-              style={styles.swapBadge}
-              onPress={() => navigation.navigate('Swap', { inputMint: item.id })}
-            >
-              <Text style={styles.swapBadgeText}>Swap</Text>
-            </TouchableOpacity>
+            <View style={localStyles.actionContainer}>
+              <TouchableOpacity 
+                style={styles.swapBadge}
+                onPress={() => navigation.navigate('Swap', { inputMint: item.id })}
+              >
+                <Text style={styles.swapBadgeText}>Swap</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.swapBadge, { backgroundColor: 'rgba(74, 222, 128, 0.1)' }]}
+                onPress={() => navigation.navigate('Send', { token: item })}
+              >
+                <Text style={[styles.swapBadgeText, { color: '#4ADE80' }]}>Send</Text>
+              </TouchableOpacity>
+
+              {item.id !== 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && (
+                <TouchableOpacity 
+                  style={[styles.swapBadge, { backgroundColor: 'rgba(248, 113, 113, 0.1)' }]}
+                  onPress={() => navigation.navigate('Swap', { 
+                    inputMint: item.id, 
+                    outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' 
+                  })}
+                >
+                  <Text style={[styles.swapBadgeText, { color: '#F87171' }]}>Sell</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -47,6 +68,13 @@ const PortfolioItem: React.FC<PortfolioItemProps> = ({ item }) => {
     </View>
   );
 };
+
+const localStyles = StyleSheet.create({
+  actionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  }
+});
 
 const styles = StyleSheet.create({
   container: {

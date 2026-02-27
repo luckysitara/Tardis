@@ -87,6 +87,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         await knex('users').insert({
             id: author_wallet_address,
             username: author_skr_username,
+            handle: author_skr_username,
             display_name: author_skr_username,
             created_at: new Date(),
             updated_at: new Date()
@@ -251,7 +252,7 @@ postsRouter.get('/', async (req: Request, res: Response) => {
         }
 
         // Combine using UNION
-        const combinedQuery = knex.union([postsQuery, repostsQuery], true)
+        const combinedQuery = knex.union([postsQuery, repostsQuery])
             .as('unified_feed');
 
         const feedItems = await knex.select('*')

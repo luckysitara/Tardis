@@ -19,6 +19,8 @@ const PRICE_UPDATE_DEBOUNCE = 1000;
 export interface SwapRouteParams {
   inputToken?: TokenInfo;
   outputToken?: TokenInfo;
+  inputMint?: string;
+  outputMint?: string;
   inputAmount?: string;
   shouldInitialize?: boolean;
 }
@@ -114,7 +116,10 @@ export function useSwapLogic(
 
       // Use tokens from route params if available, otherwise fetch SOL and USDC
       try {
-        if (routeParams.inputToken && routeParams.inputToken.address) {
+        if (routeParams.inputMint) {
+          console.log('[SwapScreen] Using input mint from route params:', routeParams.inputMint);
+          initialInputToken = await fetchTokenMetadata(routeParams.inputMint);
+        } else if (routeParams.inputToken && routeParams.inputToken.address) {
           console.log('[SwapScreen] Using input token from route params:', routeParams.inputToken);
           initialInputToken = await fetchTokenMetadata(routeParams.inputToken.address);
         } else {
@@ -128,7 +133,10 @@ export function useSwapLogic(
       }
 
       try {
-        if (routeParams.outputToken && routeParams.outputToken.address) {
+        if (routeParams.outputMint) {
+          console.log('[SwapScreen] Using output mint from route params:', routeParams.outputMint);
+          initialOutputToken = await fetchTokenMetadata(routeParams.outputMint);
+        } else if (routeParams.outputToken && routeParams.outputToken.address) {
           console.log('[SwapScreen] Using output token from route params:', routeParams.outputToken);
           initialOutputToken = await fetchTokenMetadata(routeParams.outputToken.address);
         } else {
