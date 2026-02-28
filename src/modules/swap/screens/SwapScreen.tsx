@@ -37,7 +37,7 @@ type SwapScreenRouteProp = RouteProp<RootStackParamList, 'Swap'>;
 type SwapScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Swap'>;
 
 // Swap providers
-const swapProviders: SwapProvider[] = ['JupiterUltra'];
+const swapProviders: SwapProvider[] = ['Jupiter'];
 
 export default function SwapScreen() {
   const navigation = useNavigation<SwapScreenNavigationProp>();
@@ -46,7 +46,8 @@ export default function SwapScreen() {
     publicKey: userPublicKey, 
     connected, 
     sendTransaction,
-    sendBase64Transaction
+    sendBase64Transaction,
+    signTransaction
   } = useWallet();
 
   // Get parameters from route and memoize them to prevent re-renders
@@ -106,7 +107,7 @@ export default function SwapScreen() {
     isSwapButtonEnabled,
     pendingTokenOps,
     handleSwapTokens,
-  } = useSwapLogic(routeParams as SwapRouteParams, userPublicKey, connected, { sendTransaction, sendBase64Transaction }, navigation);
+  } = useSwapLogic(routeParams as SwapRouteParams, userPublicKey, connected, { sendTransaction, sendBase64Transaction, signTransaction }, navigation);
 
   // Helper function to determine swap button text with user feedback
   const getSwapButtonText = () => {
@@ -129,7 +130,7 @@ export default function SwapScreen() {
       return 'Enter Amount to Swap';
     }
 
-    return 'Swap via Jupiter Ultra';
+    return 'Swap via Jupiter';
   };
 
   // Helper function to determine if we're in insufficient balance state
@@ -191,7 +192,7 @@ export default function SwapScreen() {
                       setShowSelectTokenModal(true);
                     }}
                     connected={connected}
-                    isLoading={pendingTokenOps.input || !inputToken || currentBalance === null || currentTokenPrice === null}
+                    isLoading={pendingTokenOps.input || !inputToken || currentBalance === null}
                   />
                 </View>
 
@@ -217,7 +218,7 @@ export default function SwapScreen() {
                       setSelectingWhichSide('output');
                       setShowSelectTokenModal(true);
                     }}
-                    isLoading={pendingTokenOps.output || !outputToken || (parseFloat(inputValue) > 0 && !estimatedOutputAmount)}
+                    isLoading={pendingTokenOps.output || !outputToken}
                   />
                 </View>
 

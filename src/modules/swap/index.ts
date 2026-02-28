@@ -28,7 +28,6 @@ export {
 export {
   JupiterUltraService,
   type JupiterUltraOrderResponse,
-  type JupiterUltraSwapResponse,
-  type JupiterUltraExecuteResponse,
-  type JupiterUltraBalancesResponse
-} from './services/jupiterUltraService'; 
+  type JupiterUltraExecuteResponse
+} from './services/jupiterUltraService';
+ 

@@ -1,297 +1,192 @@
-import { Request, Response, NextFunction } from 'express';
-import { PublicKey } from '@solana/web3.js';
+import { Request, Response } from 'express';
+import axios from 'axios';
 
-// Environment variables for Jupiter Ultra API - using lite API endpoints
-const JUPITER_API_URL_GET_ORDER = process.env.JUPITER_API_URL_GET_ORDER || "https://lite-api.jup.ag/ultra/v1/order";
-const JUPITER_API_URL_EXECUTE_ORDER = process.env.JUPITER_API_URL_EXECUTE_ORDER || "https://lite-api.jup.ag/ultra/v1/execute";
-const JUPITER_ULTRA_API_BASE_URL = process.env.JUPITER_ULTRA_API_BASE_URL || 'https://lite-api.jup.ag/ultra/v1';
+const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
+const ULTRA_BASE_URL = 'https://api.jup.ag/ultra/v1';
+const PRICE_BASE_URL = 'https://api.jup.ag/price/v2';
 
-/**
- * Jupiter Ultra API Controller
- * Provides methods for interacting with Jupiter Ultra API for swap orders
- */
-export class JupiterUltraController {
-  /**
-   * Get a swap order from Jupiter Ultra API
-   */
-  static async getSwapOrder(
-    inputMint: string,
-    outputMint: string,
-    amount: string | number,
-    taker?: string
-  ) {
-    try {
-      // Validate input parameters
-      if (!inputMint || !outputMint || amount === undefined) {
-        throw new Error('inputMint, outputMint, and amount are required');
-      }
+const headers = {
+  'x-api-key': JUPITER_API_KEY,
+  'Content-Type': 'application/json',
+};
 
-      // Ensure amount is a valid number and convert to string
-      const amountStr = amount.toString();
-      if (isNaN(Number(amountStr)) || Number(amountStr) <= 0) {
-        throw new Error('amount must be a positive number');
-      }
-
-      // Validate mint addresses format
-      try {
-        new PublicKey(inputMint);
-        new PublicKey(outputMint);
-      } catch (e) {
-        throw new Error('Invalid mint address format');
-      }
-
-      // Validate taker address if provided
-      if (taker) {
-        try {
-          new PublicKey(taker);
-        } catch (e) {
-          throw new Error('Invalid taker address format');
-        }
-      }
-
-      const params = new URLSearchParams({
-        inputMint,
-        outputMint,
-        amount: amountStr,
-        ...(taker && { taker })
-      });
-
-      console.log('Requesting swap order with params:', {
-        inputMint,
-        outputMint,
-        amount: amountStr,
-        taker
-      });
-
-      const response = await fetch(
-        `${JUPITER_API_URL_GET_ORDER}?${params.toString()}`,
-        {
-          headers: {
-            'x-api-key': process.env.JUPITER_API_KEY || ''
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Jupiter Ultra API error response:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        });
-        throw new Error(
-          `Failed to get swap order: ${response.statusText}${
-            errorData ? ` - ${JSON.stringify(errorData)}` : ''
-          }`
-        );
-      }
-
-      const data = await response.json();
-      
-      if (!data || !data.requestId) {
-        console.error('Invalid Jupiter Ultra API response:', data);
-        throw new Error('Invalid response from Jupiter Ultra API');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Jupiter Ultra swap order error:', error);
-      throw new Error(`Failed to get swap order: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * Execute a swap order via Jupiter Ultra API
-   */
-  static async executeSwapOrder(
-    signedTransaction: string,
-    requestId: string
-  ) {
-    try {
-      if (!signedTransaction || !requestId) {
-        throw new Error('signedTransaction and requestId are required');
-      }
-
-      console.log('Executing swap order with requestId:', requestId);
-
-      const response = await fetch(JUPITER_API_URL_EXECUTE_ORDER, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.JUPITER_API_KEY || ''
-        },
-        body: JSON.stringify({
-          signedTransaction,
-          requestId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Jupiter Ultra execute error response:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorData
-        });
-        throw new Error(
-          `Failed to execute swap: ${response.statusText}${
-            errorData ? ` - ${JSON.stringify(errorData)}` : ''
-          }`
-        );
-      }
-
-      const data = await response.json();
-      console.log('Jupiter Ultra execute response:', data);
-      
-      return data;
-    } catch (error) {
-      console.error('Jupiter Ultra execute error:', error);
-      throw new Error(`Failed to execute swap: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-}
-
-/**
- * Express handler for getting a Jupiter Ultra swap order
- */
-export async function getUltraSwapOrderHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
+export const searchTokens = async (req: Request, res: Response) => {
   try {
-    const { inputMint, outputMint, amount, taker } = req.body;
-
-    if (!inputMint || !outputMint || amount === undefined) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required parameters: inputMint, outputMint, and amount are required.',
-      });
-      return;
+    const { query } = req.query;
+    console.log(`[JupiterUltraController] 🔍 Search request for: "${query}"`);
+    
+    if (!query) {
+      return res.status(400).json({ success: false, error: 'Query parameter is required' });
     }
 
-    const orderData = await JupiterUltraController.getSwapOrder(
-      inputMint,
-      outputMint,
-      amount,
-      taker
-    );
-
-    res.json({
-      success: true,
-      data: orderData
+    const response = await axios.get(`${ULTRA_BASE_URL}/search`, {
+      params: { query },
+      headers,
     });
-  } catch (err: any) {
-    console.error('[getUltraSwapOrderHandler] Error:', err);
-    res.status(500).json({
+
+    console.log(`[JupiterUltraController] ✅ Search success: found ${response.data?.length || 0} tokens`);
+    return res.status(200).json(response.data);
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Search error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
       success: false,
-      error: err.message || 'Failed to get swap order'
+      error: error.response?.data?.error || error.message || 'Failed to search tokens',
     });
   }
-}
+};
 
-/**
- * Express handler for executing a Jupiter Ultra swap order
- */
-export async function executeUltraSwapOrderHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
+export const getShield = async (req: Request, res: Response) => {
+  try {
+    const { mints } = req.query;
+    console.log(`[JupiterUltraController] 🛡️ Shield request for mints: ${mints}`);
+    
+    if (!mints) {
+      return res.status(400).json({ success: false, error: 'Mints parameter is required' });
+    }
+
+    const response = await axios.get(`${ULTRA_BASE_URL}/shield`, {
+      params: { mints },
+      headers,
+    });
+
+    return res.status(200).json(response.data);
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Shield error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to get shield data',
+    });
+  }
+};
+
+export const getHoldings = async (req: Request, res: Response) => {
+  try {
+    const { address } = req.params;
+    console.log(`[JupiterUltraController] 💰 Holdings request for address: ${address}`);
+    
+    if (!address) {
+      return res.status(400).json({ success: false, error: 'Address parameter is required' });
+    }
+
+    const response = await axios.get(`${ULTRA_BASE_URL}/holdings/${address}`, { headers });
+    return res.status(200).json(response.data);
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Holdings error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to get holdings',
+    });
+  }
+};
+
+export const getRouters = async (req: Request, res: Response) => {
+  try {
+    const response = await axios.get(`${ULTRA_BASE_URL}/routers`, { headers });
+    return res.status(200).json(response.data);
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Routers error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to get routers',
+    });
+  }
+};
+
+export const getPrice = async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.query;
+    console.log(`[JupiterUltraController] 🏷️ Price request for: ${ids}`);
+    
+    if (!ids) {
+      return res.status(400).json({ success: false, error: 'Ids parameter is required' });
+    }
+
+    // Try Price V2 API with API key
+    try {
+      const response = await axios.get(PRICE_BASE_URL, {
+        params: { ids },
+        headers: { 'x-api-key': JUPITER_API_KEY }
+      });
+      return res.status(200).json(response.data);
+    } catch (priceError: any) {
+      console.warn('[JupiterUltraController] Price V2 API failed, trying Search API fallback');
+      
+      // Fallback: Search API often returns token info which might include price or metadata
+      const searchResponse = await axios.get(`${ULTRA_BASE_URL}/search`, {
+        params: { query: ids },
+        headers,
+      });
+      
+      return res.status(200).json({
+        data: searchResponse.data.reduce((acc: any, token: any) => {
+          acc[token.address] = { price: token.price || 0 };
+          return acc;
+        }, {}),
+        time: Date.now()
+      });
+    }
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Price error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to get price data',
+    });
+  }
+};
+
+export const getUltraOrder = async (req: Request, res: Response) => {
+  try {
+    const { inputMint, outputMint, amount, taker, slippageBps } = req.query;
+    console.log(`[JupiterUltraController] 📝 Order request: ${inputMint} -> ${outputMint}, amount: ${amount}, taker: ${taker}`);
+
+    if (!inputMint || !outputMint || !amount || !taker) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: inputMint, outputMint, amount, taker',
+      });
+    }
+
+    const response = await axios.get(`${ULTRA_BASE_URL}/order`, {
+      params: { inputMint, outputMint, amount, taker, slippageBps },
+      headers,
+    });
+
+    console.log(`[JupiterUltraController] ✅ Order success`);
+    return res.status(200).json(response.data);
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Order error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to get Jupiter Ultra order',
+    });
+  }
+};
+
+export const executeUltraSwap = async (req: Request, res: Response) => {
   try {
     const { signedTransaction, requestId } = req.body;
+    console.log(`[JupiterUltraController] 🚀 Execute request for requestId: ${requestId}`);
 
     if (!signedTransaction || !requestId) {
-      res.status(400).json({
+      return res.status(400).json({
         success: false,
-        error: 'Missing required parameters: signedTransaction and requestId are required.',
+        error: 'Missing required parameters: signedTransaction, requestId',
       });
-      return;
     }
 
-    const executeData = await JupiterUltraController.executeSwapOrder(
-      signedTransaction,
-      requestId
+    const response = await axios.post(
+      `${ULTRA_BASE_URL}/execute`,
+      { signedTransaction, requestId },
+      { headers }
     );
 
-    res.json({
-      success: true,
-      data: executeData
-    });
-  } catch (err: any) {
-    console.error('[executeUltraSwapOrderHandler] Error:', err);
-    res.status(500).json({
+    console.log(`[JupiterUltraController] ✅ Execute success: status=${response.data?.status}`);
+    return res.status(200).json(response.data);
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Execute error:', error.response?.data || error.message);
+    return res.status(error.response?.status || 500).json({
       success: false,
-      error: err.message || 'Failed to execute swap order'
+      error: error.response?.data?.error || error.message || 'Failed to execute Jupiter Ultra swap',
     });
   }
-}
-
-/**
- * Express handler for getting token balances via Jupiter Ultra API
- */
-export async function getUltraBalancesHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const { wallet } = req.query;
-
-    if (!wallet || typeof wallet !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required parameter: wallet address is required.',
-      });
-      return;
-    }
-
-    // Validate wallet address format
-    try {
-      new PublicKey(wallet);
-    } catch (e) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid wallet address format.',
-      });
-      return;
-    }
-
-    const balancesUrl = `${JUPITER_ULTRA_API_BASE_URL}/balances?wallet=${wallet}`;
-    
-    const response = await fetch(balancesUrl, {
-      headers: {
-        'x-api-key': process.env.JUPITER_API_KEY || ''
-      }
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      console.error('Jupiter Ultra balances error response:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData
-      });
-      res.status(response.status).json({
-        success: false,
-        error: `Failed to get balances: ${response.statusText}${
-          errorData ? ` - ${JSON.stringify(errorData)}` : ''
-        }`
-      });
-      return;
-    }
-
-    const data = await response.json();
-
-    res.json({
-      success: true,
-      data
-    });
-  } catch (err: any) {
-    console.error('[getUltraBalancesHandler] Error:', err);
-    res.status(500).json({
-      success: false,
-      error: err.message || 'Failed to get balances'
-    });
-  }
-} 
+};

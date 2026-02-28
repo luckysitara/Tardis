@@ -25,7 +25,7 @@ export function useAuth() {
   const dispatch = useDispatch();
   const navigation = useAppNavigation();
   const authState = useAppSelector(state => state.auth);
-  const { signMessage, getEncryptionSeed } = useTardisMobileWallet();
+  const { signMessage, signTransactions, getEncryptionSeed } = useTardisMobileWallet();
 
   // Get wallet address and provider from Redux state
   const storedAddress = authState.address;
@@ -55,8 +55,34 @@ export function useAuth() {
           return res;
         },
         signTransaction: async (transaction: any) => {
-          Alert.alert("Not Implemented", "Transaction signing via MWA is being finalized.");
-          throw new Error('Transaction signing not yet implemented for MWA');
+          console.log('[useAuth] MWA signTransaction called');
+          
+          // MWA signTransactions expects Uint8Array or base64 string
+          let txData: Uint8Array;
+          if (transaction.serialize) {
+            // VersionedTransaction or Transaction
+            txData = transaction.serialize({ verifySignatures: false });
+          } else if (transaction instanceof Uint8Array) {
+            txData = transaction;
+          } else if (typeof transaction === 'string') {
+            txData = new Uint8Array(Buffer.from(transaction, 'base64'));
+          } else {
+            throw new Error('Unsupported transaction format for MWA signing');
+          }
+
+          const signedTxs = await signTransactions([txData]);
+          if (!signedTxs || signedTxs.length === 0) {
+            throw new Error('Transaction signing failed or was cancelled');
+          }
+
+          // Deserialize back to VersionedTransaction if possible, or return as is
+          // Most consumers expect the same type back
+          if (transaction.serialize) {
+            const { VersionedTransaction } = require('@solana/web3.js');
+            return VersionedTransaction.deserialize(signedTxs[0]);
+          }
+
+          return signedTxs[0];
         },
         getEncryptionSeed: async () => {
           return await getEncryptionSeed();
@@ -113,7 +139,7 @@ export function useAuth() {
       };
     }
     return null;
-  }, [selectedProvider, storedProvider, storedAddress, signMessage, dispatch, navigation]);
+  }, [selectedProvider, storedProvider, storedAddress, signMessage, signTransactions, dispatch, navigation]);
 
   if (result) return result;
 

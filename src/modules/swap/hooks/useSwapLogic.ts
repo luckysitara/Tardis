@@ -31,14 +31,15 @@ export function useSwapLogic(
   connected: boolean,
   transactionSender: { 
     sendTransaction: (transaction: any, connection: any, options?: any) => Promise<string>,
-    sendBase64Transaction: (base64Tx: string, connection: any, options?: any) => Promise<string> 
+    sendBase64Transaction: (base64Tx: string, connection: any, options?: any) => Promise<string>,
+    signTransaction: (transaction: any) => Promise<any>
   },
   navigation: any
 ) {
   console.warn('[SwapLogic] Hook initialized with params:', JSON.stringify(routeParams));
 
   // UI States
-  const [activeProvider, setActiveProvider] = useState<SwapProvider>('JupiterUltra');
+  const [activeProvider, setActiveProvider] = useState<SwapProvider>('Jupiter');
   const [inputValue, setInputValue] = useState(routeParams.inputAmount || '0');
   const [showSelectTokenModal, setShowSelectTokenModal] = useState(false);
   const [selectingWhichSide, setSelectingWhichSide] = useState<'input' | 'output'>('input');
@@ -740,7 +741,7 @@ export function useSwapLogic(
 
   // Check if a provider is available for selection
   const isProviderAvailable = useCallback((provider: SwapProvider) => {
-    return provider === 'JupiterUltra';
+    return provider === 'Jupiter';
   }, []);
 
   // Check if the swap button should be enabled

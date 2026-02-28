@@ -1,28 +1,35 @@
-import { Router } from 'express';
-import {
-  getUltraSwapOrderHandler,
-  executeUltraSwapOrderHandler,
-  getUltraBalancesHandler
+import express from 'express';
+import { 
+  getUltraOrder, 
+  executeUltraSwap, 
+  searchTokens, 
+  getShield, 
+  getHoldings, 
+  getRouters,
+  getPrice 
 } from '../../controllers/jupiterUltraSwapController';
 
-const jupiterUltraSwapRouter = Router();
+const router = express.Router();
 
-/**
- * POST /api/jupiter/ultra/order
- * Get a swap order from Jupiter Ultra API
- */
-jupiterUltraSwapRouter.post('/order', getUltraSwapOrderHandler);
+// GET /api/jupiter/ultra/price
+router.get('/price', getPrice);
 
-/**
- * POST /api/jupiter/ultra/execute
- * Execute a swap order via Jupiter Ultra API
- */
-jupiterUltraSwapRouter.post('/execute', executeUltraSwapOrderHandler);
+// GET /api/jupiter/ultra/search
+router.get('/search', searchTokens);
 
-/**
- * GET /api/jupiter/ultra/balances
- * Get token balances for a wallet via Jupiter Ultra API
- */
-jupiterUltraSwapRouter.get('/balances', getUltraBalancesHandler);
+// GET /api/jupiter/ultra/shield
+router.get('/shield', getShield);
 
-export default jupiterUltraSwapRouter; 
+// GET /api/jupiter/ultra/holdings/:address
+router.get('/holdings/:address', getHoldings);
+
+// GET /api/jupiter/ultra/routers
+router.get('/routers', getRouters);
+
+// GET /api/jupiter/ultra/order
+router.get('/order', getUltraOrder);
+
+// POST /api/jupiter/ultra/execute
+router.post('/execute', executeUltraSwap);
+
+export default router;

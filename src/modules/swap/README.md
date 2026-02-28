@@ -1,32 +1,25 @@
 # Swap Module
 
-A comprehensive token swapping module that integrates Jupiter Ultra into a unified interface for the Solana blockchain.
+A comprehensive token swapping module that integrates Jupiter into a unified interface for the Solana blockchain.
 
 ## Features
 
-- **Jupiter Ultra**: Powered by Jupiter's most advanced routing and Z (RFQ) technology for the best prices and seamless execution.
-- **Unified Interface**: Simple, intuitive UI for swapping any SPL token.
-- **Real-time Price Quotes**: Accurate price estimation and price impact calculations.
-- **Integrated Fee Collection**: Automated small platform fee collection on successful swaps.
-- **Transaction Monitoring**: Built-in status updates and Solscan links for all transactions.
+- **Jupiter Integration**: Powered by Jupiter's advanced routing for the best prices and seamless execution.
+- **Unified Interface**: Swap between any supported tokens on Solana.
+- **Real-time Price Updates**: Get the latest prices and estimated output for your swaps.
+- **Balance Management**: Automatically fetches and displays your token balances.
+- **Transaction Tracking**: Easy access to transaction signatures and Solscan for verification.
 
-## Components
+## Architecture
 
-- `SwapScreen`: The main user interface for token swapping.
-- `TokenRow`: Elegant display for input and output token selection and amount entry.
-- `Keypad`: Custom numerical keypad optimized for mobile trading.
-- `SwapInfo`: Detailed transaction information including rates and price impact.
-- `SelectTokenModal`: Searchable list for finding any SPL token on Solana.
+The module uses `TradeService` as a coordinator that communicates with swap providers.
 
-## Usage
+- `TradeService`: The central entry point for executing swaps.
+- `useSwapLogic`: A comprehensive hook that manages the UI state and swap flow.
+- `SwapScreen`: The main user interface for the swap module.
 
-```typescript
-import { SwapScreen } from '@/modules/swap';
+## Future Plans
 
-// In your navigator
-<Stack.Screen name="Swap" component={SwapScreen} />
-```
-
-## Service Architecture
-
-The module uses `TradeService` as a coordinator that communicates with `JupiterUltraService`. All swap orders are requested and executed via the secure backend proxy to protect API keys.
+- Re-implementing the latest Jupiter Ultra SDK/API for enhanced performance and MEV protection.
+- Support for more DEX protocols and aggregators.
+- Enhanced transaction status tracking and error handling.

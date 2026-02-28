@@ -248,7 +248,7 @@ export const SwapInfo = ({
   conversionRate,
   solscanTxSig,
   onViewTransaction,
-  activeProvider = 'JupiterUltra'
+  activeProvider = 'Jupiter'
 }: {
   conversionRate: string;
   solscanTxSig: string;
@@ -275,7 +275,7 @@ export const SwapInfo = ({
     <View style={styles.swapInfoRow}>
       <Text style={styles.swapInfoLabel}>Provider</Text>
       <Text style={[styles.swapInfoValue, { color: COLORS.brandPrimary }]}>
-        {activeProvider === 'JupiterUltra' ? 'Jupiter Ultra' : activeProvider}
+        {activeProvider === 'Jupiter' ? 'Jupiter' : activeProvider}
       </Text>
     </View>
     {solscanTxSig && (
