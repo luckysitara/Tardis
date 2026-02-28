@@ -37,15 +37,49 @@ export async function fetchTokenBalance(
   if (!tokenInfo) return null;
 
   try {
-    console.log(`[TokenService] 💰 Fetching balance for ${tokenInfo.symbol} (${tokenInfo.address})`);
-    // Leverage Jupiter Ultra Holdings API if possible, or fallback to RPC
-    const holdings = await JupiterUltraService.getHoldings(walletPublicKey.toBase58());
+    const mint = tokenInfo.address;
+    console.log(`[TokenService] 💰 Fetching balance for ${tokenInfo.symbol} (${mint})`);
     
-    if (holdings && Array.isArray(holdings)) {
-      const tokenHolding = holdings.find((h: any) => h.mint === tokenInfo.address);
-      if (tokenHolding) {
-        console.log(`[TokenService] ✅ Found balance in Jupiter holdings: ${tokenHolding.amount}`);
-        return tokenHolding.amount / Math.pow(10, tokenInfo.decimals);
+    // Leverage Jupiter Ultra Holdings API
+    const response = await JupiterUltraService.getHoldings(walletPublicKey.toBase58());
+    
+    if (response) {
+      let tokenHolding: any = null;
+
+      // Case 1: Response is an array of objects
+      if (Array.isArray(response)) {
+        tokenHolding = response.find((h: any) => (h.id || h.mint || h.address) === mint);
+      } 
+      // Case 2: Response has a tokens map
+      else if (response.tokens) {
+        tokenHolding = response.tokens[mint];
+      }
+      // Case 3: Response itself is a map
+      else if (response[mint]) {
+        tokenHolding = response[mint];
+      }
+
+      if (tokenHolding !== undefined && tokenHolding !== null) {
+        // If holding is just a number or string
+        if (typeof tokenHolding === 'number' || typeof tokenHolding === 'string') {
+          const val = Number(tokenHolding);
+          console.log(`[TokenService] ✅ Found balance (direct): ${val}`);
+          return val / Math.pow(10, tokenInfo.decimals);
+        }
+
+        // If holding is an object, try common balance fields
+        const rawAmount = tokenHolding.uiAmount !== undefined ? tokenHolding.uiAmount : 
+                         (tokenHolding.amount !== undefined ? tokenHolding.amount : 
+                         (tokenHolding.balance !== undefined ? tokenHolding.balance : null));
+        
+        if (rawAmount !== null) {
+          const val = Number(rawAmount);
+          const isUiAmount = tokenHolding.uiAmount !== undefined || tokenHolding.uiAmountString !== undefined;
+          
+          console.log(`[TokenService] ✅ Found balance in holdings: ${val} (isUi: ${isUiAmount})`);
+          
+          return isUiAmount ? val : val / Math.pow(10, tokenInfo.decimals);
+        }
       }
     }
     
@@ -53,11 +87,11 @@ export async function fetchTokenBalance(
     // Fallback to RPC if not found in holdings
     const connection = new Connection(ENDPOINTS.helius, 'confirmed');
 
-    if (tokenInfo.address === 'So11111111111111111111111111111111111111112') {
+    if (mint === 'So11111111111111111111111111111111111111112') {
       const balance = await connection.getBalance(walletPublicKey);
       return Math.max(0, balance - 500000) / 1e9; // Reserve 0.0005 SOL
     } else {
-      const tokenPubkey = new PublicKey(tokenInfo.address);
+      const tokenPubkey = new PublicKey(mint);
       const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
         walletPublicKey,
         { mint: tokenPubkey }
@@ -65,7 +99,9 @@ export async function fetchTokenBalance(
 
       if (tokenAccounts.value.length > 0) {
         const tokenBalance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount;
-        return parseFloat(tokenBalance.amount) / Math.pow(10, tokenBalance.decimals);
+        const val = parseFloat(tokenBalance.uiAmountString || tokenBalance.uiAmount) || (parseFloat(tokenBalance.amount) / Math.pow(10, tokenBalance.decimals));
+        console.log(`[TokenService] ✅ Found balance via RPC: ${val}`);
+        return val;
       }
       return 0;
     }
@@ -86,8 +122,10 @@ export async function fetchTokenPrice(tokenInfo: TokenInfo | null): Promise<numb
   // 1. Try backend proxy first (has API key)
   try {
     const data = await JupiterUltraService.getPrice(tokenInfo.address);
-    if (data && data.data && data.data[tokenInfo.address]) {
-      const price = parseFloat(data.data[tokenInfo.address].price || '0');
+    // V3 returns { "MINT": { "usdPrice": ... }, ... }
+    const tokenData = data[tokenInfo.address] || (data.data && data.data[tokenInfo.address]);
+    if (tokenData) {
+      const price = parseFloat(tokenData.usdPrice || tokenData.price || '0');
       console.log(`[TokenService] ✅ Price success (proxy): ${price}`);
       return price;
     }
@@ -97,11 +135,12 @@ export async function fetchTokenPrice(tokenInfo: TokenInfo | null): Promise<numb
 
   // 2. Fallback to direct public API (no API key, might be rate limited)
   try {
-    const response = await fetch(`https://api.jup.ag/price/v2?ids=${tokenInfo.address}`);
+    const response = await fetch(`https://api.jup.ag/price/v3?ids=${tokenInfo.address}`);
     if (response.ok) {
       const data = await response.json();
-      if (data && data.data && data.data[tokenInfo.address]) {
-        const price = parseFloat(data.data[tokenInfo.address].price || '0');
+      const tokenData = data[tokenInfo.address];
+      if (tokenData) {
+        const price = parseFloat(tokenData.usdPrice || tokenData.price || '0');
         console.log(`[TokenService] ✅ Price success (public): ${price}`);
         return price;
       }
@@ -124,14 +163,14 @@ export async function fetchTokenMetadata(tokenAddress: string): Promise<TokenInf
   try {
     const results = await JupiterUltraService.searchTokens(tokenAddress);
     if (results && Array.isArray(results) && results.length > 0) {
-      const token = results.find((t: any) => t.address === tokenAddress) || results[0];
+      const token = results.find((t: any) => (t.id || t.address || t.mint) === tokenAddress) || results[0];
       console.log(`[TokenService] ✅ Metadata success: ${token.symbol}`);
       return {
-        address: token.address,
+        address: token.id || token.address || token.mint,
         symbol: token.symbol,
         name: token.name,
         decimals: token.decimals,
-        logoURI: token.logoURI || '',
+        logoURI: token.icon || token.logoURI || '',
       };
     }
     console.warn(`[TokenService] ⚠️ No metadata results found for ${tokenAddress}`);
@@ -151,11 +190,13 @@ export async function fetchTokenList(params: any = {}): Promise<TokenInfo[]> {
     const results = await JupiterUltraService.searchTokens(params.keyword || 'SOL');
     if (results && Array.isArray(results)) {
       return results.map((item: any) => ({
-        address: item.address,
+        address: item.id || item.address || item.mint,
         symbol: item.symbol,
         name: item.name,
         decimals: item.decimals,
-        logoURI: item.logoURI || '',
+        logoURI: item.icon || item.logoURI || '',
+        price: item.usdPrice || item.price,
+        priceChange24h: item.stats24h?.priceChange
       }));
     }
     return EXTENDED_DEFAULT_TOKENS;
@@ -171,13 +212,17 @@ export async function fetchTokenList(params: any = {}): Promise<TokenInfo[]> {
 export async function searchTokens(params: { keyword: string }): Promise<TokenInfo[]> {
   try {
     const results = await JupiterUltraService.searchTokens(params.keyword);
+    console.log(`[TokenService] searchTokens raw results count: ${results?.length || 0}`);
+    
     if (results && Array.isArray(results)) {
       return results.map((item: any) => ({
-        address: item.address,
+        address: item.id || item.address || item.mint,
         symbol: item.symbol,
         name: item.name,
         decimals: item.decimals,
-        logoURI: item.logoURI || '',
+        logoURI: item.icon || item.logoURI || '',
+        price: item.usdPrice || item.price,
+        priceChange24h: item.stats24h?.priceChange
       }));
     }
     return [];

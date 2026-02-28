@@ -3,12 +3,18 @@ import axios from 'axios';
 
 const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
 const ULTRA_BASE_URL = 'https://api.jup.ag/ultra/v1';
+const PRICE_V3_URL = 'https://api.jup.ag/price/v3';
 const PRICE_V2_URL = 'https://api.jup.ag/price/v2';
-const PRICE_V1_URL = 'https://price.jup.ag/v4/price';
+const PRICE_V1_URL = 'https://api.jup.ag/price/v2'; // V1 is deprecated, using V2 as fallback
 
-const headers = {
-  'x-api-key': JUPITER_API_KEY,
-  'Content-Type': 'application/json',
+const getHeaders = () => {
+  const h: any = {
+    'Content-Type': 'application/json',
+  };
+  if (JUPITER_API_KEY) {
+    h['x-api-key'] = JUPITER_API_KEY;
+  }
+  return h;
 };
 
 export const searchTokens = async (req: Request, res: Response) => {
@@ -22,7 +28,7 @@ export const searchTokens = async (req: Request, res: Response) => {
 
     const response = await axios.get(`${ULTRA_BASE_URL}/search`, {
       params: { query },
-      headers,
+      headers: getHeaders(),
     });
 
     console.log(`[JupiterUltraController] ✅ Search success: found ${response.data?.length || 0} tokens`);
@@ -47,7 +53,7 @@ export const getShield = async (req: Request, res: Response) => {
 
     const response = await axios.get(`${ULTRA_BASE_URL}/shield`, {
       params: { mints },
-      headers,
+      headers: getHeaders(),
     });
 
     return res.status(200).json(response.data);
@@ -69,7 +75,11 @@ export const getHoldings = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Address parameter is required' });
     }
 
-    const response = await axios.get(`${ULTRA_BASE_URL}/holdings/${address}`, { headers });
+    const response = await axios.get(`${ULTRA_BASE_URL}/holdings/${address}`, { headers: getHeaders() });
+    
+    const tokenCount = response.data?.tokens ? Object.keys(response.data.tokens).length : (Array.isArray(response.data) ? response.data.length : 0);
+    console.log(`[JupiterUltraController] ✅ Holdings success: found ${tokenCount} tokens`);
+    
     return res.status(200).json(response.data);
   } catch (error: any) {
     console.error('[JupiterUltraController] ❌ Holdings error:', error.response?.data || error.message);
@@ -82,7 +92,7 @@ export const getHoldings = async (req: Request, res: Response) => {
 
 export const getRouters = async (req: Request, res: Response) => {
   try {
-    const response = await axios.get(`${ULTRA_BASE_URL}/routers`, { headers });
+    const response = await axios.get(`${ULTRA_BASE_URL}/routers`, { headers: getHeaders() });
     return res.status(200).json(response.data);
   } catch (error: any) {
     console.error('[JupiterUltraController] ❌ Routers error:', error.response?.data || error.message);
@@ -102,54 +112,66 @@ export const getPrice = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Ids parameter is required' });
     }
 
-    // 1. Try Price V2 API (Best data, needs API key)
+    // 1. Try Price V3 API (Recommended)
     try {
-      const response = await axios.get(PRICE_V2_URL, {
-        params: { ids },
-        headers: { 'x-api-key': JUPITER_API_KEY }
-      });
-      if (response.data && response.data.data && Object.keys(response.data.data).length > 0) {
+      const axiosConfig: any = {
+        params: { ids }
+      };
+      if (JUPITER_API_KEY) {
+        axiosConfig.headers = { 'x-api-key': JUPITER_API_KEY };
+      }
+      
+      const response = await axios.get(PRICE_V3_URL, axiosConfig);
+      // V3 returns { "MINT": { "usdPrice": ... }, ... }
+      if (response.data && Object.keys(response.data).length > 0) {
+        console.log('[JupiterUltraController] ✅ Price V3 success');
+        return res.status(200).json(response.data);
+      }
+    } catch (e: any) {
+      console.warn('[JupiterUltraController] Price V3 failed, trying V2 fallback', e.message);
+    }
+
+    // 2. Try Price V2 API
+    try {
+      const axiosConfig: any = {
+        params: { ids }
+      };
+      if (JUPITER_API_KEY) {
+        axiosConfig.headers = { 'x-api-key': JUPITER_API_KEY };
+      }
+
+      const response = await axios.get(PRICE_V2_URL, axiosConfig);
+      // Check if it's wrapped in .data (V2 usually is) or flat
+      const data = response.data.data || response.data;
+      if (data && Object.keys(data).length > 0) {
         console.log('[JupiterUltraController] ✅ Price V2 success');
         return res.status(200).json(response.data);
       }
-    } catch (e) {
-      console.warn('[JupiterUltraController] Price V2 failed or empty, trying V1');
-    }
-
-    // 2. Try Price V1 API (Stable fallback)
-    try {
-      const response = await axios.get(PRICE_V1_URL, {
-        params: { ids }
-      });
-      if (response.data && response.data.data && Object.keys(response.data.data).length > 0) {
-        console.log('[JupiterUltraController] ✅ Price V1 success');
-        return res.status(200).json(response.data);
-      }
-    } catch (e) {
-      console.warn('[JupiterUltraController] Price V1 failed, trying Search API');
+    } catch (e: any) {
+      console.warn('[JupiterUltraController] Price V2 failed, trying Search API fallback', e.message);
     }
 
     // 3. Try Search API fallback
     const searchResponse = await axios.get(`${ULTRA_BASE_URL}/search`, {
       params: { query: ids },
-      headers,
+      headers: getHeaders(),
     });
     
-    if (searchResponse.data && searchResponse.data.length > 0) {
+    if (searchResponse.data && Array.isArray(searchResponse.data) && searchResponse.data.length > 0) {
       console.log('[JupiterUltraController] ✅ Search fallback success');
       const data: any = {};
       searchResponse.data.forEach((token: any) => {
-        const address = token.address || token.mint;
+        const address = token.id || token.address || token.mint;
         if (address) {
-          data[address] = { price: token.price || 0 };
+          data[address] = { usdPrice: token.usdPrice || token.price || 0 };
         }
       });
       
-      return res.status(200).json({ data, time: Date.now() });
+      return res.status(200).json(data);
     }
 
     console.warn('[JupiterUltraController] ⚠️ All price methods failed for:', ids);
-    return res.status(200).json({ data: {}, time: Date.now() });
+    return res.status(200).json({});
   } catch (error: any) {
     console.error('[JupiterUltraController] ❌ Final Price error:', error.message);
     return res.status(500).json({ success: false, error: error.message });
@@ -170,7 +192,7 @@ export const getUltraOrder = async (req: Request, res: Response) => {
 
     const response = await axios.get(`${ULTRA_BASE_URL}/order`, {
       params: { inputMint, outputMint, amount, taker, slippageBps },
-      headers,
+      headers: getHeaders(),
     });
 
     console.log(`[JupiterUltraController] ✅ Order success`);
@@ -199,7 +221,7 @@ export const executeUltraSwap = async (req: Request, res: Response) => {
     const response = await axios.post(
       `${ULTRA_BASE_URL}/execute`,
       { signedTransaction, requestId },
-      { headers }
+      { headers: getHeaders() }
     );
 
     console.log(`[JupiterUltraController] ✅ Execute success: status=${response.data?.status}`);

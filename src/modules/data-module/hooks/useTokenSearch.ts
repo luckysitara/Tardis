@@ -3,7 +3,7 @@ import { TokenInfo } from '../types/tokenTypes';
 import { fetchTokenList, searchTokens, TokenSearchParams, TokenListParams, EXTENDED_DEFAULT_TOKENS } from '../services/tokenService';
 
 // Timeout for token fetch operations (in milliseconds)
-const TOKEN_FETCH_TIMEOUT = 15000;
+const TOKEN_FETCH_TIMEOUT = 8000;
 
 interface UseTokenSearchResult {
   tokens: TokenInfo[];
@@ -125,14 +125,23 @@ export function useTokenSearch(
       
       if (!isMounted.current) return;
       
+      console.log(`[useTokenSearch] Received ${result?.length || 0} results from API`);
+      
       // Filter out tokens with invalid or missing required properties
-      const validTokens = result.filter(token => 
-        token && 
-        token.address && 
-        (token.symbol !== null && token.symbol !== undefined) &&
-        (token.name !== null && token.name !== undefined) &&
-        (token.decimals !== null && token.decimals !== undefined)
-      );
+      const validTokens = result.filter(token => {
+        const isValid = token && 
+          token.address && 
+          (token.symbol !== null && token.symbol !== undefined) &&
+          (token.name !== null && token.name !== undefined) &&
+          (token.decimals !== null && token.decimals !== undefined);
+        
+        if (!isValid && token) {
+          console.log(`[useTokenSearch] Filtered out token: ${token.symbol || token.address || 'unknown'}, address: ${!!token.address}, symbol: ${token.symbol !== null}, name: ${token.name !== null}, decimals: ${token.decimals !== null}`);
+        }
+        return isValid;
+      });
+      
+      console.log(`[useTokenSearch] ${validTokens.length} tokens valid after filtering`);
       
       if (validTokens.length === 0 && !isLoadingMore) {
         // If no results on initial search, show empty state

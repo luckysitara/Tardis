@@ -302,14 +302,14 @@ export const StatusDisplay = ({
   errorMsg: string;
 }) => (
   <>
-    {loading && (
+    {(loading || resultMsg) ? (
       <View style={styles.statusContainer}>
-        <ActivityIndicator size="small" color={COLORS.brandPrimary} />
+        {loading && <ActivityIndicator size="small" color={COLORS.brandPrimary} />}
         <Text style={styles.statusText} numberOfLines={2} ellipsizeMode="tail">
           {resultMsg || 'Processing...'}
         </Text>
       </View>
-    )}
+    ) : null}
 
     {errorMsg ? (
       <View style={styles.errorContainer}>

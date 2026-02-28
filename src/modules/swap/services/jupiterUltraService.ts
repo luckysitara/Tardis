@@ -82,7 +82,10 @@ export class JupiterUltraService {
     try {
       console.log(`[JupiterUltraService] 💰 Calling holdings for: ${address}`);
       const response = await axios.get(`${ENDPOINTS.serverBase}/api/jupiter/ultra/holdings/${address}`);
-      console.log(`[JupiterUltraService] ✅ Holdings success: found ${response.data?.length || 0} tokens`);
+      
+      const tokenCount = response.data?.tokens ? Object.keys(response.data.tokens).length : (Array.isArray(response.data) ? response.data.length : 0);
+      console.log(`[JupiterUltraService] ✅ Holdings success: found ${tokenCount} tokens`);
+      
       return response.data;
     } catch (error: any) {
       console.error('[JupiterUltraService] ❌ Holdings error:', error.response?.data || error.message);
