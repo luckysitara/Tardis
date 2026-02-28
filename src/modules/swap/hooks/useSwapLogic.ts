@@ -12,6 +12,7 @@ import {
   DEFAULT_USDC_TOKEN
 } from '@/modules/data-module';
 import { TradeService, SwapProvider } from '@/modules/swap/services/tradeService';
+import { JupiterUltraService } from '@/modules/swap/services/jupiterUltraService';
 
 // Debounce time for updating price-related values (in milliseconds)
 const PRICE_UPDATE_DEBOUNCE = 1000;
@@ -363,7 +364,7 @@ export function useSwapLogic(
 
   // Estimate the output amount based on input
   const estimateSwap = useCallback(async () => {
-    if (!connected || parseFloat(inputValue) <= 0 || !inputToken || !outputToken) {
+    if (!connected || parseFloat(inputValue) <= 0 || !inputToken || !outputToken || !userPublicKey) {
       // Reset values when conditions aren't met
       if (estimatedOutputAmount !== '0') {
         setEstimatedOutputAmount('0');
@@ -374,66 +375,65 @@ export function useSwapLogic(
       return;
     }
     
-    // Check if we need to recalculate based on cached values
-    const shouldRecalculate = 
-      inputValue !== lastCalculatedPriceRef.current.inputAmount ||
-      currentPriceRef.current !== lastCalculatedPriceRef.current.inputPrice;
-    
-    if (!shouldRecalculate) {
-      return; // Skip calculation if nothing has changed
-    }
-
     try {
       // Clear any pending estimate
       if (estimateSwapTimer.current) {
         clearTimeout(estimateSwapTimer.current);
       }
       
-      // Update with debounce to prevent frequent recalculations
+      // Update with debounce to prevent frequent API calls
       estimateSwapTimer.current = setTimeout(async () => {
         if (!isMounted.current) return;
         
-        // Get prices for both tokens
-        const inputPrice = await getTokenPrice(inputToken);
-        const outputPrice = await getTokenPrice(outputToken);
+        console.log(`[SwapLogic] 🔄 Requesting quote for ${inputValue} ${inputToken.symbol} -> ${outputToken.symbol}`);
+        
+        try {
+          const amountInNativeUnits = Math.floor(
+            parseFloat(inputValue) * Math.pow(10, inputToken.decimals)
+          );
 
-        if (inputPrice && outputPrice && isMounted.current) {
-          const inputValueNum = parseFloat(inputValue);
+          // Use the real Ultra Order API for quoting
+          const order = await JupiterUltraService.getUltraOrder(
+            inputToken.address,
+            outputToken.address,
+            amountInNativeUnits.toString(),
+            userPublicKey.toBase58()
+          );
 
-          // Calculate USD value
-          const inputValueUsd = inputValueNum * inputPrice;
-
-          // Calculate output amount based on equivalent USD value (minus simulated 0.3% fee)
-          const estimatedOutput = (inputValueUsd / outputPrice) * 0.997;
-
-          // Format the number properly based on token decimals
-          const formattedOutput = estimatedOutput.toFixed(outputToken.decimals <= 6 ? outputToken.decimals : 6);
-          const formattedUsdValue = calculateUsdValue(formattedOutput, outputPrice);
-
-          // Update state only if values have changed
-          if (formattedOutput !== estimatedOutputAmount) {
+          if (isMounted.current && order.outAmount) {
+            const outAmountNum = Number(order.outAmount) / Math.pow(10, outputToken.decimals);
+            const formattedOutput = outAmountNum.toFixed(outputToken.decimals <= 6 ? outputToken.decimals : 6);
+            
             setEstimatedOutputAmount(formattedOutput);
+            
+            // Get output token price for USD calculation
+            const outputPrice = await fetchTokenPrice(outputToken);
+            if (isMounted.current) {
+              const formattedUsdValue = calculateUsdValue(formattedOutput, outputPrice);
+              setOutputTokenUsdValue(formattedUsdValue);
+            }
+
+            console.log(`[SwapLogic] ✅ Quote received: ${formattedOutput} ${outputToken.symbol}`);
           }
+        } catch (error: any) {
+          console.warn('[SwapLogic] Quote API error, falling back to manual calculation:', error.message);
           
-          if (formattedUsdValue !== outputTokenUsdValue) {
-            setOutputTokenUsdValue(formattedUsdValue);
+          // Fallback to manual calculation if API fails
+          const inputPrice = await getTokenPrice(inputToken);
+          const outputPrice = await getTokenPrice(outputToken);
+
+          if (inputPrice && outputPrice && isMounted.current) {
+            const estimatedOutput = (parseFloat(inputValue) * inputPrice / outputPrice) * 0.997;
+            const formattedOutput = estimatedOutput.toFixed(outputToken.decimals <= 6 ? outputToken.decimals : 6);
+            setEstimatedOutputAmount(formattedOutput);
+            setOutputTokenUsdValue(calculateUsdValue(formattedOutput, outputPrice));
           }
-
-          // Update the cache
-          lastCalculatedPriceRef.current = {
-            inputAmount: inputValue,
-            inputPrice,
-            outputAmount: formattedOutput,
-            outputPrice
-          };
-
-          console.warn(`[SwapScreen] Estimate: ${inputValueNum} ${inputToken.symbol} (${inputPrice} USD) → ${estimatedOutput} ${outputToken.symbol} (${outputPrice} USD)`);
         }
-      }, 300); // Short debounce for estimate calculation
+      }, 500); 
     } catch (error) {
-      console.error('[SwapScreen] Error estimating swap:', error);
+      console.error('[SwapLogic] Error in estimateSwap:', error);
     }
-  }, [connected, inputValue, getTokenPrice, inputToken, outputToken, outputTokenUsdValue, estimatedOutputAmount, calculateUsdValue]);
+  }, [connected, userPublicKey, inputValue, inputToken, outputToken, calculateUsdValue, getTokenPrice]);
 
   // Handle token selection
   const handleTokenSelected = useCallback(async (token: TokenInfo) => {
@@ -855,6 +855,13 @@ export function useSwapLogic(
           console.warn('[SwapScreen] Swap successful! Signature:', response.signature);
           setResultMsg(`Swap successful!`);
           setSolscanTxSig(response.signature);
+          
+          // Keep the success message visible for 5 seconds before clearing it
+          setTimeout(() => {
+            if (isMounted.current) {
+              setResultMsg('');
+            }
+          }, 5000);
         }
       } else {
         console.warn('[SwapScreen] Swap response not successful:', response);
