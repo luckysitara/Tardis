@@ -3,7 +3,8 @@ import axios from 'axios';
 
 const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
 const ULTRA_BASE_URL = 'https://api.jup.ag/ultra/v1';
-const PRICE_BASE_URL = 'https://api.jup.ag/price/v2';
+const PRICE_V2_URL = 'https://api.jup.ag/price/v2';
+const PRICE_V1_URL = 'https://price.jup.ag/v4/price';
 
 const headers = {
   'x-api-key': JUPITER_API_KEY,
@@ -101,36 +102,57 @@ export const getPrice = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Ids parameter is required' });
     }
 
-    // Try Price V2 API with API key
+    // 1. Try Price V2 API (Best data, needs API key)
     try {
-      const response = await axios.get(PRICE_BASE_URL, {
+      const response = await axios.get(PRICE_V2_URL, {
         params: { ids },
         headers: { 'x-api-key': JUPITER_API_KEY }
       });
-      return res.status(200).json(response.data);
-    } catch (priceError: any) {
-      console.warn('[JupiterUltraController] Price V2 API failed, trying Search API fallback');
-      
-      // Fallback: Search API often returns token info which might include price or metadata
-      const searchResponse = await axios.get(`${ULTRA_BASE_URL}/search`, {
-        params: { query: ids },
-        headers,
-      });
-      
-      return res.status(200).json({
-        data: searchResponse.data.reduce((acc: any, token: any) => {
-          acc[token.address] = { price: token.price || 0 };
-          return acc;
-        }, {}),
-        time: Date.now()
-      });
+      if (response.data && response.data.data && Object.keys(response.data.data).length > 0) {
+        console.log('[JupiterUltraController] ✅ Price V2 success');
+        return res.status(200).json(response.data);
+      }
+    } catch (e) {
+      console.warn('[JupiterUltraController] Price V2 failed or empty, trying V1');
     }
-  } catch (error: any) {
-    console.error('[JupiterUltraController] ❌ Price error:', error.response?.data || error.message);
-    return res.status(error.response?.status || 500).json({
-      success: false,
-      error: error.response?.data?.error || error.message || 'Failed to get price data',
+
+    // 2. Try Price V1 API (Stable fallback)
+    try {
+      const response = await axios.get(PRICE_V1_URL, {
+        params: { ids }
+      });
+      if (response.data && response.data.data && Object.keys(response.data.data).length > 0) {
+        console.log('[JupiterUltraController] ✅ Price V1 success');
+        return res.status(200).json(response.data);
+      }
+    } catch (e) {
+      console.warn('[JupiterUltraController] Price V1 failed, trying Search API');
+    }
+
+    // 3. Try Search API fallback
+    const searchResponse = await axios.get(`${ULTRA_BASE_URL}/search`, {
+      params: { query: ids },
+      headers,
     });
+    
+    if (searchResponse.data && searchResponse.data.length > 0) {
+      console.log('[JupiterUltraController] ✅ Search fallback success');
+      const data: any = {};
+      searchResponse.data.forEach((token: any) => {
+        const address = token.address || token.mint;
+        if (address) {
+          data[address] = { price: token.price || 0 };
+        }
+      });
+      
+      return res.status(200).json({ data, time: Date.now() });
+    }
+
+    console.warn('[JupiterUltraController] ⚠️ All price methods failed for:', ids);
+    return res.status(200).json({ data: {}, time: Date.now() });
+  } catch (error: any) {
+    console.error('[JupiterUltraController] ❌ Final Price error:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 

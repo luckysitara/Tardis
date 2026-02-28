@@ -18,6 +18,7 @@ type TransactFunction = <T>(
 
 let transact: TransactFunction | undefined;
 let PublicKey: typeof SolanaPublicKey | undefined;
+let VersionedTransaction: any;
 
 if (Platform.OS === 'android') {
   try {
@@ -26,6 +27,7 @@ if (Platform.OS === 'android') {
     transact = mwaModule.transact as TransactFunction;
     const web3Module = require('@solana/web3.js');
     PublicKey = web3Module.PublicKey;
+    VersionedTransaction = web3Module.VersionedTransaction;
     console.log('[Tardis MWA] MWA modules loaded successfully');
   } catch (e: any) {
     console.error('[Tardis MWA] Failed to load MWA modules:', e.message);
@@ -89,7 +91,7 @@ export const useTardisMobileWallet = () => {
     try {
       console.log('[Tardis MWA] Starting transact for authorize...');
       const result = await transact(async (wallet: Web3MobileWallet) => {
-        console.log('[Tardis MWA] Wallet bridge active, calling authorize...');
+        console.log('[Tardis MWA] Wallet bridge active, calling authorize (FREE Auth Prompt)...');
         return await wallet.authorize({
           chain: 'solana:mainnet-beta',
           identity: APP_IDENTITY,
@@ -109,10 +111,6 @@ export const useTardisMobileWallet = () => {
         const skrName = account.label;
         console.log('[Tardis MWA] Connect successful for address:', base58Address, 'Label:', skrName);
         
-        // Extract signature from sign-in payload if present (to use as encryption seed)
-        // MWA 2.0+ includes this in the account result
-        let signInSignature = (account as any).signature;
-
         // Sync with backend immediately
         if (skrName) {
           const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
@@ -132,7 +130,6 @@ export const useTardisMobileWallet = () => {
           address: base58Address,
           authToken: result.auth_token,
           username: skrName || 'Seeker User',
-          // Optionally store the signature if we want to use it for E2EE later
         }));
         
         if (navigationRef.isReady()) {
@@ -157,7 +154,7 @@ export const useTardisMobileWallet = () => {
         ? new Uint8Array(Buffer.from(message, 'utf8'))
         : message;
       
-      console.log('[Tardis MWA] Initiating hardware signature (Sign Message)...');
+      console.log('[Tardis MWA] Initiating hardware signature (Sign Message - FREE)...');
 
       const result = await transact(async (wallet: Web3MobileWallet) => {
         console.log('[Tardis MWA] Wallet bridge active, processing...');
@@ -230,8 +227,8 @@ export const useTardisMobileWallet = () => {
   }, [authToken, dispatch, authState.username]);
 
   const signTransactions = useCallback(async (transactions: (Uint8Array | string)[]): Promise<Uint8Array[] | null> => {
-    if (Platform.OS !== 'android' || !transact || !PublicKey) {
-      console.error('[Tardis MWA] signTransactions failed: Not on Android or MWA not loaded');
+    if (Platform.OS !== 'android' || !transact || !PublicKey || !VersionedTransaction) {
+      console.error('[Tardis MWA] signTransactions failed: Not on Android or MWA/web3 modules not loaded');
       return null;
     }
 
@@ -241,7 +238,7 @@ export const useTardisMobileWallet = () => {
     }
 
     try {
-      console.log(`[Tardis MWA] Initiating hardware transaction signing for ${transactions.length} txs...`);
+      console.log(`[Tardis MWA] Initiating hardware transaction signing for ${transactions.length} txs (Sign Transaction - BLOCKCHAIN)...`);
 
       const result = await transact(async (wallet: Web3MobileWallet) => {
         console.log('[Tardis MWA] Wallet bridge active, processing...');
@@ -264,30 +261,41 @@ export const useTardisMobileWallet = () => {
           throw new Error('Failed to authorize wallet');
         }
 
-        // Convert all payloads to Uint8Array
-        const payloads = transactions.map((tx, idx) => {
-          if (!tx) throw new Error(`Transaction at index ${idx} is null`);
-          if (typeof tx === 'string') {
-            return new Uint8Array(Buffer.from(tx, 'base64'));
+        const base58Address = new PublicKey(Buffer.from(auth.accounts[0].address, 'base64')).toBase58();
+        console.log('[Tardis MWA] Authorized. Account (base58):', base58Address);
+
+        // Web3MobileWallet.signTransactions expects VersionedTransaction objects
+        const transactionsToSign = transactions.map((tx, idx) => {
+          try {
+            if (typeof tx === 'string') {
+              return VersionedTransaction.deserialize(Buffer.from(tx, 'base64'));
+            }
+            if (tx instanceof Uint8Array) {
+              return VersionedTransaction.deserialize(tx);
+            }
+            return tx;
+          } catch (e: any) {
+            console.error(`[Tardis MWA] Failed to deserialize transaction at index ${idx}:`, e.message);
+            throw e;
           }
-          return tx;
         });
         
-        console.log('[Tardis MWA] Sending signTransactions request to bridge...');
-        const signResult = await wallet.signTransactions({ 
-          payloads: payloads
+        console.log('[Tardis MWA] Sending signTransactions request to bridge using "transactions" key...');
+        
+        // Critical: The web3js wrapper expects 'transactions' key with Transaction objects
+        const signedTransactions = await wallet.signTransactions({ 
+          transactions: transactionsToSign as any
         });
         
         console.log('[Tardis MWA] signTransactions response received');
         
-        // Robust extraction logic
-        const sr = signResult as any;
-        const signedPayloads = sr?.signed_payloads || sr?.signedTransactions || sr?.signatures || (Array.isArray(sr) ? sr : null);
-        
-        if (!signedPayloads || !Array.isArray(signedPayloads)) {
-          console.log('[Tardis MWA] Malformed signResult:', JSON.stringify(signResult));
+        if (!signedTransactions || !Array.isArray(signedTransactions)) {
+          console.log('[Tardis MWA] Malformed signResult:', JSON.stringify(signedTransactions));
           throw new Error('No signed transactions found in wallet response');
         }
+
+        // Serialize the signed objects back to Uint8Array for the return value
+        const signedPayloads = signedTransactions.map(tx => tx.serialize());
 
         return {
           signedTransactions: signedPayloads,
@@ -323,7 +331,7 @@ export const useTardisMobileWallet = () => {
   const getEncryptionSeed = useCallback(async (): Promise<Uint8Array | null> => {
     // Constant string to derive a unique but stable encryption seed for this device/app
     const derivationMessage = "Tardis_E2EE_Seed_v1";
-    console.log('[Tardis MWA] Deriving encryption seed from hardware (Sign Message)...');
+    console.log('[Tardis MWA] Deriving encryption seed from hardware (Sign Message - FREE)...');
     return await signMessage(derivationMessage);
   }, [signMessage]);
 

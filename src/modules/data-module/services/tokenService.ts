@@ -82,20 +82,36 @@ export async function fetchTokenPrice(tokenInfo: TokenInfo | null): Promise<numb
   if (!tokenInfo || !tokenInfo.address) return null;
   
   console.log(`[TokenService] 🏷️ Fetching price for ${tokenInfo.symbol} (${tokenInfo.address})`);
+  
+  // 1. Try backend proxy first (has API key)
   try {
     const data = await JupiterUltraService.getPrice(tokenInfo.address);
-    
     if (data && data.data && data.data[tokenInfo.address]) {
       const price = parseFloat(data.data[tokenInfo.address].price || '0');
-      console.log(`[TokenService] ✅ Price success: ${price}`);
+      console.log(`[TokenService] ✅ Price success (proxy): ${price}`);
       return price;
     }
-    console.warn(`[TokenService] ⚠️ No price data found for ${tokenInfo.symbol}`);
-    return null;
-  } catch (err) {
-    console.warn(`[TokenService] ❌ Price fetch error for ${tokenInfo.symbol}:`, err);
-    return null;
+  } catch (proxyError) {
+    console.warn(`[TokenService] Proxy price fetch failed, trying public API fallback`);
   }
+
+  // 2. Fallback to direct public API (no API key, might be rate limited)
+  try {
+    const response = await fetch(`https://api.jup.ag/price/v2?ids=${tokenInfo.address}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.data && data.data[tokenInfo.address]) {
+        const price = parseFloat(data.data[tokenInfo.address].price || '0');
+        console.log(`[TokenService] ✅ Price success (public): ${price}`);
+        return price;
+      }
+    }
+  } catch (publicError) {
+    console.warn(`[TokenService] Public price fetch error:`, publicError);
+  }
+
+  console.warn(`[TokenService] ⚠️ No price data found for ${tokenInfo.symbol}`);
+  return null;
 }
 
 /**
