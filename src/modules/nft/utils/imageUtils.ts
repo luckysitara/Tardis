@@ -1,3 +1,5 @@
+import { fixAllImageUrls } from '@/shared/utils/IPFSImage';
+
 /**
  * Utilities for NFT image handling
  */
@@ -9,29 +11,7 @@
  * @returns A properly formatted URL that can be used in an Image component
  */
 export function fixImageUrl(url: any): string {
-  if (!url) return '';
-  
-  if (typeof url !== 'string') {
-    return '';
-  }
-  
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  }
-  
-  if (url.startsWith('ar://')) {
-    return url.replace('ar://', 'https://arweave.net/');
-  }
-  
-  if (url.startsWith('/')) {
-    return `https://arweave.net${url}`;
-  }
-  
-  if (!url.startsWith('http') && !url.startsWith('data:')) {
-    return `https://${url}`;
-  }
-  
-  return url;
+  return fixAllImageUrls(url);
 }
 
 /**

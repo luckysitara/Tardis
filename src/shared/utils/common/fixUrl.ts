@@ -1,29 +1,7 @@
+import { fixAllImageUrls } from '../IPFSImage';
+
 export function fixImageUrl(url: string): string {
-  if (!url) return '';
-
-  // Handle Helius CDN URLs with double slashes
-  if (url.includes('cdn.helius-rpc.com') && url.includes('//https://')) {
-    return url.replace('//https://', '/https://');
-  }
-  
-  // Handle URLs with quotes (sometimes in Helius response)
-  if (url.startsWith('"') && url.endsWith('"')) {
-    return fixImageUrl(url.slice(1, -1));
-  }
-
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  }
-  if (url.startsWith('ar://')) {
-    return url.replace('ar://', 'https://arweave.net/');
-  }
-  if (url.startsWith('/')) {
-    return `https://arweave.net${url}`;
-  }
-  if (!url.startsWith('http') && !url.startsWith('data:')) {
-    return `https://${url}`;
-  }
-  return url;
+  return fixAllImageUrls(url);
 }
 
 /**

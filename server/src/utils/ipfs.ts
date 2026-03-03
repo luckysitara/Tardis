@@ -68,7 +68,11 @@ export async function uploadToPinata(
     }
     
     const imageUploadData = await imageResponse.json() as { IpfsHash: string };
-    const gateway = process.env.PINATA_GATEWAY || 'gateway.pinata.cloud';
+    const gateway = process.env.PINATA_GATEWAY;
+    if (!gateway) {
+      console.error('[IPFS] CRITICAL: PINATA_GATEWAY is not configured in .env');
+      throw new Error('IPFS upload failed: PINATA_GATEWAY missing on server.');
+    }
     const imageUri = `https://${gateway}/ipfs/${imageUploadData.IpfsHash}`;
     
     console.log('[IPFS] Successfully pinned to Pinata:', imageUri);
@@ -98,6 +102,7 @@ export async function uploadToPinata(
     if (!jsonResponse.ok) return imageUri;
     
     const jsonData = await jsonResponse.json() as { IpfsHash: string };
+    // Reuse the already declared 'gateway' variable
     return `https://${gateway}/ipfs/${jsonData.IpfsHash}`;
   } finally {
     if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);

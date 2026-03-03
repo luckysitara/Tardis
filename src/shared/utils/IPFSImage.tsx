@@ -3,23 +3,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Image, Platform, ImageProps, View, Text } from 'react-native';
 import COLORS from '@/assets/colors';
 
-// Import Pinata JWT from process.env
+// Import Pinata JWT and Gateway from process.env
 const PINATA_JWT = process.env.PINATA_JWT;
+const PINATA_GATEWAY = process.env.PINATA_GATEWAY;
 
-// Reliable IPFS gateways - Using public ones with diverse coverage
+// Custom IPFS gateway from .env
 const IPFS_GATEWAYS = {
   primary: [
-    'https://teal-additional-lemming-515.mypinata.cloud/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/',
-    'https://cloudflare-ipfs.com/ipfs/',
-    'https://ipfs.io/ipfs/'
+    PINATA_GATEWAY 
+      ? `https://${PINATA_GATEWAY}/ipfs/` 
+      : 'https://gateway.pinata.cloud/ipfs/'
   ],
-  backup: [
-    'https://nftstorage.link/ipfs/',
-    'https://ipfs.fleek.co/ipfs/',
-    'https://dweb.link/ipfs/',
-    'https://gateway.ipfs.io/ipfs/'
-  ]
+  backup: []
 };
 
 // Track problematic IPFS hashes globally to avoid retrying failed URLs
@@ -357,12 +352,15 @@ export const fixAllImageUrls = (url: string | null | undefined): string => {
         url = url.slice(1, -1);
     }
 
-    // Handle IPFS URLs - Use the specific gateway for the platform
+    // Handle Helius CDN URLs with double slashes
+    if (url.includes('cdn.helius-rpc.com') && url.includes('//https://')) {
+        url = url.replace('//https://', '/https://');
+    }
+
+    // Handle IPFS URLs - Use the custom gateway for both platforms
     if (url.startsWith('ipfs://')) {
         const hash = url.replace('ipfs://', '');
-        return Platform.OS === 'android'
-            ? `${IPFS_GATEWAYS.primary[0]}${hash}`
-            : `https://ipfs.io/ipfs/${hash}`;
+        return `${IPFS_GATEWAYS.primary[0]}${hash}`;
     }
 
     // Handle Arweave URLs

@@ -17,14 +17,13 @@ import { buyStyles as styles } from './buySection.styles';
 import { CLUSTER, TENSOR_API_KEY } from '@env';
 import { ENDPOINTS } from '@/shared/config/constants';
 import { TransactionService } from '@/modules/wallet-providers/services/transaction/transactionService';
-
-const SOL_TO_LAMPORTS = 1_000_000_000;
+import { fixAllImageUrls } from '@/shared/utils/IPFSImage';
 
 interface CollectionResult {
   collId: string;
   name: string;
-  description?: string;
-  imageUri?: string;
+  description: string;
+  imageUri: string;
 }
 
 interface FloorNFT {
@@ -35,15 +34,7 @@ interface FloorNFT {
 
 /** Helper to fix IPFS/Arweave URLs */
 const fixImageUrl = (url: string): string => {
-  if (!url) return '';
-  if (url.startsWith('ipfs://'))
-    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  if (url.startsWith('ar://'))
-    return url.replace('ar://', 'https://arweave.net/');
-  if (url.startsWith('/')) return `https://arweave.net${url}`;
-  if (!url.startsWith('http') && !url.startsWith('data:'))
-    return `https://${url}`;
-  return url;
+  return fixAllImageUrls(url);
 };
 
 interface BuySectionProps {

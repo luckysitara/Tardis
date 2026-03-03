@@ -7,6 +7,7 @@ import { TENSOR_API_KEY, CLUSTER, HELIUS_STAKED_URL, COMMISSION_WALLET } from '@
 import { TransactionService } from '../../wallet-providers/services/transaction/transactionService';
 import { CollectionData, NftItem } from '../types';
 import { ENDPOINTS } from '../../../config/constants';
+import { fixAllImageUrls } from '@/shared/utils/IPFSImage';
 
 // Constants
 const SOL_TO_LAMPORTS = 1_000_000_000;
@@ -561,13 +562,5 @@ export async function buyCollectionFloor(
  * Helper function to fix image URLs
  */
 function fixImageUrl(url: string): string {
-  if (!url) return '';
-  if (url.startsWith('ipfs://'))
-    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  if (url.startsWith('ar://'))
-    return url.replace('ar://', 'https://arweave.net/');
-  if (url.startsWith('/')) return `https://arweave.net${url}`;
-  if (!url.startsWith('http') && !url.startsWith('data:'))
-    return `https://${url}`;
-  return url;
+  return fixAllImageUrls(url);
 } 

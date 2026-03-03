@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchUserAssets } from '../utils/fetch';
 import { AssetItem, PortfolioData } from '../types/assetTypes';
+import { fixAllImageUrls } from '@/shared/utils/IPFSImage';
 
 /**
  * Extracts the best available image from an asset
@@ -39,33 +40,7 @@ export const extractAssetImage = (asset: any): string | undefined => {
  * Fixes common image URI issues
  */
 export const fixImageUrl = (url: string): string => {
-  if (!url) return '';
-  
-  // Convert ipfs:// URLs to HTTPS gateway URLs
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  }
-  
-  // Fix local arweave links
-  if (url.startsWith('ar://')) {
-    return url.replace('ar://', 'https://arweave.net/');
-  }
-  
-  // Handle Solana on-chain data URLs
-  if (url.startsWith('data:')) {
-    return url;
-  }
-  
-  // Add HTTPS if needed
-  if (url.startsWith('//')) {
-    return `https:${url}`;
-  }
-  
-  if (!url.startsWith('http')) {
-    return `https://${url}`;
-  }
-  
-  return url;
+  return fixAllImageUrls(url);
 };
 
 /**

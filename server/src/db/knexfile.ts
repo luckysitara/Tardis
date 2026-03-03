@@ -1,7 +1,11 @@
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import type { Knex } from 'knex';
 import dotenv from 'dotenv';
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Use Knex.Config type (might need adjustment if default import changes things)
 const config: { [key: string]: Knex.Config } = {

@@ -34,6 +34,7 @@ import { ThreadSection } from '@/core/thread/components/thread.types';
 import { fetchWithRetries } from '@/modules/data-module/utils/fetch';
 import { ENDPOINTS } from '@/shared/config/constants';
 import { TransactionService } from '@/modules/wallet-providers/services/transaction/transactionService';
+import { fixAllImageUrls } from '@/shared/utils/IPFSImage';
 
 const SOL_TO_LAMPORTS = 1_000_000_000;
 
@@ -56,15 +57,7 @@ interface SellSectionProps {
 
 /** Helper to fix various NFT image URI formats. */
 function fixImageUrl(url: string): string {
-  if (!url) return '';
-  if (url.startsWith('ipfs://'))
-    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
-  if (url.startsWith('ar://'))
-    return url.replace('ar://', 'https://arweave.net/');
-  if (url.startsWith('/')) return `https://arweave.net${url}`;
-  if (!url.startsWith('http') && !url.startsWith('data:'))
-    return `https://${url}`;
-  return url;
+  return fixAllImageUrls(url);
 }
 
 /**

@@ -228,7 +228,12 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
             {tipData.signature && (
               <TouchableOpacity 
                 style={styles.viewOnSolana}
-                onPress={() => console.log('View signature:', tipData.signature)}
+                onPress={() => {
+                  const url = `https://solscan.io/tx/${tipData.signature}`;
+                  require('react-native').Linking.openURL(url).catch((err: any) => 
+                    console.error('Failed to open URL:', err)
+                  );
+                }}
               >
                 <Text style={styles.viewOnSolanaText}>View on Solana Explorer</Text>
               </TouchableOpacity>

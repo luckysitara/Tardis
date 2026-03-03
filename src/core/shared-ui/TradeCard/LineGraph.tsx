@@ -33,6 +33,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
+import { fixAllImageUrls } from '@/shared/utils/IPFSImage';
 
 interface LineGraphProps {
   data: number[];
@@ -287,48 +288,15 @@ const LineGraph: React.FC<LineGraphProps> = ({
   const avatarUri = useMemo(() => {
     if (!userAvatar) return null;
 
-    // For iOS, use original avatar directly without transformation
-    if (Platform.OS === 'ios') {
-      if (typeof userAvatar === 'string') return userAvatar;
-      if (userAvatar.uri) return userAvatar.uri;
-      return null;
-    }
-
-    // For Android - handle IPFS URLs to avoid 403/429 errors
+    let uriString: string | null = null;
     if (typeof userAvatar === 'string') {
-      const avatarStr = String(userAvatar);
-      // Handle IPFS URLs
-      if (avatarStr.includes('ipfs.io/ipfs/')) {
-        const parts = avatarStr.split('/ipfs/');
-        if (parts.length > 1) {
-          const ipfsHash = parts[1].split('?')[0]?.split('#')[0];
-          if (ipfsHash) {
-            return `https://nftstorage.link/ipfs/${ipfsHash}`;
-          }
-        }
-      } else if (avatarStr.startsWith('ipfs://')) {
-        const ipfsHash = avatarStr.slice(7).split('?')[0]?.split('#')[0];
-        if (ipfsHash) {
-          return `https://nftstorage.link/ipfs/${ipfsHash}`;
-        }
-      }
-      // Not an IPFS URL or couldn't extract hash
-      return avatarStr;
+      uriString = userAvatar;
+    } else if (userAvatar.uri) {
+      uriString = userAvatar.uri;
     }
-
-    // Handle object with URI
-    if (userAvatar.uri) {
-      const uriStr = String(userAvatar.uri);
-      if (uriStr.includes('ipfs.io/ipfs/')) {
-        const parts = uriStr.split('/ipfs/');
-        if (parts.length > 1) {
-          const ipfsHash = parts[1].split('?')[0]?.split('#')[0];
-          if (ipfsHash) {
-            return `https://nftstorage.link/ipfs/${ipfsHash}`;
-          }
-        }
-      }
-      return uriStr;
+    
+    if (uriString) {
+      return fixAllImageUrls(uriString);
     }
 
     return null;
