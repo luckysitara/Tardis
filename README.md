@@ -1,22 +1,21 @@
 <div align="center">
 
-# Solana App Kit
+# Tardis
 
-### Open-Source React Native Scaffold for Building iOS and Android Crypto Mobile Apps with Solana Protocols.
+### Open-Source React Native Application for Building iOS and Android Crypto Mobile Apps with Solana Protocols.
 
-<p> From AI to Social, Launchpads to Wallets, and Trading — build mobile apps in under 15 minutes. </p>
+<p> From AI to Social, Launchpads to Wallets, and Trading — build mobile apps faster. </p>
 
 ![SolanaAppKit](https://github.com/user-attachments/assets/b4a6dbbd-1073-412a-a5b9-4c2e41e39964)
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/start-solana-app?activeTab=readme"><img src="https://img.shields.io/npm/dm/start-solana-app?style=for-the-badge&color=4CAF50" alt="NPM Downloads" /></a>
-  <a href="https://github.com/SendArcade/solana-app-kit/network/members"><img src="https://img.shields.io/github/forks/sendarcade/solana-app-kit?style=for-the-badge&color=blue" alt="GitHub Forks" /></a>
-  <a href="https://github.com/SendArcade/solana-app-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sendarcade/solana-app-kit?style=for-the-badge&color=orange" alt="GitHub License" /></a>
+  <a href="https://github.com/Tardis-Project/tardis/network/members"><img src="https://img.shields.io/github/forks/sendarcade/solana-app-kit?style=for-the-badge&color=blue" alt="GitHub Forks" /></a>
+  <a href="https://github.com/Tardis-Project/tardis/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sendarcade/solana-app-kit?style=for-the-badge&color=orange" alt="GitHub License" /></a>
 </p>
 
 <p align="center">
-  <a href="https://deepwiki.com/SendArcade/solana-app-kit"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" /></a>
-  <a href="https://x.com/solanaappkit"><img src="https://img.shields.io/twitter/follow/solanaappkit?style=flat&color=1DA1F2" alt="X (formerly Twitter) Follow" /></a>
+  <a href="https://deepwiki.com/Tardis-Project/tardis"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" /></a>
+  <a href="https://x.com/Tardis_Project"><img src="https://img.shields.io/twitter/follow/solanaappkit?style=flat&color=1DA1F2" alt="X (formerly Twitter) Follow" /></a>
 </p>
 
 <p> Anyone — whether a seasoned React Native developer or a Solana developer — can build mobile apps faster with 19+ protocol integrations. </div>
@@ -87,15 +86,11 @@
 
 ## 📚 Documentation
 
-You can view the full documentation of the kit at: [http://docs.solanaappkit.com/](http://docs.solanaappkit.com/)
+You can view the full documentation of the kit at: [http://docs.tardis.com/](http://docs.tardis.com/)
 
 ---
 
-## 📦 Core Installation
 
-```sh
-npx start-solana-app
-```
 
 ---
 
@@ -131,9 +126,8 @@ npx start-solana-app
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/SendArcade/solana-app-kit.git
-   cd solana-app-kit
-   ```
+   git clone https://github.com/Tardis-Project/tardis.git
+   cd Tardis   ```
 
 2. Install dependencies:
 
@@ -171,7 +165,7 @@ pnpm start --dev --clear
 
 ### Development vs Standard Mode
 
-Solana App Kit supports two running modes:
+Tardis supports two running modes:
 
 - **Standard Mode**: Default production-like experience
 - **Development Mode**: Enhanced with developer tools, navigation helpers, and error handling
@@ -220,9 +214,8 @@ This project consists of two main parts:
 1. Clone the repository:
 
    ```sh
-   git clone https://github.com/SendArcade/solana-app-kit.git
-   cd solana-app-kit
-   ```
+   git clone https://github.com/Tardis-Project/tardis.git
+   cd Tardis   ```
 
 2. Install dependencies:
 
@@ -442,7 +435,7 @@ export PATH=$PATH:$ANDROID_HOME/platform-tools
 ## 📂 Project Structure
 
 ```
-solana-app-kit/
+Tardis/
 ├── src/                # Mobile app source code
 │   ├── assets/         # Images, icons, and other static assets
 │   │   ├── images/     # Image assets for the app
@@ -518,7 +511,7 @@ solana-app-kit/
 
 ## 🧩 Modules
 
-The Solana App Kit provides several modular features that can be used independently:
+The Tardis provides several modular features that can be used independently:
 
 | Module                  | Capabilities                                                                                                                                                                                                                                                                     |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -547,8 +540,8 @@ For detailed guidelines on how to contribute to this project, see our [Contribut
 ## 👥 Contributors
 
 <div align="center">
-  <a href="https://github.com/SendArcade/solana-app-kit/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=SendArcade/solana-app-kit" alt="Contributors" />
+  <a href="https://github.com/Tardis-Project/tardis/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=Tardis-Project/tardis" alt="Contributors" />
   </a>
 </div>
 
@@ -593,6 +586,6 @@ This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENS
 
 <div align="center">
 
-Built with ❤️ for the Solana ecosystem by SendAI and Send Arcade.
+Built with ❤️ for the Solana ecosystem by the Tardis Community.
 
 </div>
