@@ -9,7 +9,12 @@ const SGT_MINT_AUTHORITY = 'GT2zuHVaZQYZSyQMgJPLzvkmyztfyXg2NJunqFp4p3A4';
 const SGT_GROUP_ADDRESS = 'GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te';
 
 const getRpcUrl = () => {
-  return ENDPOINTS.helius;
+  // If we have a proxied helius endpoint, use it
+  if (ENDPOINTS.helius && !ENDPOINTS.helius.startsWith('undefined') && !ENDPOINTS.helius.includes('10.203.135.79')) {
+    return ENDPOINTS.helius;
+  }
+  // Fallback to a public RPC for SGT verification if backend is not configured
+  return 'https://api.mainnet-beta.solana.com';
 };
 
 export const verifyHardware = async (): Promise<boolean> => {

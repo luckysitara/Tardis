@@ -154,7 +154,7 @@ io.on('connection', (socket) => {
 
 // Start the Express server.
 const PORT = parseInt(process.env.PORT || '8085', 10);
-const HOST = 'seek.kikhaus.com'; // Critical for App Runner health checks
+const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
 
 (async function startServer() {
   // Start server immediately for health checks - critical for App Runner
