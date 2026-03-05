@@ -113,12 +113,12 @@ export default function SectionTextImage({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 4,
+    marginVertical: 2,
   },
   text: {
     fontSize: 15,
     color: COLORS.white,
-    marginBottom: 8,
+    marginBottom: 4,
     lineHeight: 20,
     fontFamily: TYPOGRAPHY.fontFamily,
   },
@@ -126,11 +126,11 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#1a1a1a',
   },
   image: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    height: 220,
     borderRadius: 12,
   },
   loaderContainer: {

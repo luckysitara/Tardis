@@ -61,18 +61,6 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
   const isRetweet = typeof message === 'object' && message !== null && 'retweetOf' in message && message.retweetOf !== undefined && message.retweetOf !== null;
   const isQuoteRetweet = isRetweet && typeof message === 'object' && message !== null && 'sections' in message && Array.isArray((message as any).sections) && (message as any).sections.length > 0;
 
-  // Determine message style based on sender
-  const bubbleStyle = [
-    styles.container,
-    isCurrentUser ? styles.currentUser : styles.otherUser
-  ];
-
-  // Determine text style based on sender
-  const textStyle = [
-    styles.text,
-    isCurrentUser ? styles.currentUserText : styles.otherUserText
-  ];
-
   const getContentType = (msg: MessageData | ThreadPost): string => {
     // Priority 1: Check root fields
     if ('tradeData' in msg && msg.tradeData) return 'trade';
@@ -100,6 +88,20 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
   };
 
   const contentType = getContentType(message);
+  const isImageOnly = (contentType === 'image' || contentType === 'media') && !messageText && !isRetweet;
+
+  // Determine message style based on sender
+  const bubbleStyle = [
+    styles.container,
+    isCurrentUser ? styles.currentUser : styles.otherUser,
+    isImageOnly && { paddingHorizontal: 4, paddingVertical: 4, borderRadius: 16 }
+  ];
+
+  // Determine text style based on sender
+  const textStyle = [
+    styles.text,
+    isCurrentUser ? styles.currentUserText : styles.otherUserText
+  ];
 
   const getMediaUrls = (msg: any) => {
     if (msg.media && Array.isArray(msg.media)) return msg.media;

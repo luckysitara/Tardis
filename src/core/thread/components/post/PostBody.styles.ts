@@ -9,7 +9,7 @@ export function createPostBodyStyles(
   const baseStyles: {[key: string]: any} = StyleSheet.create({
     /* Body/content area - Migrated from thread.styles.ts */
     extraContentContainer: {
-      marginVertical: 8,
+      marginVertical: 4,
       width: '100%',
       alignItems: 'flex-start',
       ...overrideStyles?.extraContentContainer,

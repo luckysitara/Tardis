@@ -215,6 +215,10 @@ function ChatMessage({
       return 'nft';
     } else if ('media' in message && message.media && message.media.length > 0) {
       return 'media';
+    } else if ('image_url' in message && (message as any).image_url) {
+      return 'media';
+    } else if ('imageUrl' in message && (message as any).imageUrl) {
+      return 'media';
     } else if ('sections' in message) {
       // Check for images in thread post sections using any to avoid TypeScript errors
       const sections = message.sections as any[];
