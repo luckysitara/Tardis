@@ -11,6 +11,10 @@ import { Buffer } from 'buffer';
 import ReactionPicker from './ReactionPicker';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { addReactionToMessage } from '@/shared/state/chat/slice';
+import TipModal from '../tip/TipModal';
+import { sendMessage } from '@/shared/state/chat/slice';
+import socketService from '@/shared/services/socketService';
+import COLORS from '@/assets/colors';
 
 // Update ChatMessageProps to include onLongPress
 interface ExtendedChatMessageProps extends ChatMessageProps {
@@ -46,7 +50,34 @@ function ChatMessage({
   const encryptionSeed = useAppSelector(state => state.auth.encryptionSeed);
   const chats = useAppSelector(state => state.chat.chats);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
   const materializeAnim = useRef(new Animated.Value(0)).current;
+
+  const handleTipSent = async (signature: string, amount: number, symbol: string) => {
+    try {
+      const resultAction = await dispatch(sendMessage({
+        chatId: message.chat_room_id,
+        userId: currentUser.id,
+        content: `Sent a tip of ${amount} ${symbol} 💸`,
+        additionalData: { 
+          type: 'tip', 
+          amount, 
+          symbol, 
+          signature 
+        },
+      })).unwrap();
+
+      if (resultAction && resultAction.id) {
+        socketService.sendMessage(message.chat_room_id, {
+          ...resultAction,
+          senderId: currentUser.id,
+          chatId: message.chat_room_id
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing tip message:', error);
+    }
+  };
 
   const handleSelectEmoji = (emoji: string) => {
     dispatch(addReactionToMessage({
@@ -289,12 +320,22 @@ function ChatMessage({
     <View style={{ marginBottom: 8, marginHorizontal: 12 }}>
       {/* Header takes full width available */}
       {shouldShowHeader && (
-        <View style={{ width: '100%', marginBottom: 6 }}>
-          <MessageHeader
-            message={message}
-            showAvatar={true}
-            onPressUser={onPressUser || (user => console.log('User pressed:', user.id))}
-          />
+        <View style={{ width: '100%', marginBottom: 6, flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <MessageHeader
+              message={message}
+              showAvatar={true}
+              onPressUser={onPressUser || (user => console.log('User pressed:', user.id))}
+            />
+          </View>
+          {!isCurrentUser && (
+            <TouchableOpacity 
+              onPress={() => setShowTipModal(true)}
+              style={{ padding: 8, backgroundColor: 'rgba(50, 212, 222, 0.1)', borderRadius: 20, marginLeft: 8 }}
+            >
+              <Text style={{ fontSize: 16 }}>💸</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -374,6 +415,14 @@ function ChatMessage({
         visible={showReactionPicker}
         onClose={() => setShowReactionPicker(false)}
         onSelectEmoji={handleSelectEmoji}
+      />
+
+      <TipModal
+        visible={showTipModal}
+        onClose={() => setShowTipModal(false)}
+        recipientAddress={(message.user?.id || message.sender_id || message.senderId) as string}
+        recipientName={(message.user?.username || 'User') as string}
+        onTipSent={handleTipSent}
       />
     </View>
   );

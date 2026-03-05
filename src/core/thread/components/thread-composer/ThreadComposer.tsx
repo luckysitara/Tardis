@@ -34,7 +34,6 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { TENSOR_API_KEY } from '@env';
 import { useWallet } from '../../../../modules/wallet-providers/hooks/useWallet';
-import TradeModal from '../trade/ShareTradeModal';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import { NftListingModal, useFetchNFTs, NftItem } from '../../../../modules/nft';
 import { uploadThreadImage } from '../../services/threadImageService';
@@ -46,7 +45,6 @@ import {
 import { AutoAvatar } from '@/shared/components/AutoAvatar';
 import COLORS from '@/assets/colors';
 import Svg, { Path } from 'react-native-svg';
-import { ShareTradeModalRef } from '../trade/ShareTradeModal.types';
 
 /**
  * Props for the ThreadComposer component
@@ -107,7 +105,6 @@ export const ThreadComposer = forwardRef<{ focus: () => void }, ThreadComposerPr
   const dispatch = useAppDispatch();
   const storedProfilePic = useAppSelector(state => state.auth.profilePicUrl);
   const inputRef = useRef<TextInput>(null);
-  const tradeModalRef = useRef<ShareTradeModalRef>(null);
 
   // Expose focus method via ref
   useImperativeHandle(ref, () => ({
@@ -138,8 +135,6 @@ export const ThreadComposer = forwardRef<{ focus: () => void }, ThreadComposerPr
   const [loadingActiveListings, setLoadingActiveListings] = useState(false);
   const [activeListingsError, setActiveListingsError] = useState<string | null>(null);
 
-  // Show/hide the TradeModal
-  const [showTradeModal, setShowTradeModal] = useState(false);
   const SOL_TO_LAMPORTS = 1_000_000_000;
 
   // 1. Get base styles (no theme needed)
@@ -405,13 +400,6 @@ export const ThreadComposer = forwardRef<{ focus: () => void }, ThreadComposerPr
     setShowListingModal(false);
   };
 
-  const handleTradeSharePress = async () => {
-    if (tradeModalRef.current) {
-      await tradeModalRef.current.forceRefresh();
-    }
-    setShowTradeModal(true);
-  };
-
   // Add debug logging for Android IPFS image handling
   if (Platform.OS === 'android' && storedProfilePic) {
     console.log('Profile image source being used:', JSON.stringify(getValidImageSource(storedProfilePic)));
@@ -500,12 +488,6 @@ export const ThreadComposer = forwardRef<{ focus: () => void }, ThreadComposerPr
                 style={styles.iconButton}>
                 <Icons.NFTIcon width={22} height={22} />
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleTradeSharePress}
-                style={styles.iconButton}>
-                <Icons.TradeShare width={22} height={22} />
-              </TouchableOpacity>
             </View>
 
             {/* Right side with animated send button */}
@@ -567,81 +549,6 @@ export const ThreadComposer = forwardRef<{ focus: () => void }, ThreadComposerPr
         loadingListings={loadingActiveListings}
         fetchNftsError={activeListingsError}
         styles={styles} // Pass merged styles down
-      />
-
-      {/* Trade Modal */}
-      <TradeModal
-        ref={tradeModalRef}
-        visible={showTradeModal}
-        onClose={() => setShowTradeModal(false)}
-        onShare={async (tradeData) => {
-          try {
-            console.log('[ThreadComposer] Received trade data to share:', JSON.stringify(tradeData, null, 2));
-
-            // Create a section with the trade data
-            const section: ThreadSection = {
-              id: 'section-' + Math.random().toString(36).substr(2, 9),
-              type: 'TEXT_TRADE',
-              tradeData,
-              text: tradeData.message, // Add the message as text
-            };
-
-            // Dispatch action to create post with trade data
-            await dispatch(createRootPostAsync({
-              userId: currentUser.id,
-              sections: [section],
-            })).unwrap();
-
-            console.log('[ThreadComposer] Successfully dispatched trade post to Redux');
-
-            // Close the modal
-            setShowTradeModal(false);
-
-            // Call onPostCreated callback to refresh the feed
-            if (onPostCreated) {
-              onPostCreated();
-              console.log('[ThreadComposer] Called onPostCreated callback');
-            }
-
-            return true;
-          } catch (error) {
-            console.error('[ThreadComposer] Error sharing trade:', error);
-
-            // Create fallback post for local display
-            const fallbackPost = {
-              id: 'local-' + Math.random().toString(36).substr(2, 9),
-              user: currentUser,
-              sections: [{
-                id: 'section-' + Math.random().toString(36).substr(2, 9),
-                type: 'TEXT_TRADE',
-                tradeData,
-                text: tradeData.message, // Add the message as text
-              }],
-              createdAt: new Date().toISOString(),
-              parentId: undefined,
-              replies: [],
-              reactionCount: 0,
-              retweetCount: 0,
-              quoteCount: 0,
-            };
-
-            // Add locally via Redux
-            dispatch(addPostLocally(fallbackPost as ThreadPost));
-            console.log('[ThreadComposer] Added trade post locally');
-
-            // Close the modal
-            setShowTradeModal(false);
-
-            // Call onPostCreated callback to refresh the feed
-            if (onPostCreated) {
-              onPostCreated();
-              console.log('[ThreadComposer] Called onPostCreated callback');
-            }
-
-            throw error; // Rethrow for the modal to handle
-          }
-        }}
-        currentUser={currentUser}
       />
     </View>
   );

@@ -9,7 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { ImageIcon, TradeShare } from '@/assets/svgs';
+import { ImageIcon } from '@/assets/svgs';
 import {
   useAppDispatch,
   useAppSelector,
@@ -25,7 +25,6 @@ import { mergeStyles } from '../../utils';
 import { ThreadSection, ThreadUser, ThreadPost } from '../../../thread/types';
 import * as ImagePicker from 'expo-image-picker';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
-import TradeModal from '../../../thread/components/trade/ShareTradeModal';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import COLORS from '@/assets/colors';
 import Svg, { Path } from 'react-native-svg';
@@ -90,7 +89,6 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   const [textValue, setTextValue] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showTradeModal, setShowTradeModal] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
 
   const currentTextValue = inputValue !== undefined ? inputValue : textValue;
@@ -315,31 +313,6 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
     }
   }, []);
 
-  const handleShareTrade = useCallback(async (data: any) => {
-    if (!chatContext) return;
-    setIsSubmitting(true);
-    try {
-      const resultAction = await dispatch(sendMessage({
-        chatId: chatContext.chatId,
-        userId: currentUser.id,
-        content: `Shared a trade: ${data.inputSymbol} → ${data.outputSymbol}`,
-        additionalData: { tradeData: data },
-      })).unwrap();
-
-      if (resultAction && resultAction.id) {
-        socketService.sendMessage(chatContext.chatId, {
-          ...resultAction,
-          senderId: currentUser.id,
-          chatId: chatContext.chatId
-        });
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Could not share trade.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [chatContext, currentUser.id, dispatch]);
-
   const renderAttachmentPreviews = () => {
     if (!selectedImage && !replyingTo) return null;
     return (
@@ -393,13 +366,6 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
             >
               {ImageIcon && <ImageIcon width={22} height={22} />}
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => setShowTradeModal(true)} 
-              style={styles.iconButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              {TradeShare && <TradeShare width={22} height={22} />}
-            </TouchableOpacity>
             {!!otherParticipant && (
               <TouchableOpacity 
                 onPress={() => setShowTipModal(true)} 
@@ -429,13 +395,6 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
           )}
         </TouchableOpacity>
       </View>
-
-      <TradeModal
-        visible={showTradeModal}
-        onClose={() => setShowTradeModal(false)}
-        onShare={handleShareTrade}
-        currentUser={currentUser}
-      />
       
       {!!otherParticipant && (
         <TipModal

@@ -24,7 +24,6 @@ import TYPOGRAPHY from '@/assets/typography';
 
 import { useFetchPortfolio, fixImageUrl } from '@/modules/data-module/hooks/useFetchTokens';
 import { useAppSelector } from '@/shared/hooks/useReduxHooks';
-import TradeModal from '../../../thread/components/trade/ShareTradeModal';
 import TokenDetailsDrawer from '@/core/shared-ui/TokenDetailsDrawer/TokenDetailsDrawer';
 
 // Import collection search functionality
@@ -412,27 +411,6 @@ const BuyCard: React.FC<BuyCardProps> = ({
     description: tokenDesc || `Asset: ${tokenName || description}`,
   }), [tokenMint, tokenName, description, tokenImage, tokenDesc]);
 
-  const tradeModalData = useMemo(() => {
-    const cleanTokenName = tokenName.startsWith('$') ? tokenName.substring(1) : tokenName;
-
-    return {
-      initialInputToken: {
-        address: 'So11111111111111111111111111111111111111112', // SOL mint address
-        symbol: 'SOL',
-        name: 'Solana',
-        decimals: 9,
-        logoURI: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/info/logo.png',
-      },
-      initialOutputToken: {
-        address: tokenMint || '',
-        symbol: cleanTokenName,
-        name: description || cleanTokenName,
-        decimals: 6,
-        logoURI: typeof tokenImage === 'string' ? fixImageUrl(tokenImage) : '',
-      }
-    };
-  }, [tokenMint, tokenName, description, tokenImage]);
-
   // Search collections functionality
   const handleSearchCollections = async () => {
     if (!collectionName.trim()) return;
@@ -695,18 +673,6 @@ const BuyCard: React.FC<BuyCardProps> = ({
 
       {/* IMPORTANT: Always render these components, but control visibility with their props
           This ensures consistent hook calls regardless of state changes during logout */}
-
-      {/* Trade Modal (Always render but control visibility with visible prop) */}
-      <TradeModal
-        visible={showTradeModal && isToken}
-        onClose={() => setShowTradeModal(false)}
-        currentUser={currentUser}
-        disableTabs={true}
-        initialInputToken={tradeModalData.initialInputToken}
-        initialOutputToken={tradeModalData.initialOutputToken}
-        initialActiveTab="PAST_SWAPS"
-        onShare={() => { }}
-      />
 
       {/* Portfolio Modal */}
       <Modal
