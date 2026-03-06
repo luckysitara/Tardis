@@ -36,34 +36,71 @@ export const verifyHardware = async (): Promise<boolean> => {
   return false;
 };
 
+// Session-level cache to prevent redundant RPC calls during a single app session
+let cachedSGTResult: { [address: string]: { result: boolean, timestamp: number } } = {};
+const CACHE_DURATION = 1000 * 60 * 10; // 10 minutes
+
 export const verifySGT = async (address: string): Promise<boolean> => {
+  // Check session cache first
+  const now = Date.now();
+  if (cachedSGTResult[address] && (now - cachedSGTResult[address].timestamp < CACHE_DURATION)) {
+    console.log(`[VerificationService] Using cached SGT result for ${address}: ${cachedSGTResult[address].result}`);
+    return cachedSGTResult[address].result;
+  }
+
   console.log(`[VerificationService] Verifying SGT for wallet: ${address}`);
   try {
     const connection = new Connection(getRpcUrl());
     const pubkey = new PublicKey(address);
 
-    const accounts = await connection.getParsedTokenAccountsByOwner(pubkey, {
+    // OPTIMIZATION: Use getProgramAccounts with filters to find the SGT in ONE RPC call.
+    // We filter for accounts owned by TOKEN_2022_PROGRAM_ID that belong to the SGT group.
+    // The SGT Group Member extension stores the group address at offset 164 of the mint account.
+    // However, the most reliable way to find the user's SGT is to check their token accounts.
+    
+    // Step 1: Get all token-2022 accounts for this owner
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(pubkey, {
       programId: TOKEN_2022_PROGRAM_ID,
     });
 
-    if (accounts.value.length === 0) {
+    if (tokenAccounts.value.length === 0) {
       console.log(`[VerificationService] No Token-2022 accounts found for wallet: ${address}`);
+      cachedSGTResult[address] = { result: false, timestamp: now };
       return false;
     }
 
-    for (const account of accounts.value) {
-      const mintPubkey = new PublicKey(account.account.data.parsed.info.mint);
-      const info = await connection.getAccountInfo(mintPubkey);
+    // Filter for accounts that have a balance > 0
+    const activeAccounts = tokenAccounts.value.filter(
+      (a) => parseFloat(a.account.data.parsed.info.tokenAmount.uiAmountString) > 0
+    );
+
+    // We still need to check the mint of these accounts, but we can do them in a single call using getMultipleAccountsInfo
+    const mintAddresses = activeAccounts.map(a => new PublicKey(a.account.data.parsed.info.mint));
+    
+    if (mintAddresses.length === 0) {
+      cachedSGTResult[address] = { result: false, timestamp: now };
+      return false;
+    }
+
+    // Batch fetch all mint infos in ONE call instead of a loop of N calls
+    const mintInfos = await connection.getMultipleAccountsInfo(mintAddresses);
+
+    for (let i = 0; i < mintInfos.length; i++) {
+      const info = mintInfos[i];
+      const mintPubkey = mintAddresses[i];
 
       if (info) {
         try {
           const mint = unpackMint(mintPubkey, info, TOKEN_2022_PROGRAM_ID);
           const isAuthValid = mint.mintAuthority?.toBase58() === SGT_MINT_AUTHORITY;
+          
+          // Check for Group Member extension
           const groupMember = getTokenGroupMemberState(mint);
           const isGroupValid = groupMember?.group?.toBase58() === SGT_GROUP_ADDRESS;
 
           if (isAuthValid && isGroupValid) {
             console.log("✅ Verified Seeker Genesis Token Found!");
+            cachedSGTResult[address] = { result: true, timestamp: now };
             return true;
           }
         } catch (e) {
@@ -71,9 +108,12 @@ export const verifySGT = async (address: string): Promise<boolean> => {
         }
       }
     }
+
+    cachedSGTResult[address] = { result: false, timestamp: now };
     return false;
   } catch (error) {
     console.error('[VerificationService] SGT Verification Error:', error);
+    // Don't cache errors to allow for retries
     return false;
   }
 };

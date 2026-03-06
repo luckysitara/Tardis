@@ -12,6 +12,7 @@ import Icons from '@/assets/svgs';
 import TYPOGRAPHY from '@/assets/typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
+import LendingView from '@/core/profile/components/lending/LendingView';
 import { SERVER_URL } from '@env';
 
 const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8085';
@@ -29,7 +30,7 @@ const ProfileScreen = ({ navigation, route }) => {
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
   const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
-  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS' | 'PORTFOLIO'>('POSTS');
+  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS' | 'PORTFOLIO' | 'LENDING'>('POSTS');
   const [followStats, setFollowStats] = useState({ followersCount: 0, followingCount: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
@@ -138,6 +139,128 @@ const ProfileScreen = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
+  const renderProfileHeader = () => (
+    <View>
+      {/* Cover Banner */}
+      <View style={styles.bannerContainer}>
+        <IPFSAwareImage
+          source={getValidImageSource(authState.attachmentData?.coverImage)}
+          defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop' }}
+          style={styles.bannerImage}
+          resizeMode="cover"
+        />
+      </View>
+
+      {/* Profile Info Section */}
+      <View style={styles.profileSection}>
+        <View style={styles.avatarRow}>
+          <View style={styles.avatarWrapper}>
+            <IPFSAwareImage
+              source={getValidImageSource(profileAvatar)}
+              style={styles.profileAvatar}
+            />
+          </View>
+          {isOwnProfile ? (
+            <TouchableOpacity 
+              style={styles.editProfileButton}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
+              <Text style={styles.editProfileButtonText}>Edit profile</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[styles.editProfileButton, isFollowing && styles.followingButton]}
+              onPress={isFollowing ? handleUnfollow : handleFollow}
+              disabled={isFollowLoading}
+            >
+              {isFollowLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Text style={styles.editProfileButtonText}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.nameSection}>
+          <Text style={styles.displayName}>{displayName || skrUsername || "Seeker"}</Text>
+          <Text style={styles.handle}>{displayHandle}</Text>
+        </View>
+
+        <Text style={styles.bio}>
+          {userBio || "Hardware-attested Solana Seeker. Exploring the encrypted frontier of Web3 social."}
+        </Text>
+
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Icons.SearchIcon width={14} height={14} color={COLORS.greyMid} />
+            <Text style={styles.metaText}>Solana Mainnet</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Icons.PlusCircleIcon width={14} height={14} color={COLORS.greyMid} />
+            <Text style={styles.metaText}>Joined Feb 2026</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsRow}>
+          <TouchableOpacity style={styles.statItem}>
+            <Text style={styles.statNumber}>{followStats.followingCount}</Text>
+            <Text style={styles.statLabel}>Following</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.statItem}>
+            <Text style={styles.statNumber}>{followStats.followersCount}</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity 
+          style={styles.tab} 
+          onPress={() => setActiveTab('POSTS')}
+        >
+          <Text style={[styles.tabLabel, activeTab === 'POSTS' && styles.activeTabLabel]}>Posts</Text>
+          {activeTab === 'POSTS' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.tab} 
+          onPress={() => setActiveTab('COMMUNITIES')}
+        >
+          <Text style={[styles.tabLabel, activeTab === 'COMMUNITIES' && styles.activeTabLabel]}>Communities</Text>
+          {activeTab === 'COMMUNITIES' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.tab} 
+          onPress={() => setActiveTab('BOOKMARKS')}
+        >
+          <Text style={[styles.tabLabel, activeTab === 'BOOKMARKS' && styles.activeTabLabel]}>Bookmarks</Text>
+          {activeTab === 'BOOKMARKS' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.tab} 
+          onPress={() => setActiveTab('PORTFOLIO')}
+        >
+          <Text style={[styles.tabLabel, activeTab === 'PORTFOLIO' && styles.activeTabLabel]}>Portfolio</Text>
+          {activeTab === 'PORTFOLIO' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.tab} 
+          onPress={() => setActiveTab('LENDING')}
+        >
+          <Text style={[styles.tabLabel, activeTab === 'LENDING' && styles.activeTabLabel]}>P2P</Text>
+          {activeTab === 'LENDING' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'POSTS':
@@ -147,6 +270,7 @@ const ProfileScreen = ({ navigation, route }) => {
             renderItem={({ item }) => <PostComponent {...item} />}
             keyExtractor={item => item.id}
             estimatedItemSize={200}
+            ListHeaderComponent={renderProfileHeader}
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No posts yet.</Text>
@@ -162,6 +286,7 @@ const ProfileScreen = ({ navigation, route }) => {
             renderItem={renderCommunityItem}
             keyExtractor={item => item.id}
             estimatedItemSize={80}
+            ListHeaderComponent={renderProfileHeader}
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No communities joined.</Text>
@@ -176,6 +301,7 @@ const ProfileScreen = ({ navigation, route }) => {
             renderItem={({ item }) => <PostComponent {...item} />}
             keyExtractor={item => item.id}
             estimatedItemSize={200}
+            ListHeaderComponent={renderProfileHeader}
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>No bookmarks yet.</Text>
@@ -184,7 +310,9 @@ const ProfileScreen = ({ navigation, route }) => {
           />
         );
       case 'PORTFOLIO':
-        return <PortfolioView address={targetUserId || ''} />;
+        return <PortfolioView address={targetUserId || ''} ListHeaderComponent={renderProfileHeader} />;
+      case 'LENDING':
+        return <LendingView address={targetUserId || ''} ListHeaderComponent={renderProfileHeader} />;
     }
   };
 
@@ -203,122 +331,9 @@ const ProfileScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      <ScrollView stickyHeaderIndices={[3]} showsVerticalScrollIndicator={false}>
-        {/* Cover Banner */}
-        <View style={styles.bannerContainer}>
-          <IPFSAwareImage
-            source={getValidImageSource(authState.attachmentData?.coverImage)}
-            defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop' }}
-            style={styles.bannerImage}
-            resizeMode="cover"
-          />
-        </View>
-
-        {/* Profile Info Section */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatarRow}>
-            <View style={styles.avatarWrapper}>
-              <IPFSAwareImage
-                source={getValidImageSource(profileAvatar)}
-                style={styles.profileAvatar}
-              />
-            </View>
-            {isOwnProfile ? (
-              <TouchableOpacity 
-                style={styles.editProfileButton}
-                onPress={() => navigation.navigate('EditProfile')}
-              >
-                <Text style={styles.editProfileButtonText}>Edit profile</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={[styles.editProfileButton, isFollowing && styles.followingButton]}
-                onPress={isFollowing ? handleUnfollow : handleFollow}
-                disabled={isFollowLoading}
-              >
-                {isFollowLoading ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <Text style={styles.editProfileButtonText}>
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.nameSection}>
-            <Text style={styles.displayName}>{displayName || skrUsername || "Seeker"}</Text>
-            <Text style={styles.handle}>{displayHandle}</Text>
-          </View>
-
-          <Text style={styles.bio}>
-            {userBio || "Hardware-attested Solana Seeker. Exploring the encrypted frontier of Web3 social."}
-          </Text>
-
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Icons.SearchIcon width={14} height={14} color={COLORS.greyMid} />
-              <Text style={styles.metaText}>Solana Mainnet</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Icons.PlusCircleIcon width={14} height={14} color={COLORS.greyMid} />
-              <Text style={styles.metaText}>Joined Feb 2026</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <TouchableOpacity style={styles.statItem}>
-              <Text style={styles.statNumber}>{followStats.followingCount}</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.statItem}>
-              <Text style={styles.statNumber}>{followStats.followersCount}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabBar}>
-          <TouchableOpacity 
-            style={styles.tab} 
-            onPress={() => setActiveTab('POSTS')}
-          >
-            <Text style={[styles.tabLabel, activeTab === 'POSTS' && styles.activeTabLabel]}>Posts</Text>
-            {activeTab === 'POSTS' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.tab} 
-            onPress={() => setActiveTab('COMMUNITIES')}
-          >
-            <Text style={[styles.tabLabel, activeTab === 'COMMUNITIES' && styles.activeTabLabel]}>Communities</Text>
-            {activeTab === 'COMMUNITIES' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.tab} 
-            onPress={() => setActiveTab('BOOKMARKS')}
-          >
-            <Text style={[styles.tabLabel, activeTab === 'BOOKMARKS' && styles.activeTabLabel]}>Bookmarks</Text>
-            {activeTab === 'BOOKMARKS' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.tab} 
-            onPress={() => setActiveTab('PORTFOLIO')}
-          >
-            <Text style={[styles.tabLabel, activeTab === 'PORTFOLIO' && styles.activeTabLabel]}>Portfolio</Text>
-            {activeTab === 'PORTFOLIO' && <View style={styles.activeIndicator} />}
-          </TouchableOpacity>
-        </View>
-
-        {/* Content Area */}
-        <View style={styles.contentContainer}>
-          {renderContent()}
-        </View>
-      </ScrollView>
+      <View style={{ flex: 1 }}>
+        {renderContent()}
+      </View>
     </View>
   );
 };

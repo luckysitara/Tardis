@@ -10,9 +10,10 @@ import { fetchMultipleTokenPrices, DEFAULT_SOL_TOKEN } from '@/modules/data-modu
 
 interface PortfolioViewProps {
   address: string;
+  ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
 }
 
-const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
+const PortfolioView: React.FC<PortfolioViewProps> = ({ address, ListHeaderComponent }) => {
   const { portfolio, loading, error, refetch } = useFetchPortfolio(address);
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
 
@@ -106,6 +107,34 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
     return total;
   }, [tokens]);
 
+  const renderHeader = () => (
+    <View>
+      {ListHeaderComponent && (
+        typeof ListHeaderComponent === 'function' 
+          ? <ListHeaderComponent /> 
+          : ListHeaderComponent
+      )}
+      <View style={{ padding: 16 }}>
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryLabel}>Total Balance</Text>
+            <TouchableOpacity onPress={() => refetch()} disabled={loading}>
+              <Icons.PlusCircleIcon width={20} height={20} fill={COLORS.white} style={{ transform: [{ rotate: '45deg' }] }} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.summaryValue}>
+            {totalUsdValue > 0 
+              ? `$${totalUsdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+              : portfolio.nativeBalance 
+                ? `${(portfolio.nativeBalance.lamports / 1e9).toFixed(4)} SOL`
+                : '$0.00'}
+          </Text>
+        </View>
+        <Text style={styles.sectionTitle}>Tokens</Text>
+      </View>
+    </View>
+  );
+
   if (loading && portfolio.items.length === 0) {
     return (
       <View style={styles.centered}>
@@ -124,29 +153,12 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <Text style={styles.summaryLabel}>Total Balance</Text>
-          <TouchableOpacity onPress={() => refetch()} disabled={loading}>
-            <Icons.PlusCircleIcon width={20} height={20} fill={COLORS.white} style={{ transform: [{ rotate: '45deg' }] }} />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.summaryValue}>
-          {totalUsdValue > 0 
-            ? `$${totalUsdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-            : portfolio.nativeBalance 
-              ? `${(portfolio.nativeBalance.lamports / 1e9).toFixed(4)} SOL`
-              : '$0.00'}
-        </Text>
-      </View>
-      
-      <Text style={styles.sectionTitle}>Tokens</Text>
       <FlatList
         data={tokens}
         renderItem={({ item }) => <PortfolioItem item={item} />}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
-        scrollEnabled={false} // Since it's inside a ScrollView in Profile
+        ListHeaderComponent={renderHeader}
         ListEmptyComponent={() => (
           <Text style={styles.emptyText}>No tokens found in this wallet.</Text>
         )}
@@ -158,7 +170,6 @@ const PortfolioView: React.FC<PortfolioViewProps> = ({ address }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
   },
   centered: {
     flex: 1,

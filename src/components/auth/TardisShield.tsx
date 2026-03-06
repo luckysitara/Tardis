@@ -23,9 +23,11 @@ const TardisShield: React.FC<TardisShieldProps> = ({ children }) => {
 
   useEffect(() => {
     const checkAccess = async () => {
-      // If already verified, we can do a background refresh but don't show loading
-      if (!isVerifiedInStore) {
-        setIsLoading(true);
+      // 1. If we already know the user is verified in the Redux store, we can skip the heavy RPC check
+      // unless the wallet address changed.
+      if (isVerifiedInStore && hasAccess) {
+        setIsLoading(false);
+        return;
       }
       
       if (!walletAddress) {
@@ -35,22 +37,29 @@ const TardisShield: React.FC<TardisShieldProps> = ({ children }) => {
         return;
       }
 
+      setIsLoading(true);
+
       try {
         const [hardwareVerified, sgtVerified] = await Promise.all([
           verifyHardware(),
           verifySGT(walletAddress)
         ]);
 
-        console.log(`[TardisShield] Results -> HW: ${hardwareVerified}, SGT: ${sgtVerified}`);
+        console.log(`[TardisShield] Verification Results -> HW: ${hardwareVerified}, SGT: ${sgtVerified}`);
 
         if (hardwareVerified && sgtVerified) {
+          // Sync with Redux store if needed
           if (!isVerifiedInStore) {
             dispatch(setVerified(true));
           }
           setHasAccess(true);
         } else {
-          dispatch(setVerified(false));
+          // Failure case: only update store if it was previously true
+          if (isVerifiedInStore) {
+            dispatch(setVerified(false));
+          }
           setHasAccess(false);
+          
           const reason = !hardwareVerified ? 'Hardware check failed.' : 'Seeker Genesis Token missing.';
           Alert.alert('Access Denied', `A verified Seeker device and SGT are required. Reason: ${reason}`, [
             { 
@@ -70,7 +79,7 @@ const TardisShield: React.FC<TardisShieldProps> = ({ children }) => {
     };
 
     checkAccess();
-  }, [walletAddress, navigation, dispatch, isVerifiedInStore]);
+  }, [walletAddress]); // Only re-run if the wallet address actually changes
 
   if (isLoading && !isVerifiedInStore) {
     return (
