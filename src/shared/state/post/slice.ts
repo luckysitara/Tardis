@@ -71,6 +71,25 @@ export const createPost = createAsyncThunk(
   }
 );
 
+export const deletePost = createAsyncThunk(
+  'post/deletePost',
+  async ({ postId, author_wallet_address, signature, timestamp }: { 
+    postId: string; 
+    author_wallet_address: string; 
+    signature: string; 
+    timestamp: string 
+  }, { rejectWithValue }) => {
+    try {
+      const response = await axios.delete(`${SERVER_BASE_URL}/api/posts/${postId}`, {
+        data: { author_wallet_address, signature, timestamp }
+      });
+      return { postId, success: response.data.success };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || error.message);
+    }
+  }
+);
+
 // Add other post-related async thunks (like, repost, delete) as needed
 
 const postSlice = createSlice({
@@ -115,6 +134,11 @@ const postSlice = createSlice({
         if (action.payload.bookmarked === false) {
           state.bookmarkedPosts = state.bookmarkedPosts.filter(p => p.id !== action.payload.postId);
         }
+      })
+      // deletePost
+      .addCase(deletePost.fulfilled, (state, action) => {
+        state.posts = state.posts.filter(p => p.id !== action.payload.postId);
+        state.bookmarkedPosts = state.bookmarkedPosts.filter(p => p.id !== action.payload.postId);
       })
       // fetchBookmarkedPosts
       .addCase(fetchBookmarkedPosts.pending, (state) => {

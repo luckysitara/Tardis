@@ -98,9 +98,13 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
   ];
 
   // Determine text style based on sender
+  const isDeleted = (message as any).is_deleted;
+  const isEdited = (message as any).updated_at && (message as any).updated_at !== (message as any).created_at && !isDeleted;
+
   const textStyle = [
     styles.text,
-    isCurrentUser ? styles.currentUserText : styles.otherUserText
+    isCurrentUser ? styles.currentUserText : styles.otherUserText,
+    isDeleted && { fontStyle: 'italic', opacity: 0.6 }
   ];
 
   const getMediaUrls = (msg: any) => {
@@ -266,6 +270,17 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
           <View>
             {renderQuotedMessage()}
             <HighlightedText text={contentText} style={textStyle} />
+            {isEdited && (
+              <Text style={{ 
+                fontSize: 10, 
+                opacity: 0.5, 
+                marginTop: 2, 
+                color: isCurrentUser ? COLORS.white : COLORS.greyLight,
+                alignSelf: isCurrentUser ? 'flex-end' : 'flex-start' 
+              }}>
+                (edited)
+              </Text>
+            )}
             {solanaActionUrl && <BlinkMessage url={solanaActionUrl} />}
             {renderReactions()}
           </View>

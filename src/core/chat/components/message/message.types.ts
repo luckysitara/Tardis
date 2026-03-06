@@ -92,6 +92,8 @@ export interface MessageData {
   contentType?: 'text' | 'media' | 'trade' | 'nft' | 'mixed';
   tradeData?: TradeData;
   nftData?: NFTData;
+  is_deleted?: boolean;
+  updated_at?: string;
   reactions?: Array<{
     user_id: string;
     emoji: string;
@@ -122,6 +124,8 @@ export interface ChatMessageProps {
   currentUser: MessageUser | ThreadUser;
   onPressMessage?: (message: MessageData | ThreadPost) => void;
   onPressUser?: (user: MessageUser | ThreadUser) => void;
+  onEditMessage?: (message: any) => void;
+  onDeleteMessage?: (message: any) => void;
   themeOverrides?: Record<string, string>;
   styleOverrides?: Record<string, ViewStyle | TextStyle>;
   showHeader?: boolean;

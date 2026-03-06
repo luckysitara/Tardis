@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
-import { View, Pressable, GestureResponderEvent, Text, TextStyle, Animated } from 'react-native';
+import { View, Pressable, GestureResponderEvent, Text, TextStyle, Animated, Alert, TouchableOpacity } from 'react-native';
 import { ChatMessageProps } from './message.types';
 import { getMessageBaseStyles } from './message.styles';
 import { mergeStyles } from '@/core/thread/utils';
@@ -10,7 +10,7 @@ import { decryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
 import { Buffer } from 'buffer';
 import ReactionPicker from './ReactionPicker';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
-import { addReactionToMessage } from '@/shared/state/chat/slice';
+import { addReactionToMessage, removeReactionFromMessage } from '@/shared/state/chat/slice';
 import TipModal from '../tip/TipModal';
 import { sendMessage } from '@/shared/state/chat/slice';
 import socketService from '@/shared/services/socketService';
@@ -19,6 +19,8 @@ import COLORS from '@/assets/colors';
 // Update ChatMessageProps to include onLongPress
 interface ExtendedChatMessageProps extends ChatMessageProps {
   onLongPress?: (event: GestureResponderEvent) => void; // Optional long press handler
+  onEditMessage?: (message: any) => void;
+  onDeleteMessage?: (message: any) => void;
 }
 
 /**
@@ -41,11 +43,14 @@ function ChatMessage({
   onPressMessage,
   onLongPress, // Receive the onLongPress prop
   onPressUser, // Added
+  onEditMessage,
+  onDeleteMessage,
   themeOverrides,
   styleOverrides,
   showHeader = true,
   showFooter = false, // Change default to false since we're showing timestamp in the bubble
-}: ExtendedChatMessageProps) {
+}: ChatMessageProps) {
+  console.log(`[ChatMessage V2] Rendered message ${message.id}. onDeleteMessage prop exists: ${!!onDeleteMessage}`);
   const dispatch = useAppDispatch();
   const encryptionSeed = useAppSelector(state => state.auth.encryptionSeed);
   const chats = useAppSelector(state => state.chat.chats);
@@ -100,12 +105,6 @@ function ChatMessage({
     // If user has already reacted with this emoji, remove it
     const userReaction = message.reactions?.find(r => r.user_id === currentUser.id && r.emoji === emoji);
     if (userReaction) {
-      dispatch(addReactionToMessage({ // This should actually be a toggle or remove thunk
-        messageId: message.id,
-        userId: currentUser.id,
-        emoji,
-        chatId: message.chat_room_id
-      }));
       // Need a remove thunk - I'll use the one I added earlier
       dispatch(removeReactionFromMessage({
         messageId: message.id,
@@ -137,6 +136,58 @@ function ChatMessage({
       ('senderId' in message && message.senderId === currentUser.id)
     );
   }, [message, currentUser.id]);
+
+  const handleLongPress = () => {
+    console.log(`[ChatMessage] handleLongPress for message ${message.id}. isDeleted: ${message.is_deleted}, isCurrentUser: ${isCurrentUser}`);
+    if (message.is_deleted) return;
+    
+    if (isCurrentUser) {
+      console.log(`[ChatMessage] Showing Alert for message ${message.id}`);
+      Alert.alert(
+        'Message Actions',
+        'Choose an action for this message:',
+        [
+          {
+            text: 'React',
+            onPress: () => {
+              console.log(`[ChatMessage] React selected`);
+              setShowReactionPicker(true);
+            }
+          },
+          {
+            text: 'Edit',
+            onPress: () => {
+              console.log(`[ChatMessage] Edit selected`);
+              onEditMessage && onEditMessage(message);
+            }
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              console.log(`[ChatMessage] Delete confirmed for message ${message.id}`);
+              // Use a small delay to ensure the menu alert is closed
+              setTimeout(() => {
+                if (onDeleteMessage) {
+                  onDeleteMessage(message);
+                } else {
+                  console.error(`[ChatMessage] onDeleteMessage prop is missing!`);
+                }
+              }, 300);
+            }
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => console.log(`[ChatMessage] Action menu cancelled`)
+          }
+        ]
+      );
+    } else {
+      setShowReactionPicker(true);
+    }
+    onLongPress && onLongPress({} as any);
+  };
 
   // Decrypt content if message is encrypted
   const decryptedContent = useMemo(() => {
@@ -360,10 +411,7 @@ function ChatMessage({
         {/* Use Pressable for better touch handling */}
         <Pressable
           onPress={() => onPressMessage && onPressMessage(message)}
-          onLongPress={() => {
-            setShowReactionPicker(true);
-            onLongPress && onLongPress({} as any);
-          }}
+          onLongPress={handleLongPress}
           delayLongPress={500} // Consistent delay
           disabled={false} // Enable for reactions
           style={({ pressed }) => [{

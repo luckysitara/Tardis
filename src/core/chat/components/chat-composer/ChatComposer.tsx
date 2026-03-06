@@ -29,7 +29,7 @@ import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import COLORS from '@/assets/colors';
 import Svg, { Path } from 'react-native-svg';
 import { uploadChatImage } from '../../services/chatImageService';
-import { sendMessage } from '@/shared/state/chat/slice';
+import { sendMessage, editMessage } from '@/shared/state/chat/slice';
 import socketService from '@/shared/services/socketService';
 import { encryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
 import { Buffer } from 'buffer';
@@ -49,8 +49,10 @@ interface ChatComposerProps {
   onInputChange?: (value: string) => void;
   disabled?: boolean;
   chatContext?: { chatId: string };
-  replyingTo?: ChatMessage | null;
+  replyingTo?: any | null;
   onCancelReply?: () => void;
+  editingMessage?: any | null;
+  onCancelEdit?: () => void;
 }
 
 /**
@@ -67,7 +69,9 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
       inputValue,
       onInputChange,
       replyingTo,
-      onCancelReply
+      onCancelReply,
+      editingMessage,
+      onCancelEdit
     } = props;
     const dispatch = useAppDispatch();
   const inputRef = useRef<TextInput>(null);
@@ -90,6 +94,14 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
+
+  // Update text when editingMessage changes
+  useEffect(() => {
+    if (editingMessage) {
+      setTextValue(editingMessage.content || '');
+      inputRef.current?.focus();
+    }
+  }, [editingMessage]);
 
   const currentTextValue = inputValue !== undefined ? inputValue : textValue;
 
@@ -166,13 +178,33 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   };
 
   /**
-   * Message sending logic
+   * Message sending/editing logic
    */
   const handleSend = async () => {
     if (!currentTextValue.trim() && !selectedImage) return;
 
     setIsSubmitting(true);
     try {
+      // Handle Editing
+      if (editingMessage) {
+        const resultAction = await dispatch(editMessage({
+          messageId: editingMessage.id,
+          userId: currentUser.id,
+          content: currentTextValue.trim()
+        })).unwrap();
+
+        // Emit socket event for real-time update
+        if (chatContext && chatContext.chatId) {
+          socketService.editMessage(chatContext.chatId, editingMessage.id, currentTextValue.trim());
+        }
+
+        if (onMessageSent) onMessageSent(currentTextValue, '');
+        if (onCancelEdit) onCancelEdit();
+        setTextValue('');
+        setIsSubmitting(false);
+        return;
+      }
+
       let uploadedImageUrl = '';
       if (selectedImage) {
         try {
@@ -314,7 +346,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
   }, []);
 
   const renderAttachmentPreviews = () => {
-    if (!selectedImage && !replyingTo) return null;
+    if (!selectedImage && !replyingTo && !editingMessage) return null;
     return (
       <View style={styles.attachmentPreviewsContainer}>
         {selectedImage && (
@@ -329,10 +361,22 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
           <View style={styles.replyPreviewContainer}>
             <View style={styles.replyIndicator} />
             <View style={styles.replyTextContainer}>
-              <Text style={styles.replyToUser}>Replying to {replyingTo.sender?.username || 'User'}</Text>
+              <Text style={styles.replyToUser}>Replying to {replyingTo.sender?.username || replyingTo.user?.username || 'User'}</Text>
               <Text style={styles.replyContent} numberOfLines={1}>{replyingTo.content}</Text>
             </View>
             <TouchableOpacity onPress={onCancelReply} style={styles.closeReplyButton}>
+              <Text style={styles.removeImageButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {editingMessage && (
+          <View style={styles.replyPreviewContainer}>
+            <View style={[styles.replyIndicator, { backgroundColor: COLORS.brandPrimary }]} />
+            <View style={styles.replyTextContainer}>
+              <Text style={[styles.replyToUser, { color: COLORS.brandPrimary }]}>Editing message</Text>
+              <Text style={styles.replyContent} numberOfLines={1}>{editingMessage.content}</Text>
+            </View>
+            <TouchableOpacity onPress={onCancelEdit} style={styles.closeReplyButton}>
               <Text style={styles.removeImageButtonText}>✕</Text>
             </TouchableOpacity>
           </View>

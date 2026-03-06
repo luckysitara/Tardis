@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
-import { toggleBookmark } from '@/shared/state/post/slice';
+import { toggleBookmark, deletePost } from '@/shared/state/post/slice';
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
@@ -191,6 +191,75 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
     }
   };
 
+  const handleMoreActions = async () => {
+    if (!userId) {
+      Alert.alert("Authentication Required", "Please connect your wallet to see more actions.");
+      return;
+    }
+
+    const isAuthor = userId && author_wallet_address && userId.toLowerCase() === author_wallet_address.toLowerCase();
+    
+    // We'll use Alert.alert to simulate a menu
+    const buttons: any[] = [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      }
+    ];
+
+    if (isAuthor) {
+      buttons.unshift({
+        text: 'Delete Post',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            "Delete Post",
+            "Are you sure you want to delete this post?",
+            [
+              { text: "Cancel", style: "cancel" },
+              { 
+                text: "Delete", 
+                style: "destructive", 
+                onPress: async () => {
+                  try {
+                    const timestamp = new Date().toISOString();
+                    // Message format: {"id":"...","author_wallet_address":"...","timestamp":"..."}
+                    const messageToSign = JSON.stringify({ 
+                      id: interactionId, 
+                      author_wallet_address: userId, 
+                      timestamp 
+                    });
+                    
+                    const signature = await signMessage(messageToSign);
+                    if (!signature) return;
+
+                    const signatureBase64 = Buffer.from(signature).toString('base64');
+                    
+                    const result = await dispatch(deletePost({
+                      postId: interactionId,
+                      author_wallet_address: userId!,
+                      signature: signatureBase64,
+                      timestamp
+                    })).unwrap();
+                    
+                    if (result.success) {
+                      // Success is handled by reducer removing the post from state
+                    }
+                  } catch (error: any) {
+                    console.error("Error deleting post:", error);
+                    Alert.alert("Error", error || "Failed to delete post.");
+                  }
+                } 
+              }
+            ]
+          );
+        }
+      });
+    }
+
+    Alert.alert('Post Actions', 'Choose an action', buttons);
+  };
+
   const handleRepost = async () => {
     if (!userId) {
       Alert.alert("Authentication Required", "Please connect your wallet to repost.");
@@ -278,7 +347,7 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
               <Text style={styles.dot}>·</Text>
               <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.moreButton}>
+            <TouchableOpacity style={styles.moreButton} onPress={handleMoreActions}>
               <Icons.Settings width={16} height={16} color={COLORS.greyMid} />
             </TouchableOpacity>
           </View>

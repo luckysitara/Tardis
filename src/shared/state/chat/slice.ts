@@ -244,15 +244,19 @@ export const deleteMessage = createAsyncThunk(
   'chat/deleteMessage',
   async ({ 
     messageId, 
-    userId 
+    userId,
+    signature,
+    timestamp
   }: { 
     messageId: string; 
-    userId: string; 
+    userId: string;
+    signature: string;
+    timestamp: string;
   }, { rejectWithValue }) => {
     console.log(`[Thunk deleteMessage] Deleting message ${messageId} for user ${userId}`);
     try {
       const response = await axios.delete(`${SERVER_BASE_URL}/api/chat/messages/${messageId}`, {
-        data: { userId } // For DELETE requests, data needs to be passed as { data: ... }
+        data: { userId, signature, timestamp } // For DELETE requests, data needs to be passed as { data: ... }
       });
       console.log(`[Thunk deleteMessage] Success:`, response.data);
       // Make sure response.data includes chatId as added in the controller
@@ -376,6 +380,27 @@ const chatSlice = createSlice({
         }
       }
     },
+    handleMessageEdited: (state, action) => {
+      const { chatId, messageId, content } = action.payload;
+      if (state.messages[chatId]) {
+        const message = state.messages[chatId].find(msg => msg.id === messageId);
+        if (message) {
+          message.content = content;
+          message.updated_at = new Date().toISOString();
+        }
+      }
+    },
+    handleMessageDeleted: (state, action) => {
+      const { chatId, messageId } = action.payload;
+      if (state.messages[chatId]) {
+        const message = state.messages[chatId].find(msg => msg.id === messageId);
+        if (message) {
+          message.is_deleted = true;
+          message.content = '[This message has been deleted]';
+          message.updated_at = new Date().toISOString();
+        }
+      }
+    },
     clearChatErrors: (state) => {
       state.error = null;
     },
@@ -470,24 +495,35 @@ const chatSlice = createSlice({
       .addCase(editMessage.fulfilled, (state, action) => {
         const updatedMessage = action.payload;
         const chatId = updatedMessage.chat_room_id;
-        
-        if (state.messages[chatId]) {
+        console.log(`[Reducer editMessage] Success for messageId ${updatedMessage.id} in chatId ${chatId}`);
+
+        // Find the actual chatId key in state (case-insensitive)
+        const actualChatId = Object.keys(state.messages).find(
+          key => key.toLowerCase() === chatId.toLowerCase()
+        ) || chatId;
+
+        if (state.messages[actualChatId]) {
           // Find and update the message
-          const messageIndex = state.messages[chatId].findIndex(
+          const messageIndex = state.messages[actualChatId].findIndex(
             msg => msg.id === updatedMessage.id
           );
           
           if (messageIndex !== -1) {
-            state.messages[chatId][messageIndex] = updatedMessage;
+            console.log(`[Reducer editMessage] Found message, updating content`);
+            state.messages[actualChatId][messageIndex] = updatedMessage;
+            
+            // If this was the last message, update it in the chats list too
+            const chatIndex = state.chats.findIndex(chat => chat.id.toLowerCase() === chatId.toLowerCase());
+            if (chatIndex !== -1 && 
+                state.chats[chatIndex].lastMessage && 
+                state.chats[chatIndex].lastMessage.id === updatedMessage.id) {
+              state.chats[chatIndex].lastMessage = updatedMessage;
+            }
+          } else {
+            console.warn(`[Reducer editMessage] Message ${updatedMessage.id} not found in ${actualChatId}`);
           }
-          
-          // If this was the last message, update it in the chats list too
-          const chatIndex = state.chats.findIndex(chat => chat.id === chatId);
-          if (chatIndex !== -1 && 
-              state.chats[chatIndex].lastMessage && 
-              state.chats[chatIndex].lastMessage.id === updatedMessage.id) {
-            state.chats[chatIndex].lastMessage = updatedMessage;
-          }
+        } else {
+          console.warn(`[Reducer editMessage] No messages found for ${actualChatId}`);
         }
       })
       
@@ -495,30 +531,36 @@ const chatSlice = createSlice({
     builder
       .addCase(deleteMessage.fulfilled, (state, action) => {
         const { messageId, chatId } = action.payload;
+        console.log(`[Reducer deleteMessage] Success for messageId ${messageId} in chatId ${chatId}`);
         
-        if (state.messages[chatId]) {
-          // Option 1: Remove the message completely
-          // state.messages[chatId] = state.messages[chatId].filter(msg => msg.id !== messageId);
-          
-          // Option 2: Update the message content to show it's been deleted
-          const messageIndex = state.messages[chatId].findIndex(msg => msg.id === messageId);
+        // Case-insensitive chatId search
+        const actualChatId = Object.keys(state.messages).find(
+          key => key.toLowerCase() === chatId.toLowerCase()
+        ) || chatId;
+
+        if (state.messages[actualChatId]) {
+          const messageIndex = state.messages[actualChatId].findIndex(msg => msg.id === messageId);
           if (messageIndex !== -1) {
-            state.messages[chatId][messageIndex] = {
-              ...state.messages[chatId][messageIndex],
+            console.log(`[Reducer deleteMessage] Found message, marking as deleted`);
+            state.messages[actualChatId][messageIndex] = {
+              ...state.messages[actualChatId][messageIndex],
               content: '[This message has been deleted]',
-              is_deleted: true
+              is_deleted: true,
+              updated_at: new Date().toISOString()
             };
-          }
-          
-          // If this was the last message, update it in the chats list too
-          const chatIndex = state.chats.findIndex(chat => chat.id === chatId);
-          if (chatIndex !== -1 && 
-              state.chats[chatIndex].lastMessage && 
-              state.chats[chatIndex].lastMessage.id === messageId) {
-            if (messageIndex !== -1) {
-              state.chats[chatIndex].lastMessage = state.messages[chatId][messageIndex];
+            
+            // If this was the last message, update it in the chats list too
+            const chatIndex = state.chats.findIndex(chat => chat.id.toLowerCase() === chatId.toLowerCase());
+            if (chatIndex !== -1 && 
+                state.chats[chatIndex].lastMessage && 
+                state.chats[chatIndex].lastMessage.id === messageId) {
+              state.chats[chatIndex].lastMessage = state.messages[actualChatId][messageIndex];
             }
+          } else {
+            console.warn(`[Reducer deleteMessage] Message ${messageId} not found in ${actualChatId}`);
           }
+        } else {
+          console.warn(`[Reducer deleteMessage] No messages found for ${actualChatId}`);
         }
       });
     
@@ -541,8 +583,13 @@ const chatSlice = createSlice({
     // Add reaction
     builder.addCase(addReactionToMessage.fulfilled, (state, action) => {
       const { messageId, userId, emoji, chatId } = action.payload;
-      if (state.messages[chatId]) {
-        const message = state.messages[chatId].find(msg => msg.id === messageId);
+      // Case-insensitive chatId search
+      const actualChatId = Object.keys(state.messages).find(
+        key => key.toLowerCase() === chatId.toLowerCase()
+      ) || chatId;
+
+      if (state.messages[actualChatId]) {
+        const message = state.messages[actualChatId].find(msg => msg.id === messageId);
         if (message) {
           if (!message.reactions) message.reactions = [];
           // Check if reaction already exists
@@ -557,8 +604,13 @@ const chatSlice = createSlice({
     // Remove reaction
     builder.addCase(removeReactionFromMessage.fulfilled, (state, action) => {
       const { messageId, userId, emoji, chatId } = action.payload;
-      if (state.messages[chatId]) {
-        const message = state.messages[chatId].find(msg => msg.id === messageId);
+      // Case-insensitive chatId search
+      const actualChatId = Object.keys(state.messages).find(
+        key => key.toLowerCase() === chatId.toLowerCase()
+      ) || chatId;
+
+      if (state.messages[actualChatId]) {
+        const message = state.messages[actualChatId].find(msg => msg.id === messageId);
         if (message && message.reactions) {
           message.reactions = message.reactions.filter(r => !(r.user_id === userId && r.emoji === emoji));
         }
@@ -571,9 +623,12 @@ export const {
   setSelectedChat, 
   receiveMessage, 
   incrementUnreadCount, 
-  receiveReaction, 
-  handleReactionRemoved, 
-  clearChatErrors 
-} = chatSlice.actions;
+  receiveReaction,
+  handleReactionRemoved,
+  handleMessageEdited,
+  handleMessageDeleted,
+  clearChatErrors,
+  } = chatSlice.actions;
+
 export default chatSlice.reducer; 
  

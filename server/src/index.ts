@@ -126,6 +126,16 @@ io.on('connection', (socket) => {
     socket.to(`chat:${message.chatId}`).emit('new_message', message);
   });
 
+  socket.on('edit_message', (data) => {
+    console.log(`Message edit received from ${socket.id} for chat ${data.chatId}`);
+    socket.to(`chat:${data.chatId}`).emit('message_edited', data);
+  });
+
+  socket.on('delete_message', (data) => {
+    console.log(`Message delete received from ${socket.id} for chat ${data.chatId}`);
+    socket.to(`chat:${data.chatId}`).emit('message_deleted', data);
+  });
+
   socket.on('typing', ({ chatId, isTyping }) => {
     socket.to(`chat:${chatId}`).emit('user_typing', {
       chatId,

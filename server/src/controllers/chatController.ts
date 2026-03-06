@@ -12,6 +12,7 @@
 import { Request, Response } from 'express';
 import knex from '../db/knex';
 import { v4 as uuidv4 } from 'uuid';
+import { verifySignature } from '../utils/solana';
 
 /**
  * Get all chat rooms for a user
@@ -512,33 +513,48 @@ export async function editMessage(req: Request, res: Response) {
 export async function deleteMessage(req: Request, res: Response) {
   console.log(`[Delete Message] Request received for messageId: ${req.params.messageId}`);
   console.log(`[Delete Message] Request body:`, req.body);
-  
+
   try {
     const { messageId } = req.params;
-    const { userId } = req.body;
-    
-    if (!messageId || !userId) {
+    const { userId, signature, timestamp } = req.body;
+
+    if (!messageId || !userId || !signature || !timestamp) {
       console.error('[Delete Message] Missing required fields');
       return res.status(400).json({ 
         success: false, 
-        error: 'Missing required fields' 
+        error: 'Missing required fields (messageId, userId, signature, or timestamp)' 
       });
+    }
+
+    // Reconstruct the message that was signed for deletion
+    // Format must match frontend: JSON.stringify({ id: messageId, userId, timestamp })
+    const signedMessage = JSON.stringify({ id: messageId, userId, timestamp });
+
+    const isSignatureValid = verifySignature(signedMessage, signature, userId);
+    if (!isSignatureValid) {
+      console.error(`[Delete Message] Invalid signature from user ${userId}`);
+      return res.status(401).json({ success: false, error: 'Invalid signature for deletion.' });
     }
 
     // Check if message exists and belongs to the user
     const message = await knex('chat_messages')
       .where('id', messageId)
-      // Ensure sender_id is compared correctly (case-insensitive)
-      .whereRaw('LOWER(sender_id) = LOWER(?)', [userId]) 
       .first();
-
-    console.log(`[Delete Message] Found message:`, message);
-
     if (!message) {
-      console.error(`[Delete Message] Message not found or user ${userId} not authorized`);
+      console.error(`[Delete Message] Message ${messageId} not found`);
       return res.status(404).json({ 
         success: false, 
-        error: 'Message not found or you are not authorized to delete it' 
+        error: 'Message not found' 
+      });
+    }
+
+    console.log(`[Delete Message] Found message sender_id: ${message.sender_id}, incoming userId: ${userId}`);
+
+    if (message.sender_id.toLowerCase() !== userId.toLowerCase()) {
+      console.error(`[Delete Message] Authorization failed. Sender: ${message.sender_id.toLowerCase()}, Requester: ${userId.toLowerCase()}`);
+      return res.status(403).json({ 
+        success: false, 
+        error: 'You are not authorized to delete this message' 
       });
     }
 
@@ -547,7 +563,6 @@ export async function deleteMessage(req: Request, res: Response) {
       .where('id', messageId)
       .update({
         is_deleted: true,
-        // Keep original content? No, update to deleted state.
         content: '[This message has been deleted]',
         updated_at: new Date()
       });

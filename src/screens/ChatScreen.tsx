@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
-import { fetchChatMessages } from '@/shared/state/chat/slice';
+import { fetchChatMessages, deleteMessage } from '@/shared/state/chat/slice';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
@@ -23,6 +23,8 @@ import ChatMessage from '@/core/chat/components/message/ChatMessage';
 import socketService from '@/shared/services/socketService';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { Buffer } from 'buffer';
 
 const ChatScreen = () => {
   const insets = useSafeAreaInsets();
@@ -30,9 +32,11 @@ const ChatScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { chatId, title } = route.params;
+  console.log(`[ChatScreen V2] Initialized with chatId: ${chatId}, title: ${title}`);
 
   const { address: userId, username, profilePicUrl } = useAppSelector(state => state.auth);
   const { messages, chats, loadingMessages } = useAppSelector(state => state.chat);
+  const { signMessage } = useTardisMobileWallet();
   const chatMessages = messages[chatId] || [];
   const currentChat = chats.find(c => c.id === chatId);
   
@@ -40,8 +44,9 @@ const ChatScreen = () => {
     currentChat?.participants.find(p => p.id !== userId),
   [currentChat, userId]);
 
-  const flatListRef = useRef<List>(null);
+  const flatListRef = useRef<any>(null);
   const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [editingMessage, setEditingMessage] = useState<any>(null);
 
   // Security Pulsing
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -79,6 +84,43 @@ const ChatScreen = () => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
+
+  const handleEditMessage = useCallback((message: any) => {
+    setEditingMessage(message);
+    setReplyingTo(null);
+  }, []);
+
+  const handleDeleteMessage = useCallback(async (message: any) => {
+    console.log(`[ChatScreen V2] handleDeleteMessage called for messageId: ${message.id}, userId: ${userId}, chatId: ${chatId}`);
+    if (userId && chatId) {
+      try {
+        const timestamp = new Date().toISOString();
+        const messageToSign = JSON.stringify({ id: message.id, userId, timestamp });
+        
+        const signature = await signMessage(messageToSign);
+        if (!signature) {
+          console.log('[ChatScreen] Delete cancelled: No signature provided');
+          return;
+        }
+
+        const signatureBase64 = Buffer.from(signature).toString('base64');
+
+        await dispatch(deleteMessage({ 
+          messageId: message.id, 
+          userId,
+          signature: signatureBase64,
+          timestamp
+        })).unwrap();
+        
+        console.log(`[ChatScreen] deleteMessage success`);
+        socketService.deleteMessage(chatId, message.id);
+      } catch (err) {
+        console.error(`[ChatScreen] deleteMessage failure:`, err);
+      }
+    } else {
+      console.warn(`[ChatScreen] Cannot delete message: missing userId (${userId}) or chatId (${chatId})`);
+    }
+  }, [userId, chatId, dispatch, signMessage]);
 
   const onListContentSizeChange = useCallback(() => {
     flatListRef.current?.scrollToEnd({ animated: false });
@@ -130,17 +172,21 @@ const ChatScreen = () => {
             ref={flatListRef}
             data={chatMessages}
             keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <ChatMessage
-                message={{
-                  ...item,
-                  user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
-                } as any}
-                currentUser={currentUser}
-                onPressUser={(user) => navigation.navigate('Profile', { userId: user.id })}
-                onPressMessage={(msg) => setReplyingTo(msg)}
-              />
-            )}
+            renderItem={({ item }) => {
+              return (
+                <ChatMessage
+                  message={{
+                    ...item,
+                    user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
+                  } as any}
+                  currentUser={currentUser}
+                  onPressUser={(user) => navigation.navigate('Profile', { userId: user.id })}
+                  onPressMessage={(msg) => setReplyingTo(msg)}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                />
+              );
+            }}
             contentContainerStyle={styles.messageList}
             onContentSizeChange={onListContentSizeChange}
             removeClippedSubviews={Platform.OS === 'android'}
@@ -160,6 +206,8 @@ const ChatScreen = () => {
             onMessageSent={handleSendMessage}
             replyingTo={replyingTo}
             onCancelReply={() => setReplyingTo(null)}
+            editingMessage={editingMessage}
+            onCancelEdit={() => setEditingMessage(null)}
           />
         </View>
       </KeyboardAvoidingView>

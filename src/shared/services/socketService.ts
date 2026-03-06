@@ -4,7 +4,14 @@
 import { io, Socket } from 'socket.io-client';
 
 import { store } from '@/shared/state/store';
-import { receiveMessage, incrementUnreadCount } from '@/shared/state/chat/slice';
+import { 
+  receiveMessage, 
+  incrementUnreadCount, 
+  receiveReaction, 
+  handleReactionRemoved,
+  handleMessageEdited,
+  handleMessageDeleted
+} from '@/shared/state/chat/slice';
 
 class SocketService {
   private socket: Socket | null = null;
@@ -218,6 +225,18 @@ class SocketService {
       store.dispatch(receiveReaction(data));
     });
 
+    // Message edited received
+    this.socket.on('message_edited', (data: { chatId: string; messageId: string; content: string }) => {
+      console.log('Message edited via WebSocket:', data);
+      store.dispatch(handleMessageEdited(data));
+    });
+
+    // Message deleted received
+    this.socket.on('message_deleted', (data: { chatId: string; messageId: string }) => {
+      console.log('Message deleted via WebSocket:', data);
+      store.dispatch(handleMessageDeleted(data));
+    });
+
     // Reaction removed received
     this.socket.on('reaction_removed', (data: { chatId: string; messageId: string; emoji: string; userId: string }) => {
       console.log('Reaction removed via WebSocket:', data);
@@ -339,6 +358,22 @@ class SocketService {
   public sendReaction(chatId: string, messageId: string, emoji: string, userId: string): void {
     if (!this.socket || !this.socket.connected) return;
     this.socket.emit('add_reaction', { chatId, messageId, emoji, userId });
+  }
+
+  // Edit a message
+  public editMessage(chatId: string, messageId: string, content: string): void {
+    if (!this.socket || !this.socket.connected) return;
+    this.socket.emit('edit_message', { chatId, messageId, content });
+  }
+
+  // Delete a message
+  public deleteMessage(chatId: string, messageId: string): void {
+    console.log(`[SocketService] Emitting delete_message for messageId: ${messageId} in chatId: ${chatId}`);
+    if (!this.socket || !this.socket.connected) {
+      console.warn(`[SocketService] Cannot emit delete_message: socket not connected`);
+      return;
+    }
+    this.socket.emit('delete_message', { chatId, messageId });
   }
 
   // Remove a reaction from a message

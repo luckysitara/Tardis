@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
 import { useAppSelector, useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { fetchPosts } from '@/shared/state/post/slice';
-import { fetchChatMessages, receiveMessage } from '@/shared/state/chat/slice';
+import { fetchChatMessages, receiveMessage, deleteMessage } from '@/shared/state/chat/slice';
 import { RootStackParamList } from '@/shared/navigation/RootNavigator';
 import PostComponent from '@/components/PostComponent'; 
 import ChatMessage from '@/core/chat/components/message/ChatMessage';
@@ -13,6 +13,8 @@ import ChatComposer from '@/core/chat/components/chat-composer/ChatComposer';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 import socketService from '@/shared/services/socketService';
+import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { Buffer } from 'buffer';
 
 type CommunityFeedScreenRouteProp = RouteProp<RootStackParamList, 'CommunityFeed'>;
 type CommunityFeedScreenNavigationProp = StackNavigationProp<RootStackParamList, 'CommunityFeed'>;
@@ -28,13 +30,48 @@ const CommunityFeedScreen = () => {
   const { posts, loading: postsLoading } = useAppSelector(state => state.post);
   const { messages, loadingMessages: chatLoading } = useAppSelector(state => state.chat);
   const { address: userId, username, profilePicUrl } = useAppSelector(state => state.auth);
+  const { signMessage } = useTardisMobileWallet();
   
+  const [editingMessage, setEditingMessage] = useState<any>(null);
   const communityMessages = messages[communityId] || [];
   const flatListRef = useRef<FlatList>(null);
 
   const onListContentSizeChange = useCallback(() => {
     flatListRef.current?.scrollToEnd({ animated: false });
   }, []);
+
+  const handleEditMessage = useCallback((message: any) => {
+    setEditingMessage(message);
+  }, []);
+
+  const handleDeleteMessage = useCallback(async (message: any) => {
+    console.log(`[CommunityFeedScreen] handleDeleteMessage for message: ${message.id}`);
+    if (userId) {
+      try {
+        const timestamp = new Date().toISOString();
+        const messageToSign = JSON.stringify({ id: message.id, userId, timestamp });
+        
+        const signature = await signMessage(messageToSign);
+        if (!signature) {
+          console.log('[CommunityFeedScreen] Delete cancelled: No signature provided');
+          return;
+        }
+
+        const signatureBase64 = Buffer.from(signature).toString('base64');
+
+        await dispatch(deleteMessage({ 
+          messageId: message.id, 
+          userId,
+          signature: signatureBase64,
+          timestamp
+        })).unwrap();
+        
+        socketService.deleteMessage(communityId, message.id);
+      } catch (err) {
+        console.error('[CommunityFeedScreen] Failed to delete message:', err);
+      }
+    }
+  }, [userId, communityId, dispatch, signMessage]);
 
   useEffect(() => {
     if (activeTab === 'FEED') {
@@ -127,6 +164,8 @@ const CommunityFeedScreen = () => {
                     user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
                   } as any}
                   currentUser={currentUser}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
                 />
               )}
               onContentSizeChange={onListContentSizeChange}
@@ -146,6 +185,8 @@ const CommunityFeedScreen = () => {
                 <ChatComposer
                   currentUser={currentUser}
                   chatContext={{ chatId: communityId }}
+                  editingMessage={editingMessage}
+                  onCancelEdit={() => setEditingMessage(null)}
                 />
               </View>
             </KeyboardAvoidingView>
