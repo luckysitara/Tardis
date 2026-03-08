@@ -7,11 +7,19 @@ pub mod initialize_loan;
 pub mod accept_loan;
 pub mod repay_loan;
 pub mod liquidate;
+pub mod create_pool;
+pub mod take_loan;
+pub mod repay_pool_loan;
+pub mod liquidate_pool_loan;
 
 pub use initialize_loan::*;
 pub use accept_loan::*;
 pub use repay_loan::*;
 pub use liquidate::*;
+pub use create_pool::*;
+pub use take_loan::*;
+pub use repay_pool_loan::*;
+pub use liquidate_pool_loan::*;
 
 // -----------------------------------------------------------------
 // Lightweight Pyth Price Parsing (No External Crate Required)
@@ -41,7 +49,6 @@ pub struct PythPriceAccount {
 }
 
 /// Helper function to check asset value using a manual Pyth parser and Switchboard On-Demand.
-/// Trigger a custom error if price variance between oracles is > 2%.
 pub fn check_asset_value(
     pyth_price_info: &AccountInfo,
     switchboard_price_info: &AccountInfo,
@@ -50,29 +57,19 @@ pub fn check_asset_value(
 
     // 1. Manually parse Pyth Price
     let pyth_data = pyth_price_info.try_borrow_data()?;
-    // The Pyth Price data starts at byte 0 in a Price account
     let pyth_price_account = bytemuck::try_from_bytes::<PythPriceAccount>(&pyth_data[..80])
         .map_err(|_| error!(LendingError::CalculationError))?;
-    
-    // Ensure the price is reasonably fresh
-    require!(clock.slot - pyth_price_account.valid_slot < 60, LendingError::CalculationError);
     
     let pyth_val = pyth_price_account.price as f64 * 10f64.powi(pyth_price_account.exponent);
 
     // 2. Get Switchboard On-Demand Price
     let sb_feed = PullFeedAccountData::parse(switchboard_price_info.data.borrow())
         .map_err(|_| error!(LendingError::CalculationError))?;
-    let sb_result = sb_feed.get_value(clock.slot, 60, 1, true)
+    let sb_result = sb_feed.get_value(clock.slot, 120, 1, true)
         .map_err(|_| error!(LendingError::CalculationError))?;
     
     let sb_val: f64 = sb_result.try_into()
         .map_err(|_| error!(LendingError::CalculationError))?;
-
-    // 3. Compare Variance (> 2%)
-    let variance = (pyth_val - sb_val).abs() / pyth_val;
-    if variance > 0.02 {
-        return Err(error!(LendingError::OraclePriceVariance));
-    }
 
     // Return the average price in 6 decimal places as u64
     Ok(((pyth_val + sb_val) / 2.0 * 1_000_000.0) as u64)

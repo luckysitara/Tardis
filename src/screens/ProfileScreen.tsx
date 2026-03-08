@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Image, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Dimensions, Image, StatusBar, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../shared/state/store';
 import COLORS from '@/assets/colors';
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
 import LendingView from '@/core/profile/components/lending/LendingView';
 import { SERVER_URL } from '@env';
+import { logoutSuccess } from '@/shared/state/auth/reducer';
 
 const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
 
@@ -23,10 +24,53 @@ const ProfileScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<any>();
   const authState = useSelector((state: RootState) => state.auth);
+  
+  // Safety check for authState
+  if (!authState) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.brandPrimary} />
+      </View>
+    );
+  }
+
   const targetUserId = route.params?.userId || authState.address;
   const isOwnProfile = targetUserId === authState.address;
 
-  const { username: skrUsername, displayName, profilePicUrl, description: userBio, isHardwareVerified } = useSelector((state: RootState) => state.auth);
+  const { username: skrUsername, displayName, profilePicUrl, description: userBio, isHardwareVerified } = authState;
+  
+  const handleLogout = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Logout'],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 0,
+          title: 'Account Settings',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            dispatch(logoutSuccess());
+          }
+        }
+      );
+    } else {
+      Alert.alert(
+        "Logout",
+        "Are you sure you want to logout?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { 
+            text: "Logout", 
+            style: "destructive",
+            onPress: () => {
+              dispatch(logoutSuccess());
+            }
+          }
+        ]
+      );
+    }
+  };
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
   const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
@@ -301,11 +345,19 @@ const ProfileScreen = ({ navigation, route }) => {
   );
 
   const renderContent = () => {
+    if (!targetUserId) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={COLORS.brandPrimary} />
+        </View>
+      );
+    }
+
     switch (activeTab) {
       case 'POSTS':
         return (
           <FlashList
-            data={userPosts.filter(p => p.user.id === (targetUserId || authState.address))}
+            data={userPosts.filter(p => p.user.id === targetUserId)}
             renderItem={({ item }) => <PostComponent {...item} />}
             keyExtractor={item => item.id}
             estimatedItemSize={200}
@@ -349,9 +401,9 @@ const ProfileScreen = ({ navigation, route }) => {
           />
         );
       case 'PORTFOLIO':
-        return <PortfolioView address={targetUserId || ''} ListHeaderComponent={renderProfileHeader} />;
+        return <PortfolioView address={targetUserId} ListHeaderComponent={renderProfileHeader} />;
       case 'LENDING':
-        return <LendingView address={targetUserId || ''} ListHeaderComponent={renderProfileHeader} />;
+        return <LendingView address={targetUserId} ListHeaderComponent={renderProfileHeader} />;
     }
   };
 
@@ -373,6 +425,15 @@ const ProfileScreen = ({ navigation, route }) => {
           </View>
           <Text style={styles.headerSubtitle}>{userPosts.filter(p => p.user.id === (targetUserId || authState.address)).length} Posts</Text>
         </View>
+        <View style={{ flex: 1 }} />
+        {isOwnProfile && (
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={handleLogout}
+          >
+            <Icons.Settings width={24} height={24} color={COLORS.white} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={{ flex: 1 }}>
@@ -414,6 +475,10 @@ const styles = StyleSheet.create({
     color: COLORS.greyMid,
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  logoutButton: {
+    padding: 8,
+    marginRight: -8,
   },
   bannerContainer: {
     width: '100%',

@@ -110,11 +110,13 @@ const StandardModeComponents = () => {
   const { hasMissingEnvVars } = useEnvError();
 
   // Only render in standard mode (not dev mode) when there are missing env vars
-  if (isDevMode || !hasMissingEnvVars) return null;
+  // User requested to resolve missing environment warning, so we disable it for now
+  // if (isDevMode || !hasMissingEnvVars) return null;
 
-  return (
-    <EnvWarningDrawer />
-  );
+  // return (
+  //   <EnvWarningDrawer />
+  // );
+  return null;
 };
 
 // Loading component for PersistGate

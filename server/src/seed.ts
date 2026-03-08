@@ -11,9 +11,11 @@ async function seed() {
   // In a real seed we might want hardcoded ones, but let's just generate fresh pairs for now
   const roseKeypair = nacl.box.keyPair();
   const jackKeypair = nacl.box.keyPair();
+  const unclePhilKeypair = nacl.box.keyPair();
   
   const rosePublicKey = Buffer.from(roseKeypair.publicKey).toString('base64');
   const jackPublicKey = Buffer.from(jackKeypair.publicKey).toString('base64');
+  const unclePhilPublicKey = Buffer.from(unclePhilKeypair.publicKey).toString('base64');
 
   const testUsers = [
     {
@@ -31,6 +33,14 @@ async function seed() {
       description: 'Face of Boe.',
       public_encryption_key: jackPublicKey,
       keypair: jackKeypair // Store locally for encryption
+    },
+    {
+      id: 'AAxGjNqseQhYtNdEYXjijrQoQi8ZhgNfVk5NJzg2B5Mo',
+      username: 'Uncle Phil',
+      display_name: 'unclephil.skr',
+      description: 'The fresh prince mentor.',
+      public_encryption_key: unclePhilPublicKey,
+      keypair: unclePhilKeypair
     }
   ];
 

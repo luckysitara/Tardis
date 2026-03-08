@@ -4,27 +4,27 @@ import {
   Text, 
   StyleSheet, 
   ActivityIndicator, 
-  FlatList, 
   TouchableOpacity, 
   Alert,
   TextInput,
   Modal,
   ScrollView,
   RefreshControl,
-  Platform,
-  Dimensions
+  Dimensions,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import { 
   PublicKey, 
   SystemProgram, 
   Connection, 
-  LAMPORTS_PER_SOL 
+  LAMPORTS_PER_SOL
 } from '@solana/web3.js';
 import { 
   TOKEN_PROGRAM_ID, 
-  getAssociatedTokenAddress 
+  getAssociatedTokenAddress,
+  getAccount
 } from "@solana/spl-token";
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 import { getRpcUrl } from '@/modules/data-module';
@@ -34,43 +34,41 @@ import Icons from '@/assets/svgs';
 import { Buffer } from 'buffer';
 
 import { 
-  DEFAULT_SOL_TOKEN, 
   DEFAULT_USDC_TOKEN,
+  DEFAULT_SOL_TOKEN,
   fetchTokenPrice 
 } from '@/modules/data-module/services/tokenService';
 
 const { width } = Dimensions.get('window');
 const LTV_RATIO = 1.5; // 150% collateralization
 
-// Program ID from the IDL
 const PROGRAM_ID = new PublicKey("E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP");
 
-// Mock SKR Token (Seeker)
+// LIVE MAINNET SKR TOKEN
 const DEFAULT_SKR_TOKEN = {
-  address: 'SKRxxxxxx1111111111111111111111111111111111', // Placeholder mint
+  address: 'SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3', 
   symbol: 'SKR',
   name: 'Seeker',
   decimals: 9,
-  logoURI: 'https://api.dicebear.com/7.x/identicon/png?seed=skr',
 };
 
-// Mock Oracle Addresses from tests (Devnet)
+// Oracle Addresses (Devnet)
 const PYTH_SOL_USD = new PublicKey("J83w4H9txzS6AsvS5hL8HscV57sY4zQ9w64D9YWh5T84");
 const SB_SOL_USD = new PublicKey("GvDMxP2uzBox97D3vjLzyfJyoH79YCDAuyvBnN1YuyW4");
 
-interface LoanAccount {
+interface LendingPoolAccount {
   publicKey: PublicKey;
   account: {
     lender: PublicKey;
-    borrower: PublicKey;
-    collateralMint: PublicKey;
     loanMint: PublicKey;
-    collateralAmount: anchor.BN;
-    loanAmount: anchor.BN;
-    repaymentAmount: anchor.BN;
-    expiry: anchor.BN;
-    status: number; // 0: Available Offer, 1: Active Loan, 2: Repaid, 3: Liquidated
-    bump: number;
+    collateralMint: PublicKey;
+    totalLiquidity: anchor.BN;
+    remainingLiquidity: anchor.BN;
+    minBorrow: anchor.BN;
+    maxBorrow: anchor.BN;
+    interestRate: anchor.BN;
+    vaultBump: number;
+    poolBump: number;
   };
 }
 
@@ -86,115 +84,132 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
     signTransaction, 
     signAllTransactions 
   } = useWallet();
-  const [activeTab, setActiveTab] = useState<'MARKET' | 'MY_LOANS'>('MARKET');
-  const [loans, setLoans] = useState<LoanAccount[]>([]);
+  const [activeTab, setActiveTab] = useState<'MARKET' | 'MY_OFFERS'>('MARKET');
+  const [pools, setPools] = useState<LendingPoolAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showLendModal, setShowLendModal] = useState(false);
-  const [showBorrowConfirmModal, setShowBorrowConfirmModal] = useState(false);
-  const [selectedOffer, setSelectedOffer] = useState<LoanAccount | null>(null);
-  const [solPrice, setSolPrice] = useState<number>(140); // Initial fallback
+  
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showBorrowModal, setShowBorrowModal] = useState(false);
+  const [selectedPool, setSelectedPool] = useState<LendingPoolAccount | null>(null);
+  
+  const [usdcBalance, setUsdcBalance] = useState<number>(0);
+  const [solBalance, setSolBalance] = useState<number>(0);
+  const [skrPrice, setSkrPrice] = useState<number>(0.50); 
 
-  // Form State for Lending Offer (Lender/Maker)
-  const [lendAmount, setLendAmount] = useState('');
-  const [lendInterest, setLendInterest] = useState('5');
-  const [lendDurationHours, setLendDurationHours] = useState('24');
-  const [lendToken, setLendToken] = useState(DEFAULT_USDC_TOKEN);
-
-  useEffect(() => {
-    const getPrice = async () => {
-      try {
-        const price = await fetchTokenPrice(DEFAULT_SOL_TOKEN);
-        if (price) setSolPrice(price);
-      } catch (err) {
-        console.warn("Failed to fetch SOL price:", err);
-      }
-    };
-    getPrice();
-  }, []);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [minRange, setMinRange] = useState('');
+  const [maxRange, setMaxRange] = useState('');
+  const [interest, setInterest] = useState('5.0');
+  const [lendToken, setLendToken] = useState<'USDC' | 'SOL'>('USDC');
+  const [borrowAmount, setBorrowAmount] = useState('');
 
   const connection = useMemo(() => new Connection(getRpcUrl(), 'confirmed'), []);
+  const isMainnet = useMemo(() => connection.rpcEndpoint.includes('mainnet'), [connection]);
+
+  const fetchBalances = useCallback(async () => {
+    if (!publicKey) return;
+    try {
+      const sol = await connection.getBalance(publicKey);
+      setSolBalance(sol / LAMPORTS_PER_SOL);
+
+      const usdcAta = await getAssociatedTokenAddress(new PublicKey(DEFAULT_USDC_TOKEN.address), publicKey);
+      try {
+        const account = await getAccount(connection, usdcAta);
+        setUsdcBalance(Number(account.amount) / 1_000_000);
+      } catch {
+        setUsdcBalance(0);
+      }
+    } catch (err) {
+      console.warn("Balance fetch error:", err);
+    }
+  }, [publicKey, connection]);
+
+  useEffect(() => { fetchBalances(); }, [fetchBalances]);
 
   const provider = useMemo(() => {
     if (!wallet || !publicKey) return null;
-    const anchorWallet = { publicKey, signTransaction, signAllTransactions };
-    return new AnchorProvider(connection, anchorWallet as any, { preflightCommitment: 'confirmed' });
+    return new AnchorProvider(connection, { publicKey, signTransaction, signAllTransactions } as any, { preflightCommitment: 'confirmed' });
   }, [connection, wallet, publicKey, signTransaction, signAllTransactions]);
 
-  // IDL matches Anchor 0.30 format
   const idl: any = useMemo(() => ({
-    "address": PROGRAM_ID.toBase58(),
-    "metadata": { "name": "lending_program", "version": "0.1.0", "spec": "0.1.0", "address": PROGRAM_ID.toBase58() },
+    "address": "E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP",
     "instructions": [
       {
-        "name": "initializeLoan",
-        "discriminator": [235, 149, 178, 147, 146, 178, 207, 151],
+        "name": "createPool",
         "accounts": [
-          { "name": "borrower", "writable": true, "signer": true },
+          { "name": "lender", "writable": true, "signer": true },
+          { "name": "loanMint" },
           { "name": "collateralMint" },
-          { "name": "borrowerCollateralAta", "writable": true },
-          { "name": "loanAccount", "writable": true },
+          { "name": "lenderLoanAta", "writable": true },
+          { "name": "poolAccount", "writable": true },
           { "name": "vault", "writable": true },
           { "name": "tokenProgram" },
-          { "name": "systemProgram", "address": "11111111111111111111111111111111" }
+          { "name": "systemProgram" }
         ],
         "args": [
-          { "name": "collateralAmount", "type": "u64" },
-          { "name": "loanAmount", "type": "u64" },
-          { "name": "repaymentAmount", "type": "u64" },
-          { "name": "expiry", "type": "i64" }
+          { "name": "totalLiquidity", "type": "u64" },
+          { "name": "minBorrow", "type": "u64" },
+          { "name": "maxBorrow", "type": "u64" },
+          { "name": "interestRate", "type": "u64" }
         ]
       },
       {
-        "name": "acceptLoan",
-        "discriminator": [115, 234, 176, 73, 152, 3, 37, 221],
-        "accounts": [
-          { "name": "lender", "writable": true, "signer": true },
-          { "name": "borrower", "writable": true },
-          { "name": "loanMint" },
-          { "name": "lenderLoanAta", "writable": true },
-          { "name": "borrowerLoanAta", "writable": true },
-          { "name": "loanAccount", "writable": true },
-          { "name": "pythPriceInfo" },
-          { "name": "switchboardPriceInfo" },
-          { "name": "tokenProgram" }
-        ],
-        "args": []
-      },
-      {
-        "name": "repayLoan",
-        "discriminator": [224, 93, 144, 77, 61, 17, 137, 54],
+        "name": "takeLoan",
         "accounts": [
           { "name": "borrower", "writable": true, "signer": true },
-          { "name": "lender", "writable": true },
+          { "name": "poolAccount", "writable": true },
+          { "name": "poolVault", "writable": true },
           { "name": "loanMint" },
           { "name": "collateralMint" },
-          { "name": "borrowerLoanAta", "writable": true },
-          { "name": "lenderLoanAta", "writable": true },
           { "name": "borrowerCollateralAta", "writable": true },
-          { "name": "loanAccount", "writable": true },
-          { "name": "vault", "writable": true },
-          { "name": "tokenProgram" }
+          { "name": "borrowerLoanAta", "writable": true },
+          { "name": "activeLoan", "writable": true, "signer": true },
+          { "name": "loanVault", "writable": true },
+          { "name": "pythPriceInfo" },
+          { "name": "switchboardPriceInfo" },
+          { "name": "tokenProgram" },
+          { "name": "systemProgram" }
         ],
-        "args": []
+        "args": [
+          { "name": "amountToBorrow", "type": "u64" }
+        ]
       }
     ],
     "accounts": [
-      { "name": "loan", "discriminator": [20, 195, 70, 117, 165, 227, 182, 1] }
+      { "name": "LendingPool" },
+      { "name": "ActiveLoan" }
     ],
     "types": [
       {
-        "name": "loan",
+        "name": "LendingPool",
         "type": {
           "kind": "struct",
           "fields": [
             { "name": "lender", "type": "pubkey" },
-            { "name": "borrower", "type": "pubkey" },
-            { "name": "collateralMint", "type": "pubkey" },
             { "name": "loanMint", "type": "pubkey" },
-            { "name": "collateralAmount", "type": "u64" },
-            { "name": "loanAmount", "type": "u64" },
+            { "name": "collateralMint", "type": "pubkey" },
+            { "name": "totalLiquidity", "type": "u64" },
+            { "name": "remainingLiquidity", "type": "u64" },
+            { "name": "minBorrow", "type": "u64" },
+            { "name": "maxBorrow", "type": "u64" },
+            { "name": "interestRate", "type": "u64" },
+            { "name": "vaultBump", "type": "u8" },
+            { "name": "poolBump", "type": "u8" }
+          ]
+        }
+      },
+      {
+        "name": "ActiveLoan",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            { "name": "borrower", "type": "pubkey" },
+            { "name": "pool", "type": "pubkey" },
+            { "name": "collateralMint", "type": "pubkey" },
+            { "name": "amountBorrowed", "type": "u64" },
             { "name": "repaymentAmount", "type": "u64" },
+            { "name": "collateralAmount", "type": "u64" },
             { "name": "expiry", "type": "i64" },
             { "name": "status", "type": "u8" },
             { "name": "bump", "type": "u8" }
@@ -204,391 +219,282 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
     ]
   }), []);
 
-  const fetchLoans = useCallback(async () => {
+  const fetchPools = useCallback(async () => {
     if (!provider) return;
     setLoading(true);
     try {
       const program = new Program(idl, provider);
-      const allLoans = await program.account.loan.all();
-      setLoans(allLoans as any);
+      const allPools = await program.account.lendingPool.all();
+      setPools(allPools as any);
     } catch (err) {
-      console.error("Error fetching loans:", err);
-      setLoans([]);
+      console.error("Error fetching pools:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [provider, idl]);
 
-  useEffect(() => { fetchLoans(); }, [fetchLoans]);
+  useEffect(() => { fetchPools(); }, [fetchPools]);
 
-  const onRefresh = () => { setRefreshing(true); fetchLoans(); };
+  const onRefresh = () => { setRefreshing(true); fetchPools(); fetchBalances(); };
 
-  const showDevnetAlert = () => {
-    Alert.alert(
-      "Devnet Feature",
-      "The Escrow P2P lending/borrowing features are currently on Devnet. Please contact the developer to deploy to Mainnet and try again later.",
-      [{ text: "OK", onPress: () => {
-        setShowLendModal(false);
-        setShowBorrowConfirmModal(false);
-      }}]
-    );
-  };
+  const handleCreateLendingOrder = async () => {
+    if (!provider || !publicKey) return;
+    const amountNum = parseFloat(depositAmount);
+    if (!amountNum) { Alert.alert("Error", "Enter a valid amount"); return; }
 
-  const handleLendFunds = async () => {
-    if (!lendAmount || !lendInterest) {
-      Alert.alert("Error", "Please fill in all fields.");
+    if (isMainnet) {
+      Alert.alert("Network Mismatch", "The P2P contract is currently on Devnet. Your wallet is on Mainnet. Please notify the developer to deploy the contract to Mainnet.");
       return;
     }
-    showDevnetAlert();
-  };
 
-  const handleConfirmBorrow = async () => {
-    showDevnetAlert();
-  };
+    setLoading(true);
+    try {
+      const program = new Program(idl, provider);
+      const loanMint = new PublicKey(lendToken === 'USDC' ? DEFAULT_USDC_TOKEN.address : DEFAULT_SOL_TOKEN.address);
+      const collateralMint = new PublicKey(DEFAULT_SKR_TOKEN.address);
+      const lenderLoanAta = await getAssociatedTokenAddress(loanMint, publicKey);
+      
+      const decimals = lendToken === 'USDC' ? 1_000_000 : 1_000_000_000;
+      const totalLiquidity = new anchor.BN(amountNum * decimals);
+      const minBorrow = new anchor.BN(parseFloat(minRange) * decimals);
+      const maxBorrow = new anchor.BN(parseFloat(maxRange) * decimals);
+      const interestRate = new anchor.BN(parseFloat(interest) * 100);
 
-  const handleRepayLoan = async (loan: LoanAccount) => {
-    showDevnetAlert();
+      const poolSeed = new Uint8Array([112, 111, 111, 108]); 
+      const vaultSeed = new Uint8Array([112, 111, 111, 108, 95, 118, 97, 117, 108, 116]);
+
+      const [poolAccount] = PublicKey.findProgramAddressSync(
+        [poolSeed, publicKey.toBuffer(), loanMint.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const [vault] = PublicKey.findProgramAddressSync(
+        [vaultSeed, poolAccount.toBuffer()],
+        PROGRAM_ID
+      );
+
+      await program.methods
+        .createPool(totalLiquidity, minBorrow, maxBorrow, interestRate)
+        .accounts({
+          lender: publicKey,
+          loanMint: loanMint,
+          collateralMint: collateralMint,
+          lenderLoanAta: lenderLoanAta,
+          poolAccount: poolAccount,
+          vault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        } as any).rpc();
+
+      Alert.alert("Success", "Liquidity Pool Created!");
+      setShowCreateModal(false);
+      fetchPools();
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("Error", err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculatedCollateral = useMemo(() => {
-    const amount = parseFloat(lendAmount) || 0;
-    const interest = parseFloat(lendInterest) || 0;
-    const totalToRepay = amount * (1 + (interest / 100));
-    return ((totalToRepay * LTV_RATIO) / solPrice).toFixed(4);
-  }, [lendAmount, lendInterest, solPrice]);
+    const amount = parseFloat(borrowAmount) || 0;
+    const rate = selectedPool?.account.interestRate.toNumber() || 0;
+    const totalValueToCover = amount * (1 + (rate / 10000));
+    return ((totalValueToCover * LTV_RATIO) / skrPrice).toFixed(2);
+  }, [borrowAmount, selectedPool, skrPrice]);
 
-  const filteredLoans = useMemo(() => {
-    if (activeTab === 'MARKET') {
-      // Offers available for taking (Lender set, Borrower empty)
-      return loans.filter(l => 
-        l.account.status === 0 && 
-        l.account.lender && 
-        l.account.lender.toBase58() !== address &&
-        (l.account.borrower.equals(PublicKey.default))
-      );
-    } else {
-      // Loans involving the user
-      return loans.filter(l => 
-        (l.account.borrower && l.account.borrower.toBase58() === address) || 
-        (l.account.lender && l.account.lender.toBase58() === address)
-      );
+  const handleConfirmBorrow = async () => {
+    if (!provider || !publicKey || !selectedPool) return;
+    const amount = parseFloat(borrowAmount);
+    if (!amount) return;
+
+    if (isMainnet) {
+      Alert.alert("Network Mismatch", "The P2P contract is currently on Devnet. Your wallet is on Mainnet. Please notify the developer to deploy the contract to Mainnet.");
+      return;
     }
-  }, [loans, activeTab, address]);
 
-  const renderMarketOverview = () => (
-    <View style={styles.overviewContainer}>
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>Total TVL</Text>
-        <Text style={styles.statValue}>$0.00</Text>
-      </View>
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>Offers</Text>
-        <Text style={styles.statValue}>0</Text>
-      </View>
-      <View style={styles.statCard}>
-        <Text style={styles.statLabel}>Avg. Yield</Text>
-        <Text style={styles.statValue}>0.0%</Text>
-      </View>
-    </View>
-  );
+    setLoading(true);
+    try {
+      const program = new Program(idl, provider);
+      const activeLoanAccount = anchor.web3.Keypair.generate();
+      const loanMint = selectedPool.account.loanMint;
+      const collateralMint = selectedPool.account.collateralMint;
+      const borrowerCollateralAta = await getAssociatedTokenAddress(collateralMint, publicKey);
+      const borrowerLoanAta = await getAssociatedTokenAddress(loanMint, publicKey);
+      
+      const vaultSeed = new Uint8Array([112, 111, 111, 108, 95, 118, 97, 117, 108, 116]);
+      const [poolVault] = PublicKey.findProgramAddressSync(
+        [vaultSeed, selectedPool.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
 
-  const renderLoanItem = ({ item }: { item: LoanAccount }) => {
-    const isLender = item.account.lender.toBase58() === address;
-    const isBorrower = item.account.borrower.toBase58() === address;
-    
-    const statusMap = ["Available Offer", "Active", "Repaid", "Liquidated"];
-    const statusColor = [COLORS.brandPrimary, COLORS.brandGreen, COLORS.greyMid, COLORS.errorRed];
+      await program.methods
+        .takeLoan(new anchor.BN(amount * (loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000)))
+        .accounts({
+          borrower: publicKey,
+          poolAccount: selectedPool.publicKey,
+          poolVault,
+          loanMint,
+          collateralMint,
+          borrowerCollateralAta,
+          borrowerLoanAta,
+          activeLoan: activeLoanAccount.publicKey,
+          pythPriceInfo: PYTH_SOL_USD,
+          switchboardPriceInfo: SB_SOL_USD,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .signers([activeLoanAccount])
+        .rpc();
 
-    const loanToken = item.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 'USDC' : 'SKR';
-    const loan = item.account.loanAmount;
-    const repayment = item.account.repaymentAmount;
-    const interestPercent = loan.isZero() ? 0 : repayment.sub(loan).mul(new anchor.BN(100)).div(loan).toNumber();
+      Alert.alert("Success", "Borrowed successfully!");
+      setShowBorrowModal(false);
+      fetchPools();
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredPools = useMemo(() => {
+    if (activeTab === 'MARKET') {
+      return pools.filter(p => p.account.lender.toBase58() !== address);
+    }
+    return pools.filter(p => p.account.lender.toBase58() === address);
+  }, [pools, address, activeTab]);
+
+  const renderPoolItem = ({ item }: { item: LendingPoolAccount }) => {
+    const isUSDC = item.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address;
+    const tokenSymbol = isUSDC ? 'USDC' : 'SOL';
+    const decimals = isUSDC ? 1_000_000 : 1_000_000_000;
 
     return (
-      <View style={styles.loanCard}>
-        <View style={styles.loanHeader}>
-          <View style={styles.typeTag}>
-            <Icons.WalletIcon width={14} height={14} fill={COLORS.brandPrimary} />
-            <Text style={styles.loanType}>
-              {loanToken} Lending Offer
+      <View style={styles.offerCard}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.lenderName}>{tokenSymbol} Pool by {item.account.lender.toBase58().slice(0,4)}</Text>
+          <View style={styles.interestBadge}>
+            <Text style={styles.interestText}>{(item.account.interestRate.toNumber() / 100).toFixed(1)}% APR</Text>
+          </View>
+        </View>
+        <View style={styles.statsRow}>
+          <View>
+            <Text style={styles.statLabel}>Available</Text>
+            <Text style={styles.statValue}>{(item.account.remainingLiquidity.toNumber() / decimals).toFixed(2)} {tokenSymbol}</Text>
+          </View>
+          <View>
+            <Text style={[styles.statLabel, { textAlign: 'right' }]}>Borrow Range</Text>
+            <Text style={[styles.statValue, { textAlign: 'right' }]}>
+              {(item.account.minBorrow.toNumber() / decimals).toFixed(0)} - {(item.account.maxBorrow.toNumber() / decimals).toFixed(0)} {tokenSymbol}
             </Text>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor[item.account.status] + '20' }]}>
-            <Text style={[styles.statusText, { color: statusColor[item.account.status] }]}>
-              {statusMap[item.account.status]}
-            </Text>
-          </View>
         </View>
-
-        <View style={styles.mainValues}>
-          <View>
-            <Text style={styles.mainLabel}>Offering</Text>
-            <View style={styles.valueRow}>
-              <Text style={styles.mainValue}>{(loan.toNumber() / (loanToken === 'USDC' ? 1_000_000 : 1_000_000_000)).toFixed(2)}</Text>
-              <Text style={styles.currency}>{loanToken}</Text>
-            </View>
-          </View>
-          <View style={styles.divider} />
-          <View>
-            <Text style={[styles.mainLabel, { textAlign: 'right' }]}>Yield</Text>
-            <View style={[styles.valueRow, { justifyContent: 'flex-end' }]}>
-              <Text style={[styles.mainValue, { color: COLORS.brandGreen }]}>{interestPercent}%</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.loanDetailsGrid}>
-          <View style={styles.gridItem}>
-            <Text style={styles.gridLabel}>LTV</Text>
-            <Text style={styles.gridValue}>150% (Fixed)</Text>
-          </View>
-          <View style={styles.gridItem}>
-            <Text style={styles.gridLabel}>Collateral</Text>
-            <Text style={styles.gridValue}>SOL</Text>
-          </View>
-          <View style={styles.gridItem}>
-            <Text style={styles.gridLabel}>Duration</Text>
-            <Text style={styles.gridValue}>7 Days</Text>
-          </View>
-        </View>
-
-        {activeTab === 'MARKET' && item.account.status === 0 && (
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {
-              setSelectedOffer(item);
-              setShowBorrowConfirmModal(true);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionButtonText}>Borrow Now</Text>
-          </TouchableOpacity>
-        )}
-
-        {activeTab === 'MY_LOANS' && isBorrower && item.account.status === 1 && (
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: COLORS.brandGreen }]}
-            onPress={() => handleRepayLoan(item)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionButtonText}>Repay Principal + Interest</Text>
+        {activeTab === 'MARKET' && (
+          <TouchableOpacity style={styles.borrowButton} onPress={() => { setSelectedPool(item); setShowBorrowModal(true); }}>
+            <Text style={styles.borrowButtonText}>Borrow from Pool</Text>
           </TouchableOpacity>
         )}
       </View>
     );
   };
 
-  const renderTabs = () => (
-    <View style={styles.tabsContainer}>
-      <TouchableOpacity 
-        style={[styles.tab, activeTab === 'MARKET' && styles.activeTab]}
-        onPress={() => setActiveTab('MARKET')}
-      >
-        <Text style={[styles.tabText, activeTab === 'MARKET' && styles.activeTabText]}>P2P Market</Text>
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={[styles.tab, activeTab === 'MY_LOANS' && styles.activeTab]}
-        onPress={() => setActiveTab('MY_LOANS')}
-      >
-        <Text style={[styles.tabText, activeTab === 'MY_LOANS' && styles.activeTabText]}>My Positions</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderHeader = () => (
-    <View style={styles.headerWrapper}>
-      {ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}
-      <View style={styles.headerContent}>
-        <Text style={styles.title}>P2P Lending</Text>
-        <Text style={styles.subtitle}>Borrow from available liquidity or lend to earn yield.</Text>
-        {renderMarketOverview()}
-        {renderTabs()}
-        {activeTab === 'MY_LOANS' && (
-          <TouchableOpacity 
-            style={styles.lendButtonMain}
-            onPress={() => setShowLendModal(true)}
-            activeOpacity={0.7}
-          >
-            <Icons.PlusCircleIcon width={20} height={20} fill={COLORS.white} />
-            <Text style={styles.lendButtonText}>Create Lending Offer</Text>
-          </TouchableOpacity>
-        )}
+    <View style={styles.header}>
+      {isMainnet && (
+        <View style={styles.networkWarning}>
+          <Icons.InfoIcon width={16} height={16} fill={COLORS.white} />
+          <Text style={styles.networkWarningText}>The P2P contract is currently on Devnet. Your wallet is on Mainnet. Please notify the developer to deploy the contract to Mainnet.</Text>
+        </View>
+      )}
+      <Text style={styles.title}>P2P Lending</Text>
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity style={[styles.tab, activeTab === 'MARKET' && styles.activeTab]} onPress={() => setActiveTab('MARKET')}>
+          <Text style={[styles.tabText, activeTab === 'MARKET' && styles.activeTabText]}>P2P Market</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, activeTab === 'MY_OFFERS' && styles.activeTab]} onPress={() => setActiveTab('MY_OFFERS')}>
+          <Text style={[styles.tabText, activeTab === 'MY_OFFERS' && styles.activeTabText]}>My Offers</Text>
+        </TouchableOpacity>
       </View>
+      {activeTab === 'MY_OFFERS' && (
+        <TouchableOpacity style={styles.createButton} onPress={() => setShowCreateModal(true)}>
+          <Icons.PlusCircleIcon width={20} height={20} fill={COLORS.white} />
+          <Text style={styles.createButtonText}>Create Lending Order</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={filteredLoans}
-        renderItem={renderLoanItem}
+      <FlashList
+        data={filteredPools}
+        renderItem={renderPoolItem}
         keyExtractor={item => item.publicKey.toBase58()}
-        contentContainerStyle={styles.listContent}
+        estimatedItemSize={180}
+        ListHeaderComponent={<>{ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}{renderHeader()}</>}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.brandPrimary} />}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Icons.SearchIcon width={48} height={48} fill={COLORS.lightGrey} />
-            <Text style={styles.emptyText}>No available offers in the market.</Text>
-            {activeTab === 'MARKET' && (
-              <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-                <Text style={styles.refreshButtonText}>Refresh Market</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        ListEmptyComponent={() => <View style={styles.empty}><Text style={styles.emptyText}>No active lending orders.</Text></View>}
       />
 
-      {/* Lender Modal (The Maker) */}
-      <Modal visible={showLendModal} animationType="slide" transparent>
+      <Modal visible={showCreateModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Lend Funds</Text>
-                <Text style={styles.modalSubtitle}>Create a new offer for the P2P marketplace</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowLendModal(false)} style={styles.closeButton}>
-                <Text style={{ color: COLORS.white, fontSize: 16 }}>✕</Text>
+            <Text style={styles.modalTitle}>Lend Assets</Text>
+            <View style={styles.pairToggle}>
+              <TouchableOpacity style={[styles.pairButton, lendToken === 'USDC' && styles.activePair]} onPress={() => setLendToken('USDC')}>
+                <Text style={[styles.pairText, lendToken === 'USDC' && styles.activePairText]}>USDC / SKR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.pairButton, lendToken === 'SOL' && styles.activePair]} onPress={() => setLendToken('SOL')}>
+                <Text style={[styles.pairText, lendToken === 'SOL' && styles.activePairText]}>SOL / SKR</Text>
               </TouchableOpacity>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Token to Lend</Text>
-                <View style={styles.tokenPicker}>
-                  <TouchableOpacity 
-                    style={[styles.tokenOption, lendToken.symbol === 'USDC' && styles.activeTokenOption]}
-                    onPress={() => setLendToken(DEFAULT_USDC_TOKEN)}
-                  >
-                    <Text style={[styles.tokenOptionText, lendToken.symbol === 'USDC' && styles.activeTokenOptionText]}>USDC</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.tokenOption, lendToken.symbol === 'SKR' && styles.activeTokenOption]}
-                    onPress={() => setLendToken(DEFAULT_SKR_TOKEN as any)}
-                  >
-                    <Text style={[styles.tokenOptionText, lendToken.symbol === 'SKR' && styles.activeTokenOptionText]}>SKR</Text>
-                  </TouchableOpacity>
-                </View>
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Amount to Lend ({lendToken})</Text>
+                <Text style={styles.balanceText}>Balance: {lendToken === 'USDC' ? usdcBalance.toFixed(2) : solBalance.toFixed(4)}</Text>
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Lend Amount ({lendToken.symbol})</Text>
-                <TextInput
-                  style={styles.input}
-                  value={lendAmount}
-                  onChangeText={setLendAmount}
-                  keyboardType="numeric"
-                  placeholder="0.00"
-                  placeholderTextColor={COLORS.accessoryDarkColor}
-                />
+              <TextInput style={styles.input} value={depositAmount} onChangeText={setDepositAmount} keyboardType="numeric" placeholder="0.00" placeholderTextColor={COLORS.greyMid} />
+            </View>
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.label}>Min Borrow</Text>
+                <TextInput style={styles.input} value={minRange} onChangeText={setMinRange} keyboardType="numeric" placeholder="10" placeholderTextColor={COLORS.greyMid} />
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Desired Interest (%)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={lendInterest}
-                  onChangeText={setLendInterest}
-                  keyboardType="numeric"
-                  placeholder="5.0"
-                  placeholderTextColor={COLORS.accessoryDarkColor}
-                />
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Max Borrow</Text>
+                <TextInput style={styles.input} value={maxRange} onChangeText={setMaxRange} keyboardType="numeric" placeholder="500" placeholderTextColor={COLORS.greyMid} />
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Duration (Hours)</Text>
-                <View style={styles.durationButtons}>
-                  {['24', '168', '720'].map(h => (
-                    <TouchableOpacity 
-                      key={h}
-                      style={[styles.durationChip, lendDurationHours === h && styles.activeDurationChip]}
-                      onPress={() => setLendDurationHours(h)}
-                    >
-                      <Text style={[styles.durationChipText, lendDurationHours === h && styles.activeDurationChipText]}>
-                        {h === '24' ? '1 Day' : h === '168' ? '1 Week' : '1 Month'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Expected Return</Text>
-                  <Text style={[styles.summaryValue, { color: COLORS.brandGreen }]}>
-                    {lendAmount ? (parseFloat(lendAmount) * (1 + parseFloat(lendInterest)/100)).toFixed(2) : '0.00'} {lendToken.symbol}
-                  </Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Required Collateral Ratio</Text>
-                  <Text style={styles.summaryValue}>150% (SOL)</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity style={[styles.submitButton, { backgroundColor: COLORS.brandGreen }]} onPress={handleLendFunds}>
-                <Text style={styles.submitButtonText}>Publish Offer</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>APR (%)</Text>
+              <TextInput style={styles.input} value={interest} onChangeText={setInterest} keyboardType="numeric" placeholder="5.0" placeholderTextColor={COLORS.greyMid} />
+            </View>
+            <TouchableOpacity style={styles.submitButton} onPress={handleCreateLendingOrder} disabled={loading}>
+              {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.submitButtonText}>Deposit & List Pool</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowCreateModal(false)} style={styles.close}><Text style={styles.closeText}>Cancel</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Borrow Confirmation Modal (The Taker) */}
-      <Modal visible={showBorrowConfirmModal} animationType="slide" transparent>
+      <Modal visible={showBorrowModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Confirm Borrowing</Text>
-                <Text style={styles.modalSubtitle}>Provide collateral to take this offer</Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowBorrowConfirmModal(false)} style={styles.closeButton}>
-                <Text style={{ color: COLORS.white, fontSize: 16 }}>✕</Text>
-              </TouchableOpacity>
+            <Text style={styles.modalTitle}>Borrow {selectedPool?.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 'USDC' : 'SOL'}</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Amount to Borrow</Text>
+              <TextInput style={styles.input} value={borrowAmount} onChangeText={setBorrowAmount} keyboardType="numeric" placeholder="100.00" placeholderTextColor={COLORS.greyMid} />
             </View>
-
-            {selectedOffer && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.offerDetailsBox}>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Borrowing Amount</Text>
-                    <Text style={styles.summaryValue}>
-                      {(selectedOffer.account.loanAmount.toNumber() / (selectedOffer.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000)).toFixed(2)} {selectedOffer.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 'USDC' : 'SKR'}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Repayment at Maturity</Text>
-                    <Text style={styles.summaryValue}>
-                      {(selectedOffer.account.repaymentAmount.toNumber() / (selectedOffer.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000)).toFixed(2)} {selectedOffer.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 'USDC' : 'SKR'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.collateralCalculationBox}>
-                  <Text style={styles.inputLabel}>Required Collateral</Text>
-                  <View style={styles.collateralDisplay}>
-                    <Text style={styles.collateralBigValue}>
-                      {((selectedOffer.account.repaymentAmount.toNumber() * LTV_RATIO) / (selectedOffer.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000) / solPrice).toFixed(4)}
-                    </Text>
-                    <Text style={styles.collateralUnit}>SOL</Text>
-                  </View>
-                  <Text style={styles.priceHint}>Based on current SOL price of ${solPrice.toFixed(2)}</Text>
-                </View>
-
-                <View style={styles.liquidationWarning}>
-                  <Icons.InfoIcon width={16} height={16} fill={COLORS.errorRed} />
-                  <Text style={styles.warningText}>
-                    Liquidation will trigger if your SOL collateral value drops below 110% of the repayment amount.
-                  </Text>
-                </View>
-
-                <TouchableOpacity style={styles.submitButton} onPress={handleConfirmBorrow}>
-                  <Text style={styles.submitButtonText}>Confirm & Take Loan</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            )}
+            <View style={styles.summaryBox}>
+              <Text style={styles.label}>Required SKR Collateral (150%)</Text>
+              <Text style={styles.summaryValue}>{calculatedCollateral} SKR</Text>
+            </View>
+            <TouchableOpacity style={styles.submitButton} onPress={handleConfirmBorrow} disabled={loading}>
+              {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.submitButtonText}>Confirm & Borrow</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowBorrowModal(false)} style={styles.close}><Text style={styles.closeText}>Cancel</Text></TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -598,77 +504,49 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  listContent: { paddingBottom: 40 },
-  headerWrapper: { marginBottom: 8 },
-  headerContent: { paddingHorizontal: 20, paddingTop: 10 },
-  title: { color: COLORS.white, fontSize: 28, fontFamily: TYPOGRAPHY.fontFamily, fontWeight: '800', marginBottom: 4 },
-  subtitle: { color: COLORS.accessoryDarkColor, fontSize: 14, fontFamily: TYPOGRAPHY.fontFamily, marginBottom: 24 },
-  overviewContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
-  statCard: { backgroundColor: COLORS.lighterBackground, padding: 12, borderRadius: 16, width: (width - 60) / 3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  statLabel: { color: COLORS.accessoryDarkColor, fontSize: 10, textTransform: 'uppercase', fontWeight: '700', marginBottom: 4 },
-  statValue: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
-  tabsContainer: { flexDirection: 'row', backgroundColor: COLORS.darkerBackground, borderRadius: 12, padding: 4, marginBottom: 20 },
+  header: { paddingHorizontal: 20, paddingTop: 10 },
+  title: { color: COLORS.white, fontSize: 24, fontWeight: '800', marginBottom: 16 },
+  networkWarning: { backgroundColor: COLORS.errorRed, padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  networkWarningText: { color: COLORS.white, fontSize: 11, fontWeight: '600', marginLeft: 10, flex: 1 },
+  tabsContainer: { flexDirection: 'row', backgroundColor: COLORS.darkerBackground, borderRadius: 12, padding: 4, marginBottom: 16 },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
   activeTab: { backgroundColor: COLORS.lighterBackground },
-  tabText: { color: COLORS.accessoryDarkColor, fontSize: 14, fontWeight: '700' },
+  tabText: { color: COLORS.greyMid, fontWeight: '700', fontSize: 14 },
   activeTabText: { color: COLORS.brandPrimary },
-  loanCard: { backgroundColor: COLORS.lightBackground, borderRadius: 24, padding: 20, marginHorizontal: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' },
-  loanHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  typeTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(50, 212, 222, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  loanType: { color: COLORS.brandPrimary, fontSize: 12, fontWeight: '800', marginLeft: 6, textTransform: 'uppercase' },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  mainValues: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
-  mainLabel: { color: COLORS.accessoryDarkColor, fontSize: 12, fontWeight: '600', marginBottom: 6 },
-  valueRow: { flexDirection: 'row', alignItems: 'baseline' },
-  mainValue: { color: COLORS.white, fontSize: 24, fontWeight: '800' },
-  currency: { color: COLORS.accessoryDarkColor, fontSize: 12, fontWeight: '800', marginLeft: 4 },
-  divider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.1)' },
-  loanDetailsGrid: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 16, marginBottom: 20 },
-  gridItem: { alignItems: 'flex-start' },
-  gridLabel: { color: COLORS.accessoryDarkColor, fontSize: 10, fontWeight: '600', marginBottom: 2 },
-  gridValue: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  actionButton: { backgroundColor: COLORS.brandPrimary, borderRadius: 16, paddingVertical: 14, alignItems: 'center' },
-  actionButtonText: { color: COLORS.black, fontWeight: '800', fontSize: 15 },
-  lendButtonMain: { backgroundColor: COLORS.brandGreen, borderRadius: 16, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
-  lendButtonText: { color: COLORS.black, fontWeight: '800', fontSize: 15, marginLeft: 8 },
-  emptyContainer: { padding: 60, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: COLORS.accessoryDarkColor, fontSize: 14, textAlign: 'center', marginTop: 16 },
-  refreshButton: { marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: COLORS.lighterBackground, borderRadius: 12 },
-  refreshButtonText: { color: COLORS.brandPrimary, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.9)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: COLORS.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '85%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
-  modalTitle: { color: COLORS.white, fontSize: 22, fontWeight: '800' },
-  modalSubtitle: { color: COLORS.accessoryDarkColor, fontSize: 13, marginTop: 2 },
-  closeButton: { backgroundColor: COLORS.lighterBackground, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  createButton: { backgroundColor: COLORS.brandGreen, borderRadius: 12, paddingVertical: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
+  createButtonText: { color: COLORS.white, fontWeight: '800', marginLeft: 8 },
+  offerCard: { backgroundColor: COLORS.lightBackground, borderRadius: 20, padding: 20, marginHorizontal: 20, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  lenderName: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  interestBadge: { backgroundColor: 'rgba(50, 212, 222, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  interestText: { color: COLORS.brandPrimary, fontWeight: '800', fontSize: 12 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  statLabel: { color: COLORS.greyMid, fontSize: 11, marginBottom: 4 },
+  statValue: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  borrowButton: { backgroundColor: COLORS.brandPrimary, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  borrowButtonText: { color: COLORS.black, fontWeight: '800', fontSize: 14 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.background, padding: 24, borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+  modalTitle: { color: COLORS.white, fontSize: 22, fontWeight: '800', marginBottom: 20 },
+  pairToggle: { flexDirection: 'row', backgroundColor: COLORS.darkerBackground, borderRadius: 12, padding: 4, marginBottom: 20 },
+  pairButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  activePair: { backgroundColor: COLORS.lighterBackground },
+  pairText: { color: COLORS.greyMid, fontWeight: '700' },
+  activePairText: { color: COLORS.brandPrimary },
   inputGroup: { marginBottom: 20 },
-  inputLabel: { color: COLORS.white, fontSize: 14, fontWeight: '700', marginBottom: 10 },
-  input: { backgroundColor: COLORS.darkerBackground, borderRadius: 16, padding: 16, color: COLORS.white, fontSize: 16, fontWeight: '600', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  tokenPicker: { flexDirection: 'row', backgroundColor: COLORS.darkerBackground, borderRadius: 16, padding: 4 },
-  tokenOption: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
-  activeTokenOption: { backgroundColor: COLORS.lighterBackground },
-  tokenOptionText: { color: COLORS.accessoryDarkColor, fontWeight: '700' },
-  activeTokenOptionText: { color: COLORS.brandPrimary },
-  durationButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  durationChip: { backgroundColor: COLORS.darkerBackground, paddingVertical: 12, width: (width - 78) / 3, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
-  activeDurationChip: { backgroundColor: 'rgba(50, 212, 222, 0.1)', borderColor: COLORS.brandPrimary },
-  durationChipText: { color: COLORS.accessoryDarkColor, fontWeight: '700' },
-  activeDurationChipText: { color: COLORS.brandPrimary },
-  summaryCard: { backgroundColor: COLORS.darkerBackground, borderRadius: 16, padding: 16, marginTop: 10 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  summaryLabel: { color: COLORS.accessoryDarkColor, fontSize: 13 },
-  summaryValue: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  submitButton: { backgroundColor: COLORS.brandPrimary, borderRadius: 20, paddingVertical: 18, alignItems: 'center', marginTop: 30, marginBottom: 10 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  label: { color: COLORS.white, fontSize: 13, fontWeight: '600' },
+  balanceText: { color: COLORS.greyMid, fontSize: 11 },
+  input: { backgroundColor: COLORS.darkerBackground, borderRadius: 16, padding: 16, color: COLORS.white, fontSize: 16 },
+  row: { flexDirection: 'row' },
+  summaryBox: { backgroundColor: COLORS.darkerBackground, padding: 20, borderRadius: 20, marginBottom: 24 },
+  summaryValue: { color: COLORS.white, fontSize: 24, fontWeight: '800' },
+  submitButton: { backgroundColor: COLORS.brandPrimary, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
   submitButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800' },
-  offerDetailsBox: { backgroundColor: COLORS.darkerBackground, borderRadius: 16, padding: 16, marginBottom: 20 },
-  collateralCalculationBox: { backgroundColor: 'rgba(50, 212, 222, 0.05)', borderRadius: 24, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(50, 212, 222, 0.2)', marginBottom: 20 },
-  collateralDisplay: { flexDirection: 'row', alignItems: 'baseline', marginTop: 10 },
-  collateralBigValue: { color: COLORS.brandPrimary, fontSize: 42, fontWeight: '900' },
-  collateralUnit: { color: COLORS.brandPrimary, fontSize: 18, fontWeight: '800', marginLeft: 8 },
-  priceHint: { color: COLORS.accessoryDarkColor, fontSize: 12, marginTop: 4 },
-  liquidationWarning: { flexDirection: 'row', backgroundColor: 'rgba(255, 75, 75, 0.1)', padding: 12, borderRadius: 12, alignItems: 'center' },
-  warningText: { color: COLORS.errorRed, fontSize: 11, flex: 1, marginLeft: 10, fontWeight: '600' }
+  close: { alignItems: 'center', marginTop: 20 },
+  closeText: { color: COLORS.greyMid, fontSize: 14 },
+  empty: { padding: 60, alignItems: 'center' },
+  emptyText: { color: COLORS.greyMid, fontSize: 14 }
 });
 
 export default LendingView;
