@@ -9,6 +9,7 @@ export interface AuthState {
   encryptionSeed: string | null; // Base64 encoded seed (in-memory only, not persisted)
   isLoggedIn: boolean;
   isVerified: boolean; // Added: Tracks if SGT/Hardware gate passed
+  isHardwareVerified: boolean; // Verified via hardware-backed key registration
   profilePicUrl: string | null;
   username: string | null; // Immutable .skr handle
   displayName: string | null; // Mutable display name
@@ -30,6 +31,7 @@ const initialState: AuthState = {
   authToken: null,
   publicEncryptionKey: null,
   isLoggedIn: false,
+  isHardwareVerified: false,
   profilePicUrl: null,
   username: null,
   displayName: null,
@@ -37,7 +39,7 @@ const initialState: AuthState = {
   attachmentData: {},
 };
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
 
 // Debug environment variable loading
 console.log('[Auth Reducer] SERVER_URL from @env:', SERVER_URL);
@@ -376,6 +378,7 @@ const authSlice = createSlice({
       state.authToken = null;
       state.isLoggedIn = false;
       state.isVerified = false;
+      state.isHardwareVerified = false;
       state.profilePicUrl = null;
       state.username = null;
       state.description = null;
@@ -400,6 +403,7 @@ const authSlice = createSlice({
         displayName: fetchedDisplayName,
         description: fetchedDescription,
         attachmentData,
+        isHardwareVerified
       } = action.payload as any;
 
       // Get the userId that was requested as the argument to the thunk
@@ -422,6 +426,7 @@ const authSlice = createSlice({
         
         state.displayName = fetchedDisplayName || state.displayName;
         state.description = fetchedDescription || state.description;
+        state.isHardwareVerified = !!isHardwareVerified;
         state.attachmentData = attachmentData || state.attachmentData || {};
       }
       // If the user IDs don't match, we don't update the auth state
@@ -472,6 +477,7 @@ const authSlice = createSlice({
 
     builder.addCase(registerEncryptionKey.fulfilled, (state, action) => {
       state.publicEncryptionKey = action.payload;
+      state.isHardwareVerified = true;
     });
   },
 });

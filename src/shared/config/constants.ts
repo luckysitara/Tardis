@@ -17,7 +17,7 @@ export const ENDPOINTS = {
     blockEngine: 'https://mainnet.block-engine.jito.wtf:443/api/v1/bundles',
   },
   // Helius RPC endpoint proxied through backend
-  helius: (SERVER_URL || 'http://10.203.135.79:8085') + '/api/helius/rpc',
+  helius: (SERVER_URL || 'http://138.197.125.251:8085') + '/api/helius/rpc',
   tensorFlowBaseUrl: 'https://api.mainnet.tensordev.io',
 };
 

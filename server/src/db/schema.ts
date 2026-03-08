@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     profile_picture_url VARCHAR(255) NULL,
     description TEXT NULL,
     public_encryption_key TEXT NULL, -- X25519 Public Key for E2EE
+    is_hardware_verified BOOLEAN DEFAULT FALSE, -- Verified via hardware signature
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -124,6 +125,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     image_url VARCHAR(255) NULL,
     additional_data TEXT NULL,
     is_deleted BOOLEAN DEFAULT FALSE,
+    status VARCHAR(20) DEFAULT 'sent', -- sent, delivered, read
     nonce TEXT NULL, -- For E2EE (NACL box)
     is_encrypted BOOLEAN DEFAULT FALSE, -- Flag for E2EE
     reply_to_id CHAR(36) NULL, -- Reference to another message
@@ -147,6 +149,19 @@ CREATE TABLE IF NOT EXISTS message_reactions (
     UNIQUE (message_id, user_id, emoji)
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    user_id VARCHAR(255) NOT NULL, -- Recipient
+    type VARCHAR(50) NOT NULL, -- mention, like, repost, reply, follow
+    actor_id VARCHAR(255) NOT NULL, -- Who triggered it
+    resource_id VARCHAR(255) NULL, -- Post ID, Chat ID, etc.
+    content TEXT NULL, -- Preview text
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS follows (
     id CHAR(36) PRIMARY KEY NOT NULL,
     follower_id VARCHAR(255) NOT NULL,
@@ -166,6 +181,7 @@ CREATE TABLE IF NOT EXISTS users (
     profile_picture_url VARCHAR(255) NULL,
     description TEXT NULL,
     public_encryption_key TEXT NULL,
+    is_hardware_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -279,6 +295,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     image_url VARCHAR(255) NULL,
     additional_data TEXT NULL,
     is_deleted BOOLEAN DEFAULT FALSE,
+    status VARCHAR(20) DEFAULT 'sent',
     nonce TEXT NULL,
     is_encrypted BOOLEAN DEFAULT FALSE,
     reply_to_id UUID NULL,
@@ -300,6 +317,19 @@ CREATE TABLE IF NOT EXISTS message_reactions (
     FOREIGN KEY (message_id) REFERENCES chat_messages(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (message_id, user_id, emoji)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    actor_id VARCHAR(255) NOT NULL,
+    resource_id VARCHAR(255) NULL,
+    content TEXT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS follows (

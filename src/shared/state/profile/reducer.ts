@@ -61,7 +61,7 @@ export const fetchWalletActionsWithCache = createAsyncThunk(
     // Otherwise proceed with the fetch
     try {
       // Use the backend proxy
-      const serverBase = (getState() as any).shared?.config?.serverBase || 'http://10.203.135.79:8085';
+      const serverBase = (getState() as any).shared?.config?.serverBase || 'http://138.197.125.251:8085';
       const proxyUrl = `${serverBase}/api/helius/transactions/${walletAddress}?limit=20`;
       const res = await fetch(proxyUrl);
       if (!res.ok) {

@@ -13,7 +13,7 @@ import { SERVER_URL } from '@env';
 import { flattenPosts } from '@/core/thread/components/thread.utils';
 import { useFetchNFTs } from '@/modules/nft';
 
-const SERVER_BASE_URL = SERVER_URL || '10.203.135.79:8085';
+const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
 
 type OtherProfileRouteProp = RouteProp<RootStackParamList, 'OtherProfile'>;
 

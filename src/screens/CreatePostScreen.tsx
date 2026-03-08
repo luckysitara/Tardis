@@ -36,6 +36,9 @@ const CreatePostScreen = ({ navigation, route }) => {
   const [isPosting, setIsPosting] = useState(false);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
+  const [isListingMode, setIsListingMode] = useState(false);
+  const [listingPrice, setListingPrice] = useState('');
+  const [listingTitle, setListingTitle] = useState('');
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
@@ -102,10 +105,17 @@ const CreatePostScreen = ({ navigation, route }) => {
       }
 
       const timestamp = new Date().toISOString();
+      
+      let finalContent = postContent.trim();
+      if (isListingMode && listingPrice) {
+        // Format: [Text] solana-action:http://138.197.125.251:8085/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]
+        const blinkUrl = `solana-action:http://138.197.125.251:8085/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
+        console.log(`[CreatePost] Generated Blink URL: ${blinkUrl}`);
+        finalContent = finalContent ? `${finalContent}\n\n${blinkUrl}` : blinkUrl;
+      }
+
       // DETERMINISTIC: Keys must be in this exact order for backend verification
-      // If we have an image, we might want to include its URL in the signature if the backend expects it.
-      // But for now, let's stick to the current signature format or check if it needs update.
-      const messageToSign = `{"content":"${postContent.trim()}","timestamp":"${timestamp}"}`;
+      const messageToSign = `{"content":"${finalContent}","timestamp":"${timestamp}"}`;
       const messageUint8 = new Uint8Array(Buffer.from(messageToSign, 'utf8'));
 
       console.log("[CreatePost] Requesting MWA signature for:", messageToSign);
@@ -125,7 +135,7 @@ const CreatePostScreen = ({ navigation, route }) => {
       const postData: CreatePostPayload = {
         author_wallet_address: userId,
         author_skr_username: username,
-        content: postContent.trim(),
+        content: finalContent,
         media_urls: mediaUrls,
         signature: signatureBase64,
         timestamp: timestamp,
@@ -235,6 +245,43 @@ const CreatePostScreen = ({ navigation, route }) => {
                 selectionColor={COLORS.brandPrimary}
                 editable={!isPosting}
               />
+
+              {/* Listing Mode Toggle */}
+              <View style={styles.listingToggleContainer}>
+                <View style={styles.listingToggleText}>
+                  <Icons.SwapIcon width={20} height={20} color={COLORS.brandPrimary} />
+                  <Text style={styles.listingToggleLabel}>Product Listing Mode</Text>
+                </View>
+                <Switch
+                  value={isListingMode}
+                  onValueChange={setIsListingMode}
+                  trackColor={{ false: COLORS.borderDarkColor, true: COLORS.brandPrimary }}
+                  thumbColor={COLORS.white}
+                />
+              </View>
+
+              {isListingMode && (
+                <View style={styles.listingForm}>
+                  <TextInput
+                    style={styles.listingInput}
+                    placeholder="Product Title (e.g. Genesis Hoodie)"
+                    placeholderTextColor={COLORS.greyMid}
+                    value={listingTitle}
+                    onChangeText={setListingTitle}
+                  />
+                  <View style={styles.priceInputContainer}>
+                    <Text style={styles.solSymbol}>SOL</Text>
+                    <TextInput
+                      style={[styles.listingInput, { flex: 1, marginLeft: 10 }]}
+                      placeholder="Price (e.g. 0.5)"
+                      placeholderTextColor={COLORS.greyMid}
+                      keyboardType="numeric"
+                      value={listingPrice}
+                      onChangeText={setListingPrice}
+                    />
+                  </View>
+                </View>
+              )}
 
               {selectedImage && (
                 <View style={styles.imagePreviewContainer}>
@@ -369,6 +416,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fontFamily,
     fontWeight: '600',
+  },
+  listingToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingVertical: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  listingToggleText: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listingToggleLabel: {
+    color: COLORS.white,
+    fontSize: 16,
+    marginLeft: 10,
+    fontWeight: '600',
+  },
+  listingForm: {
+    marginTop: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  listingInput: {
+    color: COLORS.white,
+    fontSize: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  priceInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  solSymbol: {
+    color: COLORS.brandPrimary,
+    fontWeight: '800',
+    fontSize: 16,
   },
   pickerWrapper: {
     flex: 1,

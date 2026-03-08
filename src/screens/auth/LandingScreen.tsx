@@ -14,7 +14,7 @@ import { loginSuccess, setVerified } from '@/shared/state/auth/reducer';
 import { verifyHardware, verifySGT } from '@/shared/services/VerificationService';
 
 const { width } = Dimensions.get('window');
-const TardisIconImage = require('@/assets/images/tardis_icon.png');
+const TardisIconImage = require('@/assets/images/tardis_icon.jpg');
 
 const LandingScreen: React.FC = () => {
   const insets = useSafeAreaInsets();

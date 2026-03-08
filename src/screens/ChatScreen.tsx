@@ -67,9 +67,23 @@ const ChatScreen = () => {
       if (chatId) {
         dispatch(fetchChatMessages({ chatId, resetUnread: true }));
         socketService.joinChat(chatId);
+        if (userId) {
+          socketService.markMessagesRead(chatId, userId);
+        }
       }
-    }, [chatId, dispatch])
+    }, [chatId, dispatch, userId])
   );
+
+  useEffect(() => {
+    // Mark messages as read when new ones arrive and we are viewing
+    if (chatMessages.length > 0 && userId) {
+       const lastMsg = chatMessages[chatMessages.length - 1];
+       // If the last message is NOT from me and NOT read (and we are here), mark as read
+       if (lastMsg && lastMsg.sender_id !== userId && (lastMsg as any).status !== 'read') {
+         socketService.markMessagesRead(chatId, userId);
+       }
+    }
+  }, [chatMessages, userId, chatId]);
 
   const currentUser = useMemo(() => ({
     id: userId || '',

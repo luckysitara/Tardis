@@ -13,6 +13,7 @@ import { Request, Response } from 'express';
 import knex from '../db/knex';
 import { v4 as uuidv4 } from 'uuid';
 import { verifySignature } from '../utils/solana';
+import { processMentions, createNotification } from '../service/notificationService';
 
 /**
  * Get all chat rooms for a user
@@ -349,6 +350,9 @@ export async function sendMessage(req: Request, res: Response) {
     };
 
     await knex('chat_messages').insert(messageData);
+
+    // Trigger notifications asynchronously
+    processMentions(content, userId, messageId, 'message');
 
     // Get the created message to return
     const message = await knex('chat_messages').where({ id: messageId }).first();

@@ -10,7 +10,7 @@ const SGT_GROUP_ADDRESS = 'GT22s89nU4iWFkNXj1Bw6uYhJJWDRPpShHt4Bk8f99Te';
 
 const getRpcUrl = () => {
   // If we have a proxied helius endpoint, use it
-  if (ENDPOINTS.helius && !ENDPOINTS.helius.startsWith('undefined') && !ENDPOINTS.helius.includes('10.203.135.79')) {
+  if (ENDPOINTS.helius && !ENDPOINTS.helius.startsWith('undefined') && !ENDPOINTS.helius.includes('10.203.135.79') && !ENDPOINTS.helius.includes('138.197.125.251')) {
     return ENDPOINTS.helius;
   }
   // Fallback to a public RPC for SGT verification if backend is not configured

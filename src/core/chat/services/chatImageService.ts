@@ -34,9 +34,10 @@ export async function uploadChatImage(userId: string, imageUri: string): Promise
     formData.append('chatImage', photo);
     formData.append('userId', userId);
 
-    console.log(`[uploadChatImage] Sending request to ${SERVER_URL}/api/chat/images/upload`);
+    const finalServerUrl = SERVER_URL && SERVER_URL.includes('138.197.125.251') ? 'http://138.197.125.251:8085' : (SERVER_URL || 'http://138.197.125.251:8085');
+    console.log(`[uploadChatImage] Sending request to ${finalServerUrl}/api/chat/images/upload`);
 
-    const response = await fetch(`${SERVER_URL}/api/chat/images/upload`, {
+    const response = await fetch(`${finalServerUrl}/api/chat/images/upload`, {
       method: 'POST',
       body: formData,
       headers: {

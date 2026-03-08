@@ -6,14 +6,14 @@
          "version": "0.0.1",
          "orientation": "portrait",
          "userInterfaceStyle": "dark",
-         "icon": "./src/assets/images/tardis_icon.png",
+         "icon": "./src/assets/images/tardis_icon.jpg",
          "assetBundlePatterns": [
            "**/*"
          ],
          "android": {
           "package": "com.tardis.app",
           "adaptiveIcon": {
-            "foregroundImage": "./src/assets/images/tardis_icon.png",
+            "foregroundImage": "./src/assets/images/tardis_icon.jpg",
             "backgroundColor": "#00050D"
           },
           "permissions": [

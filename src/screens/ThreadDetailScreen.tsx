@@ -63,7 +63,7 @@ const ThreadDetailScreen = () => {
     if (!mainPost) return null;
     return (
       <View>
-        <PostComponent {...mainPost} isThreadView={true} />
+        <PostComponent {...mainPost} isThreadView={true} showThreadLine={replies.length > 0} />
         <View style={styles.replySeparator}>
           <Text style={styles.replyTitle}>Replies</Text>
         </View>
@@ -179,10 +179,9 @@ const styles = StyleSheet.create({
   },
   replySeparator: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   replyTitle: {
     color: COLORS.white,

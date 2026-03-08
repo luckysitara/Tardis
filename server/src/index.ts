@@ -154,6 +154,23 @@ io.on('connection', (socket) => {
     socket.to(`chat:${chatId}`).emit('reaction_removed', { chatId, messageId, emoji, userId });
   });
 
+  socket.on('mark_messages_read', async ({ chatId, userId }) => {
+    console.log(`User ${userId} marked messages in chat ${chatId} as read`);
+    try {
+      // Update all messages in this chat NOT sent by the user to 'read'
+      await knex('chat_messages')
+        .where({ chat_room_id: chatId })
+        .whereNot({ sender_id: userId })
+        .whereNot({ status: 'read' })
+        .update({ status: 'read' });
+      
+      // Notify others in the room that this user has read the messages
+      socket.to(`chat:${chatId}`).emit('messages_read', { chatId, readerId: userId });
+    } catch (error) {
+      console.error(`Error marking messages read in chat ${chatId}:`, error);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
@@ -247,8 +264,45 @@ const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
         `);
         console.log('✅ Ensured bookmarks table exists.');
       } catch (e) {}
+
     }
     
+    // Global Migrations (Apply to both SQLite and Postgres)
+    
+    // 1. Add is_hardware_verified to users
+    try {
+      await knex.raw('ALTER TABLE users ADD COLUMN is_hardware_verified BOOLEAN DEFAULT FALSE;');
+      console.log('✅ Added is_hardware_verified column to users table.');
+    } catch (e) {}
+
+    // 2. Add status to chat_messages
+    try {
+      await knex.raw("ALTER TABLE chat_messages ADD COLUMN status VARCHAR(20) DEFAULT 'sent';");
+      console.log('✅ Added status column to chat_messages table.');
+    } catch (e) {}
+
+    // 3. Create notifications table
+    try {
+      const idType = isPostgres ? 'UUID' : 'CHAR(36)';
+      const timestampType = isPostgres ? 'TIMESTAMPTZ' : 'DATETIME';
+      
+      await knex.raw(`
+        CREATE TABLE IF NOT EXISTS notifications (
+            id ${idType} PRIMARY KEY NOT NULL,
+            user_id VARCHAR(255) NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            actor_id VARCHAR(255) NOT NULL,
+            resource_id VARCHAR(255) NULL,
+            content TEXT NULL,
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+      console.log('✅ Ensured notifications table exists.');
+    } catch (e) {}
+
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');
   } catch (error) {

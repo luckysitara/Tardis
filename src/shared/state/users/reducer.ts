@@ -6,7 +6,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { SERVER_URL } from '@env';
 
 // For local fallback
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
 
 // Debug environment variable loading
 console.log('[Users Reducer] SERVER_URL from @env:', SERVER_URL);

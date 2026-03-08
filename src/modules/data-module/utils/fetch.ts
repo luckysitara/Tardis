@@ -9,7 +9,7 @@ import { ENDPOINTS } from '@/shared/config/constants';
  * Gets the correct RPC URL based on the API key
  */
 export function getRpcUrl(): string {
-  return (ENDPOINTS.serverBase || 'http://10.203.135.79:8085') + '/api/helius/rpc';
+  return (ENDPOINTS.serverBase || 'http://138.197.125.251:8085') + '/api/helius/rpc';
 }
 
 /**

@@ -15,7 +15,7 @@ import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
 import LendingView from '@/core/profile/components/lending/LendingView';
 import { SERVER_URL } from '@env';
 
-const SERVER_BASE_URL = SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
 
 const { width } = Dimensions.get('window');
 
@@ -26,7 +26,7 @@ const ProfileScreen = ({ navigation, route }) => {
   const targetUserId = route.params?.userId || authState.address;
   const isOwnProfile = targetUserId === authState.address;
 
-  const { username: skrUsername, displayName, profilePicUrl, description: userBio } = useSelector((state: RootState) => state.auth);
+  const { username: skrUsername, displayName, profilePicUrl, description: userBio, isHardwareVerified } = useSelector((state: RootState) => state.auth);
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
   const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
@@ -34,6 +34,38 @@ const ProfileScreen = ({ navigation, route }) => {
   const [followStats, setFollowStats] = useState({ followersCount: 0, followingCount: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  
+  // Local state for other user's profile
+  const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
+
+  const displayUser = isOwnProfile ? {
+    username: skrUsername,
+    displayName,
+    profilePicUrl,
+    description: userBio,
+    isHardwareVerified,
+    attachmentData: authState.attachmentData
+  } : otherUserProfile || {};
+
+  const fetchOtherUserProfile = async () => {
+    if (isOwnProfile) return;
+    try {
+      const response = await fetch(`${SERVER_BASE_URL}/api/profile?userId=${targetUserId}`);
+      const data = await response.json();
+      if (data.success) {
+        setOtherUserProfile({
+          username: data.username,
+          displayName: data.display_name,
+          profilePicUrl: data.url,
+          description: data.description,
+          isHardwareVerified: data.isHardwareVerified,
+          attachmentData: data.attachmentData
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching other user profile:", err);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -107,19 +139,21 @@ const ProfileScreen = ({ navigation, route }) => {
       dispatch(fetchPosts({ userId: targetUserId })); // Fetch target user's posts
       
       fetchStats();
+      fetchOtherUserProfile();
     }
   }, [dispatch, targetUserId]);
 
   const profileAvatar = useMemo(() => 
-    profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${skrUsername}`,
-  [profilePicUrl, skrUsername]);
+    displayUser.profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${displayUser.username || targetUserId}`,
+  [displayUser.profilePicUrl, displayUser.username, targetUserId]);
 
   const displayHandle = useMemo(() => {
-    if (!skrUsername) return '@seeker';
+    const username = displayUser.username || targetUserId;
+    if (!username) return '@seeker';
     // If it already starts with @, use it, otherwise add it.
     // We strictly use the raw skrUsername to ensure .skr is visible.
-    return skrUsername.startsWith('@') ? skrUsername : `@${skrUsername}`;
-  }, [skrUsername]);
+    return username.startsWith('@') ? username : `@${username}`;
+  }, [displayUser.username, targetUserId]);
 
   const renderCommunityItem = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -185,12 +219,17 @@ const ProfileScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.nameSection}>
-          <Text style={styles.displayName}>{displayName || skrUsername || "Seeker"}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.displayName}>{displayUser.displayName || displayUser.username || "Seeker"}</Text>
+            {displayUser.isHardwareVerified && (
+              <Icons.Shield width={16} height={16} color={COLORS.brandPrimary} style={{ marginLeft: 6 }} />
+            )}
+          </View>
           <Text style={styles.handle}>{displayHandle}</Text>
         </View>
 
         <Text style={styles.bio}>
-          {userBio || "Hardware-attested Solana Seeker. Exploring the encrypted frontier of Web3 social."}
+          {displayUser.description || "Hardware-attested Solana Seeker. Exploring the encrypted frontier of Web3 social."}
         </Text>
 
         <View style={styles.metaRow}>
@@ -326,7 +365,12 @@ const ProfileScreen = ({ navigation, route }) => {
           <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.white} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{displayName || skrUsername || "Profile"}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.headerTitle}>{displayUser.displayName || displayUser.username || "Profile"}</Text>
+            {displayUser.isHardwareVerified && (
+              <Icons.Shield width={14} height={14} color={COLORS.brandPrimary} style={{ marginLeft: 6 }} />
+            )}
+          </View>
           <Text style={styles.headerSubtitle}>{userPosts.filter(p => p.user.id === (targetUserId || authState.address)).length} Posts</Text>
         </View>
       </View>

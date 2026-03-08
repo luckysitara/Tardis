@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { SERVER_URL } from '@env';
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
 
 // Types
 export interface ChatParticipant {
@@ -401,6 +401,23 @@ const chatSlice = createSlice({
         }
       }
     },
+    handleMessagesRead: (state, action) => {
+      const { chatId, readerId } = action.payload;
+      // If someone read the chat, update MY messages in that chat to 'read'
+      if (state.messages[chatId]) {
+        state.messages[chatId].forEach(msg => {
+          // If I am the sender, and the message isn't read yet
+          // Logic assumption: If readerId is in the chat, they read everything.
+          // Note: In a group chat, this is complex. For now, simple: if ANYONE reads, it's read?
+          // Or we track per-user read status?
+          // DB has single 'status' column. This implies "Read by everyone" or "Read by recipient" (Direct Chat).
+          // For MVP, if it's a direct chat, it works perfectly.
+          if (msg.status !== 'read') {
+             msg.status = 'read';
+          }
+        });
+      }
+    },
     clearChatErrors: (state) => {
       state.error = null;
     },
@@ -627,8 +644,8 @@ export const {
   handleReactionRemoved,
   handleMessageEdited,
   handleMessageDeleted,
+  handleMessagesRead,
   clearChatErrors,
   } = chatSlice.actions;
-
 export default chatSlice.reducer; 
  

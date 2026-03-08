@@ -4,6 +4,7 @@ import knex from '../db/knex';
 import { PublicKey, Transaction, Connection } from '@solana/web3.js';
 import { verifySignature } from '../utils/solana'; // Actual import for Solana signature verification utility
 import { v4 as uuidv4 } from 'uuid'; // For generating UUIDs for posts
+import { processMentions, createNotification } from '../service/notificationService';
 
 const postsRouter = Router();
 
@@ -22,7 +23,8 @@ function mapPost(post: any): any {
             handle: post.display_name || post.username || post.author_skr_username, // Use display_name as handle
             avatar: post.profile_picture_url || 'https://api.dicebear.com/7.x/initials/png?seed=' + (post.username || post.author_skr_username),
             publicEncryptionKey: post.public_encryption_key,
-            verified: true
+            verified: !!post.is_hardware_verified,
+            isHardwareVerified: !!post.is_hardware_verified
         },
         sections: [
             {
@@ -113,6 +115,16 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             is_public: !!is_public // Include is_public flag
         });
 
+        // Trigger notifications asynchronously
+        processMentions(content, author_wallet_address, postId, 'post');
+        if (parent_id) {
+            knex('posts').where({ id: parent_id }).first().then(parentPost => {
+                if (parentPost) {
+                    createNotification(parentPost.author_wallet_address, 'reply', author_wallet_address, postId, content.substring(0, 50));
+                }
+            });
+        }
+
         // Fetch the inserted post with user details
         const savedPost = await knex('posts')
             .join('users', 'posts.author_wallet_address', 'users.id')
@@ -168,6 +180,7 @@ postsRouter.get('/', async (req: Request, res: Response) => {
             users.display_name, 
             users.username, 
             users.public_encryption_key,
+            users.is_hardware_verified,
             parent_users.username as reply_to_username,
             (SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count,
             'post' as feed_type,
@@ -197,6 +210,7 @@ postsRouter.get('/', async (req: Request, res: Response) => {
             users.display_name, 
             users.username, 
             users.public_encryption_key,
+            users.is_hardware_verified,
             parent_users.username as reply_to_username,
             (SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count,
             'repost' as feed_type,

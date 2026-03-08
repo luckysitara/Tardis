@@ -28,6 +28,7 @@ import CommentIcon from './comment-idle.svg';
 import RepostIcon from './retweet-idle.svg';
 import HeartIcon from './reaction-idle.svg';
 import ShareIcon from './share-idle.svg';
+import CheckIcon from './CheckIcon';
 
 export {
   TownSquareIcon,
@@ -55,6 +56,7 @@ export {
   RepostIcon,
   HeartIcon,
   ShareIcon,
+  CheckIcon,
 };
 
 // Aliases for NftListingModal and other components
@@ -110,4 +112,5 @@ export default {
   RepostIcon,
   HeartIcon,
   ShareIcon,
+  CheckIcon,
 };

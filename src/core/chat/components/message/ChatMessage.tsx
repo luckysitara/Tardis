@@ -15,6 +15,7 @@ import TipModal from '../tip/TipModal';
 import { sendMessage } from '@/shared/state/chat/slice';
 import socketService from '@/shared/services/socketService';
 import COLORS from '@/assets/colors';
+import Icons from '@/assets/svgs';
 
 // Update ChatMessageProps to include onLongPress
 interface ExtendedChatMessageProps extends ChatMessageProps {
@@ -427,20 +428,36 @@ function ChatMessage({
               {...messageBubbleProps}
             />
 
-            {/* Timestamp inside the message bubble - Only for current user */}
+            {/* Timestamp & Status inside the message bubble - Only for current user */}
             {isCurrentUser && (
-              <Text style={{
+              <View style={{
                 position: 'absolute',
                 bottom: 6,
                 right: 10,
-                fontSize: 10,
-                color: 'rgba(255, 255, 255, 0.6)',
-                fontFamily: fontFamily,
-                paddingTop: 2,
-                paddingRight: 2,
+                flexDirection: 'row',
+                alignItems: 'center',
               }}>
-                {formatTime(timestamp)}
-              </Text>
+                <Text style={{
+                  fontSize: 10,
+                  color: 'rgba(255, 255, 255, 0.6)',
+                  fontFamily: fontFamily,
+                  paddingTop: 2,
+                  paddingRight: 4,
+                }}>
+                  {formatTime(timestamp)}
+                </Text>
+                {/* Status Indicator */}
+                {(message as any).status === 'read' ? (
+                  // Double Blue Checks
+                  <View style={{ flexDirection: 'row' }}>
+                    <Icons.CheckIcon width={10} height={10} color={COLORS.brandPrimary} />
+                    <Icons.CheckIcon width={10} height={10} color={COLORS.brandPrimary} style={{ marginLeft: -6 }} />
+                  </View>
+                ) : (
+                  // Single Grey Check (Sent)
+                  <Icons.CheckIcon width={10} height={10} color="rgba(255, 255, 255, 0.4)" />
+                )}
+              </View>
             )}
           </View>
         </Pressable>

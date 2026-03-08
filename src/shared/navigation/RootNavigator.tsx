@@ -175,9 +175,9 @@ export default function RootNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false }}
-      initialRouteName={isLoggedIn ? "Authenticated" : "LandingScreen"} // Set initial route based on login state
+      initialRouteName={isLoggedIn && isVerified ? "Authenticated" : "LandingScreen"} // Require both login and verification
     >
-      {isLoggedIn ? (
+      {isLoggedIn && isVerified ? (
         <Stack.Screen name="Authenticated" component={AuthenticatedStack} />
       ) : (
         <Stack.Group>

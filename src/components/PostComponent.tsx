@@ -5,6 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
 import { toggleBookmark, deletePost } from '@/shared/state/post/slice';
+import { HighlightedText } from '@/shared/components/HighlightedText';
+import { ProductBlinkCard } from '@/shared/components/ProductBlinkCard';
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
@@ -95,8 +97,21 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
     return null;
   };
 
-  const content = getContent();
+  const rawContent = String(getContent());
   const mediaUri = getMedia();
+  
+  // Extract Blink URL if present
+  const blinkMatch = rawContent.match(/solana-action:[^\s]+/);
+  const solanaActionUrl = blinkMatch ? blinkMatch[0] : null;
+  
+  // Create clean content for display (remove the Blink URL)
+  const displayContent = solanaActionUrl 
+    ? rawContent.replace(solanaActionUrl, '').trim() 
+    : rawContent;
+
+  if (solanaActionUrl) {
+    console.log(`[PostComponent] Blink detected in post ${id}:`, solanaActionUrl);
+  }
   const timestamp = createdAt || (props as any).timestamp || new Date().toISOString();
   const initialLikes = like_count || reactionCount || 0;
   const initialReposts = repost_count || retweetCount || 0;
@@ -112,7 +127,7 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
   const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://10.203.135.79:8085';
+  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
 
   const formatRelativeTime = (time: string) => {
     const date = new Date(time);
@@ -343,6 +358,9 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
               <Text style={styles.displayName} numberOfLines={1}>
                 {displayName}
               </Text>
+              {user?.verified && (
+                <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} style={{ marginRight: 4 }} />
+              )}
               <Text style={styles.handle} numberOfLines={1}>{handle}</Text>
               <Text style={styles.dot}>·</Text>
               <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
@@ -361,9 +379,16 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
 
           {/* Content Body */}
           <View style={styles.contentContainer}>
-            <Text style={styles.content}>{content}</Text>
+            {displayContent ? <HighlightedText text={displayContent} style={styles.content} /> : null}
             
-            {mediaUri && (
+            {solanaActionUrl && (
+              <ProductBlinkCard 
+                url={solanaActionUrl} 
+                mediaUrls={(props as any).media_urls || (props as any).mediaUrls}
+              />
+            )}
+
+            {mediaUri && !solanaActionUrl && (
               <IPFSAwareImage 
                 source={getValidImageSource(mediaUri)} 
                 style={styles.media} 

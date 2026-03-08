@@ -359,7 +359,7 @@ const SellSection: React.FC<SellSectionProps> = ({
           creatorsHash: compressedData.creatorsHash
         };
         console.log('[handleSellNftOnTensor] sending to server:', params);
-        const resp = await fetch('10.203.135.79:8085/api/build-compressed-nft-listing-tx', {
+        const resp = await fetch('http://138.197.125.251:8085/api/build-compressed-nft-listing-tx', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

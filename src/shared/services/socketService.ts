@@ -10,7 +10,8 @@ import {
   receiveReaction, 
   handleReactionRemoved,
   handleMessageEdited,
-  handleMessageDeleted
+  handleMessageDeleted,
+  handleMessagesRead
 } from '@/shared/state/chat/slice';
 
 class SocketService {
@@ -38,7 +39,7 @@ class SocketService {
       this.userId = userId;
       this.reconnectAttempts = 0;
 
-      const SOCKET_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085'; // Fallback to host machine IP if EXPO_PUBLIC_SERVER_URL is undefined
+      const SOCKET_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://138.197.125.251:8085'; // Fallback to seek.kikhaus.com if EXPO_PUBLIC_SERVER_URL is undefined
       console.log('Initializing socket connection to:', SOCKET_SERVER_URL);
       
       // Determine if we should force secure WebSockets based on server URL
@@ -237,6 +238,12 @@ class SocketService {
       store.dispatch(handleMessageDeleted(data));
     });
 
+    // Messages read received
+    this.socket.on('messages_read', (data: { chatId: string; readerId: string }) => {
+      console.log('Messages read via WebSocket:', data);
+      store.dispatch(handleMessagesRead(data));
+    });
+
     // Reaction removed received
     this.socket.on('reaction_removed', (data: { chatId: string; messageId: string; emoji: string; userId: string }) => {
       console.log('Reaction removed via WebSocket:', data);
@@ -376,6 +383,12 @@ class SocketService {
     this.socket.emit('delete_message', { chatId, messageId });
   }
 
+  // Mark messages as read
+  public markMessagesRead(chatId: string, userId: string): void {
+    if (!this.socket || !this.socket.connected) return;
+    this.socket.emit('mark_messages_read', { chatId, userId });
+  }
+
   // Remove a reaction from a message
   public sendRemoveReaction(chatId: string, messageId: string, emoji: string, userId: string): void {
     if (!this.socket || !this.socket.connected) return;
@@ -434,4 +447,4 @@ class SocketService {
 
 // Create singleton instance
 const socketService = new SocketService();
-export default socketService; 
+export default socketService;

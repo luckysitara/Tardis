@@ -11,22 +11,8 @@ import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import Icons from '@/assets/svgs';
 import { ThreadPost } from '@/core/thread/components/thread.types';
 import BlinkMessage from './BlinkMessage';
-
-// Custom Mentions component
-const HighlightedText = ({ text, style }: { text: string, style: any }) => {
-  const parts = text.split(/(@\w+)/g);
-  return (
-    <Text style={style}>
-      {parts.map((part, i) => (
-        part.startsWith('@') ? (
-          <Text key={i} style={{ color: COLORS.brandPrimary, fontWeight: '700' }}>{part}</Text>
-        ) : (
-          part
-        )
-      ))}
-    </Text>
-  );
-};
+import { HighlightedText } from '@/shared/components/HighlightedText';
+import { ProductBlinkCard } from '@/shared/components/ProductBlinkCard';
 
 // Custom Retweet icon
 const RetweetIcon = ({ width = 14, height = 14, color = COLORS.greyLight }) => (
@@ -265,11 +251,20 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
         );
       case 'text':
       default:
-        const solanaActionUrl = typeof contentText === 'string' ? contentText.match(/(solana-action:https?:\/\/\S+)|(https?:\/\/actions\.dialect\.to\/\S+)/)?.[0] : null;
+        const solanaActionUrl = typeof contentText === 'string' ? contentText.match(/solana-action:[^\s]+/)?.[0] : null;
+        
+        // Create clean content for display (remove the Blink URL)
+        const displayContent = solanaActionUrl && typeof contentText === 'string'
+          ? contentText.replace(solanaActionUrl, '').trim()
+          : contentText;
+
+        if (solanaActionUrl) {
+          console.log(`[MessageBubble] Blink detected:`, solanaActionUrl);
+        }
         return (
           <View>
             {renderQuotedMessage()}
-            <HighlightedText text={contentText} style={textStyle} />
+            {displayContent ? <HighlightedText text={displayContent} style={textStyle} /> : null}
             {isEdited && (
               <Text style={{ 
                 fontSize: 10, 
@@ -281,7 +276,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
                 (edited)
               </Text>
             )}
-            {solanaActionUrl && <BlinkMessage url={solanaActionUrl} />}
+            {solanaActionUrl && <ProductBlinkCard url={solanaActionUrl} mediaUrls={(message as any).media} />}
             {renderReactions()}
           </View>
         );

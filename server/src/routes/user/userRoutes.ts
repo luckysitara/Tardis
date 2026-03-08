@@ -54,6 +54,7 @@ profileImageRouter.get('/', async (req: any, res: any) => {
       username: user.username,
       display_name: user.display_name,
       description: user.description || '',
+      isHardwareVerified: !!user.is_hardware_verified,
       attachmentData: user.attachment_data || {}, 
     });
   } catch (error: any) {
@@ -330,12 +331,14 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
         username: userId,
         display_name: userId,
         public_encryption_key: publicKey,
+        is_hardware_verified: true, // Registering a key implies hardware signature was provided
         created_at: new Date(),
         updated_at: new Date(),
       });
     } else {
       await knex('users').where({ id: userId }).update({
         public_encryption_key: publicKey,
+        is_hardware_verified: true,
         updated_at: new Date(),
       });
     }

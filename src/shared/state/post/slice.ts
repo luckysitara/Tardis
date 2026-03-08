@@ -3,7 +3,7 @@ import axios from 'axios';
 import { ThreadPost, CreatePostPayload, FetchPostsParams } from './types';
 
 // Replace with your actual server base URL
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://10.203.135.79:8085';
+const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://138.197.125.251:8085';
 
 interface PostState {
   posts: ThreadPost[];
@@ -62,10 +62,14 @@ export const fetchBookmarkedPosts = createAsyncThunk(
 export const createPost = createAsyncThunk(
   'post/createPost',
   async (postData: CreatePostPayload, { rejectWithValue }) => {
+    const url = `${SERVER_BASE_URL}/api/posts`;
+    console.log(`[Thunk createPost] Sending request to ${url} with body:`, JSON.stringify(postData, null, 2));
     try {
-      const response = await axios.post(`${SERVER_BASE_URL}/api/posts`, postData);
+      const response = await axios.post(url, postData);
+      console.log(`[Thunk createPost] Success:`, response.data);
       return response.data.post;
     } catch (error: any) {
+      console.error(`[Thunk createPost] Error ${error.response?.status}:`, error.response?.data || error.message);
       return rejectWithValue(error.response?.data?.error || error.message);
     }
   }
