@@ -1,58 +1,78 @@
 <div align="center">
-
-# 🌌 Tardis: The Sovereign Social & Financial OS
-
-### **The "Bigger on the Inside" Ecosystem for Solana Seeker**
-
-Tardis is a hardware-native platform built exclusively for the Solana Seeker. It unifies bot-free, hardware-verified messaging with a powerful DeFi terminal and AI-driven intelligence into a single, sovereign interface.
-
-[![Watch the Tardis Demo](https://img.shields.io/badge/🎥_Watch-Demo_Video-blueviolet?style=for-the-badge)](demo.mp4)
-[![View Pitch Deck](https://img.shields.io/badge/📄_View-Pitch_Deck-ff69b4?style=for-the-badge)](tardis_pitch.pdf)
-[![Solana Seeker Native](https://img.shields.io/badge/📱_Native-Seeker_Hardware-00FFA3?style=for-the-badge)](https://solanamobile.com/)
-
+🌌 TARDIS
+The Social Network & Financial OS for Solana Seeker
+Bigger on the Inside: Hardware-Attested Social Media • Integrated DeFi • AI Portfolio Intelligence
+🎥 Watch Demo | 📄 View Pitch Deck | 🌐 Project Repo
 </div>
+🚩 The Problem Statement
+Despite the power of the Solana Seeker, the mobile crypto experience remains fragmented. Users are forced to jump between:
+ * Isolated DApps: Switching apps for trading, lending, and social interaction creates high friction.
+ * "Trust-Me" P2P: Most peer-to-peer lending and borrowing should be fun and safer but no platform has it
+ *  Desktop-First UX: Complex dashboards that don't translate to the vertical, "one-thumb" navigation of the Seeker.
+ * Broken Identity: Social handles have no connection to wallets; there is no unified identity linking social presence to financial reputation.
+ * Fragmented Finance: Tipping, trading, and lending occur on separate apps, forcing users into a clunky "tab-switching" UX.
+ 
+✅ The Tardis Solution
+Tardis is a hardware-first platform that connects every Seeker user in a single, sovereign, on-chain ecosystem.
+ * 100% Human Verified: Hardware attestation ensures every account is backed by a real Seeker device, solving the bot problem at the protocol level.
+ * .skr Identity: Your wallet IS your profile—a hardware-signed identity that combines username, reputation, and wallet.
+ * Financial Terminal Messaging: Threads and DMs serve as your financial hub. Tip, lend, and trade without ever leaving the conversation.
+ * ZK Encrypted DMs: Private 1-to-1 messaging signed by your Seed Vault and owned by no server.
+👤 User Story: The "Sovereign Seeker"
+> The Actor: A Seeker owner looking for early "alpha" and secure peer-to-peer interaction.
+>  * Verification: The user opens Tardis; the app performs a Hardware Attestation via the Seeker's secure enclave to verify a human-owned device.
+>  * Interaction: They browse a bot-free public feed where every post is hardware-signed.
+>  * Discovery: Using Reimagine AI, they receive a real-time alert about a trending token based on on-chain sentiment.
+>  * Action: Directly within a group chat, the user sets a conditional trigger: "Swap 2 SOL for $SKR if the price drops 5%"—the AI executes it instantly.
+>  * Secure Lending: The user creates a trustless 1-to-1 lending escrow for a friend in the chat, secured by PDA-based collateral.
+> 
+🚀 Key Protocol Features
+🏦 Integrated DeFi
+ * Trustless P2P Lending: 1-to-1 lending secured by automated liquidation logic and PDA collateral.
+ * Instant Tipping: Send $SOL, $SKR, or any SPL token inside DMs with instant settlement.
+ * Pump.fun Suite: Launch tokens and watch bonding curve livestreams within the interface.
+🤖 Reimagine AI ("The Grok of Solana")
+ * Portfolio Intelligence: Live PnL tracking and rug-pull risk scores.
+ * Natural Language Execution: On-chain trades executed via simple chat commands.
+🪙 $SKR Token Utility
+ * Fee Discounts: Reduced costs for P2P lending and escrow transactions.
+ * Node Staking: Stake $SKR to secure decentralized messaging relay nodes.
+ * Community Gating: Required to create high-quality token-gated communities.
+🛠 Technical Architecture
+Tardis is built on a five-layer sovereign stack:
+ * Hardware Layer: Seeker Seed Vault & Hardware Attestation.
+ * Protocol Layer: SVM, Smart Contracts, and Program Derived Addresses (PDAs).
+ * AI Layer: Reimagine Solana Agent Kit & Sentiment Engine.
+ * Storage Layer: Shadow Drive / Iridium for decentralized, censorship-resistant data.
+ * Application Layer: Social DeFi Terminal & $SKR Governance.
+📦 Installation & Setup
+Prerequisites
+ * Hardware: A physical Solana Seeker mobile device.
+ * Tools: Android Studio, Expo, and ADB (Android Debug Bridge) installed.
+ * Connection: Connect the Seeker device to your workstation via USB.
+Quick Start
+# Clone the repository
+git clone https://github.com/luckysitara/Tardis.git && cd Tardis
 
----
+# Install dependencies using pnpm
+pnpm install
 
-## 🚀 Vision: Social Media at the Hardware Layer
-Web3 social is currently fragmented. **Tardis** bridges the gap by moving the social layer onto the hardware layer. [span_0](start_span)[span_1](start_span)By utilizing the **Solana Seed Vault** and hardware attestation, we’ve turned every Seeker device into a verifiable identity hub.[span_0](end_span)[span_1](end_span)
+# Build and run on the Seeker device
+npx expo run:android
 
-- **100% Human Verified:** Every post is cryptographically signed by the device. [span_2](start_span)[span_3](start_span)[span_4](start_span)The bot problem is solved at the protocol level.[span_2](end_span)[span_3](end_span)[span_4](end_span)
-- **Unified .skr Identity:** Your wallet IS your profile. [span_5](start_span)[span_6](start_span)One username, one wallet, and one verifiable reputation score.[span_5](end_span)[span_6](end_span)
-- **Embedded DeFi:** No more app-switching. [span_7](start_span)[span_8](start_span)Chatting is your financial terminal.[span_7](end_span)[span_8](end_span)
-
----
-
-## 🛠️ Core Features
-
-### 1. P2P Lending & Escrow (352KB Rust Program)
-A non-custodial lending protocol using **Program Derived Addresses (PDAs)**. 
-- **[span_9](start_span)Lenders:** Create USDC/SOL pools with custom borrow ranges.[span_9](end_span)
-- **[span_10](start_span)[span_11](start_span)Borrowers:** Unlock liquidity by locking **150% $SKR collateral**.[span_10](end_span)[span_11](end_span)
-- **[span_12](start_span)On-Chain Oracle:** Full price validation via Pyth/Switchboard.[span_12](end_span)
-
-### 2. Reimagine AI (Solana Agent Kit)
-[span_13](start_span)[span_14](start_span)Our "Grok of Solana" lives inside the app.[span_13](end_span)[span_14](end_span)
-- **[span_15](start_span)Natural Language Execution:** "Swap 2 SOL for $SKR if price drops 5%"[span_15](end_span)
-- **[span_16](start_span)Portfolio Intelligence:** Live PnL tracking and rug-pull risk scores.[span_16](end_span)
-- **[span_17](start_span)Sentiment Alpha:** Real-time on-chain data analysis to surface trending tokens.[span_17](end_span)
-
-### 3. Integrated Social-Fi
-- **[span_18](start_span)Hardware-Signed Social:** Threads, public feeds, and ZK-encrypted DMs.[span_18](end_span)
-- **[span_19](start_span)In-App Tipping:** Send $SOL, $SKR, or SPL tokens directly in chat bubbles.[span_19](end_span)
-- **[span_20](start_span)[span_21](start_span)[span_22](start_span)Token-Gated Communities:** Launch groups gated by $SKR or any SPL token.[span_20](end_span)[span_21](end_span)[span_22](end_span)
-
----
-
-## 📦 Local Installation (Seeker Development)
-
-### **Prerequisites**
-- **Hardware:** Solana Seeker mobile device (connected via USB).
-- **Environment:** Android Studio + `adb` installed, `pnpm`, and `expo-cli`.
-
-### **Setup Steps**
-1. **Clone & Install:**
-   ```bash
+🗺 Development Roadmap & Milestones
+ * [Milestone 1] Security First: Rigorous testing of Smart Contracts against bugs and vulnerabilities.
+ * [Milestone 2] App Distribution: Official deployment to the Solana Mobile dApp Store.
+ * [Milestone 3] AI Integration: Fully integrate Reimagine AI for natural language on-chain execution.
+ * [Milestone 4] Production: Mainnet deployment of $SKR and the lending protocol.
+ * [Milestone 5] Sovereignty: Final integration of decentralized storage, cloud servers, and custom domain names.
+<div align="center">
+Built for the Solana Ecosystem by the TARDIS Team
+Hardware-Attested. Bot-Free. Sovereign Identity.
+Twitter • Discord • GitHub
+</div>
+Would you like me to generate a specific technical guide for setting up the "Reimagine" AI Agent Kit within your development environment?
+```bash
    git clone [https://github.com/Tardis-Project/tardis.git](https://github.com/Tardis-Project/tardis.git)
    cd tardis
    pnpm install
