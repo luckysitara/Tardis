@@ -2,7 +2,7 @@
 
 # Tardis
 
-### Open-Source React Native Application for Building iOS and Android Crypto Mobile Apps with Solana Protocols.
+### Tardis is a Seeker-native Social & Financial OS unifying bot-free messaging, P2P lending, and AI-powered trading in one sovereign interface.  
 
 <p> From AI to Social, Launchpads to Wallets, and Trading —. </p>
 
