@@ -1,9 +1,5 @@
-<div align="center">
-🌌 TARDIS
-The Social Network & Financial OS for Solana Seeker
+🌌 TARDIS: The Sovereign Seeker OS
 Bigger on the Inside: Hardware-Attested Social Media • Integrated DeFi • AI Portfolio Intelligence
-🎥 Watch Demo | 📄 View Pitch Deck | 🌐 Project Repo
-</div>
 🚩 The Problem Statement
 Despite the power of the Solana Seeker, the mobile crypto experience remains fragmented. Users are currently forced to navigate:
  * Isolated DApps: High friction when switching between separate apps for trading, lending, and social interaction.
@@ -19,7 +15,7 @@ Tardis is a hardware-first platform that connects every Seeker user in a single,
  * ZK Encrypted DMs: Private 1-to-1 messaging signed by your Seed Vault and owned by no server.
 👤 User Story: The "Sovereign Seeker"
 > The Actor: A Seeker owner looking for early "alpha" and secure peer-to-peer interaction.
-> * Verification: The user opens Tardis; the app performs a Hardware Attestation via the Seeker's secure enclave.
+> * Verification: The user opens Tardis; the app performs a Hardware Attestation via the Seeker's secure enclave to verify a human-owned device.
 > * Interaction: They browse a bot-free public feed where every post is hardware-signed.
 > * Discovery: Using Reimagine AI, they receive real-time alerts about trending tokens based on on-chain sentiment.
 > * Action: Within a chat, the user sets a conditional trigger: "Swap 2 SOL for $SKR if the price drops 5%"—the AI executes it instantly.
@@ -45,6 +41,52 @@ Tardis is built on a five-layer sovereign stack:
  * Storage Layer: Shadow Drive / Iridium for decentralized data.
  * Application Layer: Social DeFi Terminal & $SKR Governance.
 📦 Installation & Setup
+Prerequisites
+ * Hardware: Physical Solana Seeker mobile device.
+ * Tools: Android Studio, Expo, and ADB (Android Debug Bridge).
+ * Connection: Connect the Seeker to your workstation via USB.
+Quick Start
+# 1. Clone & Install
+git clone https://github.com/luckysitara/Tardis.git
+cd Tardis
+pnpm install
+
+# 2. Environment Configuration
+cp .env.example .env
+# Replace with your RPC credentials and Helius keys
+
+# 3. Run on Seeker
+# Ensure device is in developer mode and connected
+npx expo run:android
+
+🚢 Mainnet Deployment Guide
+1. Smart Contract (Anchor/Rust)
+ * Fund Wallet: Ensure deployer (2ggoPe4b9KFQQ5hghks3S9QWYdbSsGq1sJFscVNva5ZM) has ~5 SOL for rent-exemption and buffer.
+ * Configure: Set cluster = "mainnet" in escrow/Anchor.toml.
+ * Deploy:
+   cd escrow
+anchor build
+anchor deploy --provider.cluster mainnet
+
+2. Mobile App (Seeker DApp Store)
+ * Update Oracles: Switch PYTH_SOL_USD to the Mainnet address in LendingView.tsx.
+ * Cluster Settings: Update .env to CLUSTER=mainnet-beta.
+🧪 Verification & Testing
+ * P2P Market: Navigate to Profile -> Lending to create or fill orders.
+ * Identity Check: Use seeded user unclephil.skr (AAxGjNqseQhYtNdEYXjijrQoQi8ZhgNfVk5NJzg2B5Mo) for messaging tests.
+ * Premium Access: Hold $SKR to unlock the "Reimagine" AI Sentiment Engine.
+🗺 Development Roadmap & Milestones
+ * [Milestone 1] Security First: Rigorous testing of Smart Contracts against vulnerabilities.
+ * [Milestone 2] App Distribution: Official deployment to the Solana Mobile dApp Store.
+ * [Milestone 3] AI Integration: Fully integrate Reimagine AI for on-chain execution.
+ * [Milestone 4] Production: Mainnet deployment of $SKR and lending protocol.
+ * [Milestone 5] Sovereignty: Integration of decentralized storage and cloud servers.
+<div align="center">
+Built for the Solana Seeker community by the TARDIS Team.
+Hardware-Attested. Bot-Free. Sovereign Identity.
+Twitter • Discord • GitHub
+</div>
+Would you like me to help you generate the automated test scripts for Milestone 1 to check your smart contracts for common SVM vulnerabilities?
 Prerequisites
  * Hardware: Physical Solana Seeker mobile device.
  * Tools: Android Studio, Expo, and ADB (Android Debug Bridge).
