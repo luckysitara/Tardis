@@ -4,9 +4,8 @@
 
 ### Open-Source React Native Application for Building iOS and Android Crypto Mobile Apps with Solana Protocols.
 
-<p> From AI to Social, Launchpads to Wallets, and Trading — build mobile apps faster. </p>
+<p> From AI to Social, Launchpads to Wallets, and Trading —. </p>
 
-![SolanaAppKit](https://github.com/user-attachments/assets/b4a6dbbd-1073-412a-a5b9-4c2e41e39964)
 
 <p align="center">
   <a href="demo.mp4"><b>🎥 Watch Demo Video</b></a> | 
