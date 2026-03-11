@@ -69,9 +69,10 @@ domainRouter.post('/resolve-address', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'No .skr domain found for this address' });
     }
 
-    // Return the first .skr domain found
-    const domainName = domains[0].domain;
-    return res.json({ success: true, domain: `${domainName}.skr` });
+    // Return the .skr domain found, ensuring no double extension
+    const rawDomain = domains[0].domain;
+    const domainName = rawDomain.toLowerCase().endsWith('.skr') ? rawDomain : `${rawDomain}.skr`;
+    return res.json({ success: true, domain: domainName });
   } catch (error: any) {
     console.error('[DomainLookup] Error resolving address:', error);
     return res.status(500).json({ success: false, error: error.message || 'Failed to resolve address' });

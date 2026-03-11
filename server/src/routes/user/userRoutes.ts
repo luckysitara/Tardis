@@ -57,7 +57,8 @@ profileImageRouter.get('/', async (req: any, res: any) => {
       const publicKey = new PublicKey(userId);
       const domains = await parser.getParsedAllUserDomainsFromTld(publicKey, 'skr');
       if (domains && domains.length > 0) {
-        resolvedUsername = `${domains[0].domain}.skr`;
+        const rawDomain = domains[0].domain;
+        resolvedUsername = rawDomain.toLowerCase().endsWith('.skr') ? rawDomain : `${rawDomain}.skr`;
       }
     } catch (e) {
       console.log(`[ProfileFetch] .skr resolution failed for ${userId}:`, e);

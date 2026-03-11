@@ -90,8 +90,9 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
         try {
           const result = await resolveAddress(author_wallet_address);
           if (result.domain) {
-            setDisplayName(result.domain);
-            setHandle(`@${result.domain}`);
+            const domainName = result.domain.toLowerCase().endsWith('.skr') ? result.domain : `${result.domain}.skr`;
+            setDisplayName(domainName);
+            setHandle(`@${domainName}`);
           }
         } catch (e) {
           // Silent fail for resolution
