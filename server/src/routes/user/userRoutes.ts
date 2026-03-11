@@ -162,23 +162,26 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
     const existingUser = await knex('users').where({ id: userId }).first();
     
     if (existingUser) {
-      // If the user exists but the username is just the wallet address (or slice of it)
-      // and we now have a proper .skr username, update it!
+      // Improved migration logic:
+      // A placeholder is a username that:
+      // 1. Exactly matches the user ID (wallet address)
+      // 2. Looks like an abbreviated wallet address (e.g., 4...4)
+      // 3. Does not contain a domain dot (like .skr or .sol) while the new one DOES
       const isPlaceholder = existingUser.username === existingUser.id || 
-                            existingUser.username === existingUser.id.slice(0, 6) ||
-                            !existingUser.username.includes('.skr');
+                            /^[a-zA-Z0-9]{3,6}\.\.\.[a-zA-Z0-9]{3,6}$/.test(existingUser.username) ||
+                            (!existingUser.username.includes('.') && username && username.includes('.'));
       
-      const hasProperName = username && username.includes('.skr');
+      const hasProperName = username && username.includes('.') && username !== existingUser.username;
 
       if (isPlaceholder && hasProperName) {
-        console.log(`[createUser] Updating placeholder username ${existingUser.username} to ${username}`);
+        console.log(`[createUser] Migrating placeholder username ${existingUser.username} to proper identity ${username}`);
         await knex('users').where({ id: userId }).update({
           username: username,
-          display_name: username,
+          display_name: username, // Update display name too for consistency
           updated_at: new Date()
         });
         const updatedUser = await knex('users').where({ id: userId }).first();
-        return res.json({ success: true, user: updatedUser, updated: true });
+        return res.json({ success: true, user: updatedUser, migrated: true });
       }
 
       return res.json({ success: true, user: existingUser });

@@ -29,7 +29,7 @@ function MessageHeader({ message, showAvatar = true, onPressUser }: MessageHeade
   };
 
   // Get timestamp from different message types
-  const timestamp = 'createdAt' in message ? message.createdAt : '';
+  const timestamp = message.created_at || (message as any).createdAt || '';
 
   return (
     <View style={messageHeaderStyles.container}>

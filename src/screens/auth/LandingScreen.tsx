@@ -12,6 +12,7 @@ import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardi
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { loginSuccess, setVerified } from '@/shared/state/auth/reducer';
 import { verifyHardware, verifySGT } from '@/shared/services/VerificationService';
+import { resolveTardisIdentity } from '@/shared/services/IdentityService';
 
 const { width } = Dimensions.get('window');
 const TardisIconImage = require('@/assets/images/tardis_icon.jpg');
@@ -67,10 +68,18 @@ const LandingScreen: React.FC = () => {
 
       if (hw && sgt) {
         setStatus('RESOLVING_.SKR_IDENTITY...');
-        setTimeout(() => {
-          dispatch(loginSuccess({ provider: 'mwa', address: auth.address, authToken: auth.authToken, username: auth.label || 'Seeker' }));
-          dispatch(setVerified(true));
-        }, 1500);
+        
+        // Resolve the actual .skr handle from SNS, passing the wallet label as hint
+        const resolvedUsername = await resolveTardisIdentity(auth.address, auth.label);
+        console.log(`[Landing] Resolved identity for ${auth.address}: ${resolvedUsername}`);
+
+        dispatch(loginSuccess({ 
+          provider: 'mwa', 
+          address: auth.address, 
+          authToken: auth.authToken, 
+          username: resolvedUsername 
+        }));
+        dispatch(setVerified(true));
       } else {
         setStatus('AUTH_FAILED: ACCESS_DENIED');
         setIsConnecting(false);

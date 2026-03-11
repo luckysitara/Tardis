@@ -140,7 +140,7 @@ const CommsListScreen = () => {
           <View style={styles.chatHeader}>
             <Text style={styles.chatName} numberOfLines={1}>{chatName}</Text>
             <Text style={[styles.timestamp, item.unreadCount > 0 && styles.activeTimestamp]}>
-              {formatTemporalTime(lastMessage?.created_at || item.updated_at)}
+              {formatTemporalTime(lastMessage?.created_at || (lastMessage as any)?.createdAt || item.updated_at)}
             </Text>
           </View>
 

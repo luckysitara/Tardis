@@ -31,7 +31,8 @@ import { getRpcUrl } from '@/modules/data-module';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
-import { Buffer } from 'buffer';
+
+const Buffer = global.Buffer;
 
 import { 
   DEFAULT_USDC_TOKEN,
@@ -136,7 +137,8 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
     "address": "E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP",
     "instructions": [
       {
-        "name": "createPool",
+        "name": "create_pool",
+        "discriminator": [233, 146, 209, 142, 207, 104, 64, 188],
         "accounts": [
           { "name": "lender", "writable": true, "signer": true },
           { "name": "loanMint" },
@@ -155,7 +157,8 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
         ]
       },
       {
-        "name": "takeLoan",
+        "name": "take_loan",
+        "discriminator": [193, 114, 252, 230, 240, 48, 169, 137],
         "accounts": [
           { "name": "borrower", "writable": true, "signer": true },
           { "name": "poolAccount", "writable": true },
@@ -187,15 +190,15 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
           "kind": "struct",
           "fields": [
             { "name": "lender", "type": "pubkey" },
-            { "name": "loanMint", "type": "pubkey" },
-            { "name": "collateralMint", "type": "pubkey" },
-            { "name": "totalLiquidity", "type": "u64" },
-            { "name": "remainingLiquidity", "type": "u64" },
-            { "name": "minBorrow", "type": "u64" },
-            { "name": "maxBorrow", "type": "u64" },
-            { "name": "interestRate", "type": "u64" },
-            { "name": "vaultBump", "type": "u8" },
-            { "name": "poolBump", "type": "u8" }
+            { "name": "loan_mint", "type": "pubkey" },
+            { "name": "collateral_mint", "type": "pubkey" },
+            { "name": "total_liquidity", "type": "u64" },
+            { "name": "remaining_liquidity", "type": "u64" },
+            { "name": "min_borrow", "type": "u64" },
+            { "name": "max_borrow", "type": "u64" },
+            { "name": "interest_rate", "type": "u64" },
+            { "name": "vault_bump", "type": "u8" },
+            { "name": "pool_bump", "type": "u8" }
           ]
         }
       },
@@ -206,10 +209,10 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
           "fields": [
             { "name": "borrower", "type": "pubkey" },
             { "name": "pool", "type": "pubkey" },
-            { "name": "collateralMint", "type": "pubkey" },
-            { "name": "amountBorrowed", "type": "u64" },
-            { "name": "repaymentAmount", "type": "u64" },
-            { "name": "collateralAmount", "type": "u64" },
+            { "name": "collateral_mint", "type": "pubkey" },
+            { "name": "amount_borrowed", "type": "u64" },
+            { "name": "repayment_amount", "type": "u64" },
+            { "name": "collateral_amount", "type": "u64" },
             { "name": "expiry", "type": "i64" },
             { "name": "status", "type": "u8" },
             { "name": "bump", "type": "u8" }
@@ -256,13 +259,13 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
       const lenderLoanAta = await getAssociatedTokenAddress(loanMint, publicKey);
       
       const decimals = lendToken === 'USDC' ? 1_000_000 : 1_000_000_000;
-      const totalLiquidity = new anchor.BN(amountNum * decimals);
-      const minBorrow = new anchor.BN(parseFloat(minRange) * decimals);
-      const maxBorrow = new anchor.BN(parseFloat(maxRange) * decimals);
-      const interestRate = new anchor.BN(parseFloat(interest) * 100);
+      const totalLiquidity = new anchor.BN(Math.floor(amountNum * decimals));
+      const minBorrow = new anchor.BN(Math.floor(parseFloat(minRange) * decimals));
+      const maxBorrow = new anchor.BN(Math.floor(parseFloat(maxRange) * decimals));
+      const interestRate = new anchor.BN(Math.floor(parseFloat(interest) * 100));
 
-      const poolSeed = new Uint8Array([112, 111, 111, 108]); 
-      const vaultSeed = new Uint8Array([112, 111, 111, 108, 95, 118, 97, 117, 108, 116]);
+      const poolSeed = Buffer.from("pool"); 
+      const vaultSeed = Buffer.from("pool_vault");
 
       const [poolAccount] = PublicKey.findProgramAddressSync(
         [poolSeed, publicKey.toBuffer(), loanMint.toBuffer()],
@@ -275,7 +278,7 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
       );
 
       await program.methods
-        .createPool(totalLiquidity, minBorrow, maxBorrow, interestRate)
+        .create_pool(totalLiquidity, minBorrow, maxBorrow, interestRate)
         .accounts({
           lender: publicKey,
           loanMint: loanMint,
@@ -318,35 +321,47 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
     setLoading(true);
     try {
       const program = new Program(idl, provider);
-      const activeLoanAccount = anchor.web3.Keypair.generate();
       const loanMint = selectedPool.account.loanMint;
       const collateralMint = selectedPool.account.collateralMint;
       const borrowerCollateralAta = await getAssociatedTokenAddress(collateralMint, publicKey);
       const borrowerLoanAta = await getAssociatedTokenAddress(loanMint, publicKey);
       
-      const vaultSeed = new Uint8Array([112, 111, 111, 108, 95, 118, 97, 117, 108, 116]);
+      const vaultSeed = Buffer.from("pool_vault");
       const [poolVault] = PublicKey.findProgramAddressSync(
         [vaultSeed, selectedPool.publicKey.toBuffer()],
         PROGRAM_ID
       );
 
+      // Derive active_loan PDA: [b"active_loan", borrower, pool, remaining_liquidity_le_bytes]
+      const remainingLiquidityBuffer = selectedPool.account.remainingLiquidity.toArrayLike(Buffer, 'le', 8);
+      const [activeLoan] = PublicKey.findProgramAddressSync(
+        [Buffer.from("active_loan"), publicKey.toBuffer(), selectedPool.publicKey.toBuffer(), remainingLiquidityBuffer],
+        PROGRAM_ID
+      );
+
+      // Derive loan_vault PDA: [b"loan_vault", active_loan]
+      const [loanVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("loan_vault"), activeLoan.toBuffer()],
+        PROGRAM_ID
+      );
+
       await program.methods
-        .takeLoan(new anchor.BN(amount * (loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000)))
+        .take_loan(new anchor.BN(Math.floor(amount * (loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000))))
         .accounts({
           borrower: publicKey,
           poolAccount: selectedPool.publicKey,
-          poolVault,
-          loanMint,
-          collateralMint,
-          borrowerCollateralAta,
-          borrowerLoanAta,
-          activeLoan: activeLoanAccount.publicKey,
+          poolVault: poolVault,
+          loanMint: loanMint,
+          collateralMint: collateralMint,
+          borrowerCollateralAta: borrowerCollateralAta,
+          borrowerLoanAta: borrowerLoanAta,
+          activeLoan: activeLoan,
+          loanVault: loanVault,
           pythPriceInfo: PYTH_SOL_USD,
           switchboardPriceInfo: SB_SOL_USD,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         } as any)
-        .signers([activeLoanAccount])
         .rpc();
 
       Alert.alert("Success", "Borrowed successfully!");

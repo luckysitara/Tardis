@@ -55,6 +55,7 @@ export interface EmbeddedWalletAuthProps {
   onWalletConnected: (info: {
     provider: 'privy' | 'dynamic' | 'turnkey' | 'mwa';
     address: string;
+    label?: string;
   }) => void;
   authMode?: 'login' | 'signup';
 }
@@ -127,12 +128,14 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
 
       if (authorizationResult?.accounts?.length) {
         // Convert base64 pubkey to a Solana PublicKey
-        const encodedPublicKey = authorizationResult.accounts[0].address;
+        const account = authorizationResult.accounts[0];
+        const encodedPublicKey = account.address;
         const publicKeyBuffer = Buffer.from(encodedPublicKey, 'base64');
         const publicKey = new PublicKey(publicKeyBuffer);
         const base58Address = publicKey.toBase58();
+        const label = account.label;
 
-        console.log('MWA connection successful, address:', base58Address);
+        console.log('MWA connection successful, address:', base58Address, 'label:', label);
 
         // First dispatch the loginSuccess action directly
         // This ensures the address is immediately available in the Redux store
@@ -140,6 +143,7 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
           loginSuccess({
             provider: 'mwa',
             address: base58Address,
+            username: label, // Pass label as potential username
           })
         );
 
@@ -147,6 +151,7 @@ const EmbeddedWalletAuth: React.FC<EmbeddedWalletAuthProps> = ({
         onWalletConnected({
           provider: 'mwa',
           address: base58Address,
+          label: label,
         });
 
         // Navigate to Authenticated stack after a short delay
