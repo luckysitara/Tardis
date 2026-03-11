@@ -5,19 +5,19 @@ import {
 } from '@env';
 
 export const ENDPOINTS = {
-  // Use the SERVER_URL from env
-  serverBase: SERVER_URL,
-  // Jupiter endpoints – these default values can be overridden by changing SERVER_URL if needed.
+  // Force production URL
+  serverBase: 'https://seek.kikhaus.com',
+  // Jupiter endpoints – forced to production server if needed
   jupiter: {
     quote: 'https://api.jup.ag/swap/v1/quote',
-    swap: SERVER_URL + '/api/jupiter/swap',
+    swap: 'https://seek.kikhaus.com' + '/api/jupiter/swap',
   },
   // Jito block engine endpoint.
   jito: {
     blockEngine: 'https://mainnet.block-engine.jito.wtf:443/api/v1/bundles',
   },
   // Helius RPC endpoint proxied through backend
-  helius: (SERVER_URL || 'http://138.197.125.251:8085') + '/api/helius/rpc',
+  helius: 'https://seek.kikhaus.com' + '/api/helius/rpc',
   tensorFlowBaseUrl: 'https://api.mainnet.tensordev.io',
 };
 

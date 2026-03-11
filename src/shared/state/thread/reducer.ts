@@ -7,11 +7,10 @@ import type {
 import {allposts as fallbackPosts} from '../../mocks/posts';
 import {SERVER_URL} from '@env';
 
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
+const SERVER_BASE_URL = 'https://seek.kikhaus.com';
 
 // Debug environment variable loading
-console.log('[Thread Reducer] SERVER_URL from @env:', SERVER_URL);
-console.log('[Thread Reducer] SERVER_BASE_URL resolved to:', SERVER_BASE_URL);
+console.log('[Thread Reducer] FORCING SERVER_BASE_URL to:', SERVER_BASE_URL);
 
 // fetchThread
 export const fetchThread = createAsyncThunk(
@@ -56,11 +55,10 @@ export const fetchAllPosts = createAsyncThunk(
       }
       
       // Use 'posts' or 'data' field, and ensure it's an array
-      const posts = data.posts || data.data || [];
-      return posts.length > 0 ? posts : fallbackPosts;
+      return data.posts || data.data || [];
     } catch (error: any) {
-      console.error('Fetch posts error, using fallback posts:', error.message);
-      return fallbackPosts;
+      console.error('Fetch posts error:', error.message);
+      return rejectWithValue(error.message);
     }
   },
 );
