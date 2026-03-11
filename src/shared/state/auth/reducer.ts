@@ -419,7 +419,7 @@ const authSlice = createSlice({
         // CRITICAL: Always sync the username (immutable handle) from the DB 
         // to ensure .skr is present if it was previously missing in Redux.
         if (fetchedUsername) {
-          state.username = fetchedUsername;
+          state.username = fetchedUsername.toLowerCase().endsWith('.skr') ? fetchedUsername : `${fetchedUsername}.skr`;
         }
         
         state.displayName = fetchedDisplayName || state.displayName;

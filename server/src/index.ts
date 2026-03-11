@@ -305,6 +305,15 @@ const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
       console.log('✅ Ensured notifications table exists.');
     } catch (e) {}
 
+    // 4. Migration: Clean up double .skr extensions in users table
+    try {
+      await knex.raw("UPDATE users SET username = REPLACE(username, '.skr.skr', '.skr') WHERE username LIKE '%.skr.skr';");
+      await knex.raw("UPDATE users SET display_name = REPLACE(display_name, '.skr.skr', '.skr') WHERE display_name LIKE '%.skr.skr';");
+      console.log('✅ Cleaned up double .skr extensions in users table.');
+    } catch (e) {
+      console.warn('⚠️ Double .skr cleanup migration failed (likely harmless):', e.message);
+    }
+
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');
   } catch (error) {
