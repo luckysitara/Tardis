@@ -119,18 +119,19 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
   const getMedia = () => {
     // 1. Check sections for MEDIA type (used by ChatComposer for thread posts)
     if (sections && sections.length > 0) {
-      const mediaSection = sections.find(s => s.type === 'MEDIA' || s.type === 'TEXT_IMAGE' || s.imageUrl || s.mediaUrl);
+      const mediaSection = sections.find(s => s.type === 'MEDIA' || s.type === 'TEXT_IMAGE' || (s as any).imageUrl || (s as any).mediaUrl);
       if (mediaSection) return (mediaSection as any).mediaUrl || (mediaSection as any).imageUrl;
     }
     
-    // 2. Check root media_urls (used by CreatePostScreen)
-    const media_urls = (props as any).media_urls;
+    // 2. Check root media_urls or media (backend formats)
+    const media_urls = (props as any).media_urls || (props as any).media;
     if (media_urls) {
       try {
         const parsed = typeof media_urls === 'string' ? JSON.parse(media_urls) : media_urls;
-        return Array.isArray(parsed) ? parsed[0] : null;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+        if (typeof parsed === 'string') return parsed;
       } catch (e) {
-        return null;
+        if (typeof media_urls === 'string') return media_urls;
       }
     }
     return null;

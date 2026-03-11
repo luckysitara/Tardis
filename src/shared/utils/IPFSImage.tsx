@@ -103,8 +103,11 @@ export const IPFSAwareImage = ({
             // For IPFS hash on Android, use our managed gateway selection
             if (Platform.OS === 'android' && hash) {
                 const gateway = IPFS_GATEWAYS.primary[0];
+                const finalUri = gateway.endsWith('/ipfs/') ? `${gateway}${hash}` : 
+                                gateway.includes('/ipfs/') ? `${gateway.split('/ipfs/')[0]}/ipfs/${hash}` :
+                                `${gateway}${gateway.endsWith('/') ? '' : '/'}ipfs/${hash}`;
                 setCurrentSource({ 
-                    uri: `${gateway}${hash}`,
+                    uri: finalUri,
                     headers: getPinataHeaders(gateway)
                 });
             } else {
@@ -315,9 +318,12 @@ export const getValidImageSource = (imageUrl: string | any) => {
     if (ipfsHash) {
         // Use primary gateway first (Pinata if configured on server, otherwise Cloudflare/IPFS.io)
         const gateway = IPFS_GATEWAYS.primary[0];
+        const finalUri = gateway.endsWith('/ipfs/') ? `${gateway}${ipfsHash}` : 
+                        gateway.includes('/ipfs/') ? `${gateway.split('/ipfs/')[0]}/ipfs/${ipfsHash}` :
+                        `${gateway}${gateway.endsWith('/') ? '' : '/'}ipfs/${ipfsHash}`;
             
         return {
-            uri: `${gateway}${ipfsHash}`,
+            uri: finalUri,
             headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache',
