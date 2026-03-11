@@ -6,6 +6,7 @@ import { loginSuccess } from '@/shared/state/auth/reducer';
 import { RootState } from '@/shared/state/store';
 import { Buffer } from 'buffer';
 import { navigationRef } from '@/shared/hooks/useAppNavigation';
+import { resolveTardisIdentity } from '@/shared/services/IdentityService';
 
 import type { Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
 import type { PublicKey as SolanaPublicKey } from '@solana/web3.js';
@@ -108,8 +109,10 @@ export const useTardisMobileWallet = () => {
       if (result?.accounts?.length) {
         const account = result.accounts[0];
         const base58Address = new PublicKey(Buffer.from(account.address, 'base64')).toBase58();
-        const skrName = account.label;
-        console.log('[Tardis MWA] Connect successful for address:', base58Address, 'Label:', skrName);
+        
+        // Resolve the actual .skr handle from SNS for Tardis identity, passing label as hint
+        const skrName = await resolveTardisIdentity(base58Address, account.label);
+        console.log('[Tardis MWA] Connect successful. Resolved name:', skrName);
         
         // Sync with backend immediately
         if (skrName) {
@@ -129,7 +132,7 @@ export const useTardisMobileWallet = () => {
           provider: 'mwa',
           address: base58Address,
           authToken: result.auth_token,
-          username: skrName || 'Seeker User',
+          username: skrName,
         }));
         
         if (navigationRef.isReady()) {

@@ -13,6 +13,7 @@ import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
 import EmbeddedWalletAuth from '@/modules/wallet-providers/components/wallet/EmbeddedWallet';
 import TurnkeyWalletAuth from '@/modules/wallet-providers/components/turnkey/TurnkeyWallet';
 import { loginSuccess, fetchUserProfile, updateProfilePic } from '@/shared/state/auth/reducer';
+import { resolveTardisIdentity } from '@/shared/services/IdentityService';
 import { RootState } from '@/shared/state/store';
 import { useCustomization } from '@/shared/config/CustomizationProvider';
 import axios from 'axios';
@@ -463,61 +464,111 @@ export default function LoginScreen() {
     ).start();
   };
 
-  const handleWalletConnected = async (info: { provider: string; address: string }) => {
+  const handleWalletConnected = async (info: { provider: string; address: string; label?: string }) => {
     console.log('Wallet connected:', info);
     setIsAuthenticating(true);
     try {
-      // First check if user already exists
+      // First, resolve the actual Tardis identity (preferably .skr)
+      console.log('[LoginScreen] Resolving identity for:', info.address);
+      const resolvedUsername = await resolveTardisIdentity(info.address, info.label);
+      console.log('[LoginScreen] Resolved identity result:', resolvedUsername);
+
+      // Check if user already exists or create new one with resolved username
       let isNewUser = false;
       try {
         // Try to create the user entry in the database
         const response = await axios.post(`${SERVER_BASE_URL}/api/profile/createUser`, {
           userId: info.address,
-          username: info.address, // Use full address as fallback
-          handle: info.address,
+          username: resolvedUsername, 
+          handle: resolvedUsername,
         });
 
         console.log('User creation response:', response.data);
 
-        // Check if this was actually a new user creation (not just returning existing user)
+        // Check if this was actually a new user creation
         if (response.data?.user && !response.data?.user?.profile_picture_url) {
           isNewUser = true;
         }
       } catch (createError: any) {
-        // Log error information once, but don't show response details that might include stack traces
-        console.log('User creation error (might be already existing):', createError?.response?.status || createError.message);
+        console.log('User creation error status:', createError?.response?.status || createError.message);
 
-        // Only show detailed errors in development
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Create user error details:', {
-            status: createError?.response?.status,
-            message: createError?.response?.data?.message || createError.message
-          });
-        }
-
-        // Don't log the full error object to prevent duplicate verbose errors in console
-        // Only log critical errors that aren't related to user already existing
+        // Don't block login if user exists (409) or other handled errors
         const isNonCriticalError =
-          // User already exists (409)
           createError?.response?.status === 409 ||
-          // Server error but likely just user exists (500 from server but with specific message)
           (createError?.response?.status === 500 &&
             (createError?.response?.data?.message?.includes('already exists') ||
               createError?.response?.data?.message?.includes('duplicate key')));
 
         if (!isNonCriticalError) {
-          console.warn('Non-critical error creating user. Login will proceed.');
+          console.warn('Error during user creation/update. Login will proceed.');
         }
       }
 
-      // Proceed with login regardless of whether user creation succeeded
-      // This way, existing users can still log in
+      // Proceed with login using the resolved username
       dispatch(
         loginSuccess({
           provider: info.provider as 'privy' | 'dynamic' | 'turnkey' | 'mwa',
           address: info.address,
+          username: resolvedUsername,
         }),
       );
+
+      // After login, fetch user profile to get existing data
+      try {
+        const profileResult = await dispatch(fetchUserProfile(info.address)).unwrap();
+
+        // Generate DiceBear avatar only for new users without profile pictures
+        if (!profileResult?.profilePicUrl) {
+          console.log('[LoginScreen] Generating DiceBear avatar for new user...');
+          try {
+            const avatarUrl = await generateAndStoreAvatar(info.address);
+
+            // Update Redux state
+            dispatch(updateProfilePic(avatarUrl));
+
+            // Save the generated avatar URL to the database
+            try {
+              const saveAvatarResponse = await axios.post(`${SERVER_BASE_URL}/api/profile/updateProfilePic`, {
+                userId: info.address,
+                profilePicUrl: avatarUrl,
+              });
+
+              if (saveAvatarResponse.data.success) {
+                console.log('[LoginScreen] DiceBear avatar saved to database successfully');
+              }
+            } catch (dbError) {
+              console.error('[LoginScreen] Error saving avatar to database:', dbError);
+            }
+          } catch (avatarError) {
+            console.error('[LoginScreen] Failed to generate DiceBear avatar:', avatarError);
+          }
+        }
+
+      } catch (profileError) {
+        console.warn('[LoginScreen] Failed to fetch profile after login:', profileError);
+        if (isNewUser) {
+          try {
+            const avatarUrl = await generateAndStoreAvatar(info.address);
+            dispatch(updateProfilePic(avatarUrl));
+            await axios.post(`${SERVER_BASE_URL}/api/profile/updateProfilePic`, {
+              userId: info.address,
+              profilePicUrl: avatarUrl,
+            });
+          } catch (fallbackAvatarError) {
+            console.warn('[LoginScreen] Failed to generate fallback avatar:', fallbackAvatarError);
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error handling wallet connection:', error);
+      Alert.alert(
+        'Connection Error',
+        'Successfully connected to wallet but encountered an error proceeding to the app.',
+      );
+      setIsAuthenticating(false);
+    }
+  };
 
       // After login, fetch user profile to get existing data
       try {

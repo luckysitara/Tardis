@@ -346,7 +346,7 @@ function ChatMessage({
   }, [showFooter, contentType]);
 
   // Get timestamp from different message types
-  const timestamp = 'createdAt' in message ? message.createdAt : new Date();
+  const timestamp = message.created_at || (message as any).createdAt || new Date();
 
   // Get font family from text style if available
   const fontFamily = styleOverrides?.text && (styleOverrides.text as TextStyle).fontFamily;
