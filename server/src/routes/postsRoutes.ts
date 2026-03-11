@@ -6,6 +6,10 @@ import { verifySignature } from '../utils/solana'; // Actual import for Solana s
 import { v4 as uuidv4 } from 'uuid'; // For generating UUIDs for posts
 import { processMentions, createNotification } from '../service/notificationService';
 
+import * as tldParserPkg from '@onsol/tldparser';
+const TldParser = (tldParserPkg as any).TldParser || (tldParserPkg as any).default?.TldParser || (tldParserPkg as any).TldParserSvm;
+import { getConnection } from '../utils/connection';
+
 const postsRouter = Router();
 
 /**
@@ -13,6 +17,14 @@ const postsRouter = Router();
  */
 function mapPost(post: any): any {
     const isRepost = post.feed_type === 'repost';
+    
+    // Parse media_urls safely
+    let media_urls = [];
+    try {
+        media_urls = typeof post.media_urls === 'string' ? JSON.parse(post.media_urls) : (post.media_urls || []);
+    } catch (e) {
+        media_urls = [];
+    }
     
     return {
         id: post.id,
@@ -30,10 +42,10 @@ function mapPost(post: any): any {
             {
                 id: uuidv4(),
                 type: 'TEXT_ONLY',
-                text: post.content
+                text: post.content || ''
             }
         ],
-        media_urls: typeof post.media_urls === 'string' ? JSON.parse(post.media_urls) : (post.media_urls || []),
+        media_urls: media_urls,
         createdAt: post.timestamp || post.created_at,
         replies: [],
         reactionCount: post.like_count || 0,
@@ -62,37 +74,61 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         const {
             author_wallet_address,
             author_skr_username,
-            content,
-            media_urls,
+            content = '',
+            media_urls = [],
             signature,
             timestamp,
-            community_id, // Add community_id here
-            parent_id, // Add parent_id for threaded replies
-            is_public // Add is_public flag
+            community_id,
+            parent_id,
+            is_public
         } = req.body;
 
-        // Basic validation
-        if (!author_wallet_address || !author_skr_username || !content || !signature || !timestamp) {
-            return res.status(400).json({ success: false, error: 'Missing required post fields.' });
+        // Basic validation: Need either content OR media
+        if (!author_wallet_address || !author_skr_username || (!content && (!media_urls || media_urls.length === 0)) || !signature || !timestamp) {
+            return res.status(400).json({ success: false, error: 'Missing required post fields (content or media required).' });
         }
 
         // DETERMINISTIC: Reconstruct the message that was signed
+        // The mobile app currently signs {"content":"...","timestamp":"..."}
         const signedMessage = `{"content":"${content}","timestamp":"${timestamp}"}`;
 
         const isSignatureValid = verifySignature(signedMessage, signature, author_wallet_address);
         if (!isSignatureValid) {
+            console.error('[PostsRouter] Invalid signature for message:', signedMessage);
             return res.status(401).json({ success: false, error: 'Invalid signature.' });
         }
         console.log(`[PostsRouter] Signature verification result: ${isSignatureValid}`);
 
-        // Ensure user exists (JIT creation) to satisfy Foreign Key constraint
+        // Ensure user exists (JIT creation) with .skr resolution
+        let finalUsername = author_skr_username;
+        const isWallet = (val: string) => val && val.length > 30 && !val.includes('.');
+        
+        if (isWallet(finalUsername)) {
+            try {
+                const connection = getConnection();
+                const parser = new TldParser(connection);
+                const domains = await parser.getParsedAllUserDomainsFromTld(new PublicKey(author_wallet_address), 'skr');
+                if (domains && domains.length > 0) {
+                    finalUsername = domains[0].domain.toLowerCase().endsWith('.skr') 
+                        ? domains[0].domain 
+                        : `${domains[0].domain}.skr`;
+                }
+            } catch (e) {
+                console.log(`[PostsRouter] .skr resolution failed for JIT user:`, e.message);
+            }
+        }
+
         await knex('users').insert({
             id: author_wallet_address,
-            username: author_skr_username,
-            display_name: author_skr_username,
+            username: finalUsername,
+            display_name: finalUsername,
             created_at: new Date(),
             updated_at: new Date()
-        }).onConflict('id').ignore();
+        }).onConflict('id').merge({
+            username: finalUsername,
+            display_name: finalUsername,
+            updated_at: new Date()
+        });
 
         // Generate a UUID for the new post
         const postId = uuidv4();
@@ -101,18 +137,18 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         await knex('posts').insert({
             id: postId,
             author_wallet_address,
-            author_skr_username,
-            content,
-            media_urls: JSON.stringify(media_urls || []), // Store as JSON string
+            author_skr_username: finalUsername,
+            content: content || '',
+            media_urls: JSON.stringify(media_urls || []),
             signature,
-            timestamp: new Date(timestamp), // Ensure timestamp is a Date object
+            timestamp: new Date(timestamp),
             like_count: 0,
             repost_count: 0,
             created_at: new Date(),
             updated_at: new Date(),
-            community_id, // Include community_id here
-            parent_id, // Include parent_id here
-            is_public: !!is_public // Include is_public flag
+            community_id,
+            parent_id,
+            is_public: !!is_public
         });
 
         // Trigger notifications asynchronously
@@ -127,7 +163,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 
         // Fetch the inserted post with user details
         const savedPost = await knex('posts')
-            .join('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('users', 'posts.author_wallet_address', 'users.id')
             .select(
                 'posts.*', 
                 'users.profile_picture_url', 
