@@ -1,121 +1,140 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
-import { Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
-import { Buffer } from 'buffer';
+import { Connection } from '@solana/web3.js';
 import { getRpcUrl } from '@/modules/data-module/utils/fetch';
+import { IPFSAwareImage, getValidImageSource } from '../utils/IPFSImage';
 
 interface ProductBlinkCardProps {
-  url: string;
+  url: string; // The solana-action: URL
   mediaUrls?: string[];
 }
 
+interface ActionMetadata {
+  title: string;
+  icon: string;
+  description: string;
+  label: string;
+  error?: string;
+}
+
 export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUrls }) => {
-  const { address, sendTransaction } = useWallet();
-  const [isBuying, setIsBuying] = useState(false);
+  const { address, sendBase64Transaction } = useWallet();
+  const [metadata, setMetadata] = useState<ActionMetadata | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isExecuting, setIsExecuting] = useState(false);
 
-  console.log(`[ProductBlinkCard] Rendering for URL: ${url}`);
+  // Clean the action URL (remove solana-action: prefix and ensure http protocol)
+  const actionApiUrl = url.replace('solana-action:', '');
 
-  const productData = useMemo(() => {
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        setLoading(true);
+        console.log(`[ProductBlinkCard] Fetching metadata from: ${actionApiUrl}`);
+        const response = await fetch(actionApiUrl);
+        const data = await response.json();
+        setMetadata(data);
+      } catch (e) {
+        console.error(`[ProductBlinkCard] Metadata fetch error:`, e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (actionApiUrl) {
+      fetchMetadata();
+    }
+  }, [actionApiUrl]);
+
+  const handleAction = async () => {
+    if (!address) {
+      Alert.alert("Authentication Required", "Please connect your wallet to interact.");
+      return;
+    }
+
+    setIsExecuting(true);
     try {
-      if (!url.includes('?')) return null;
+      console.log(`[ProductBlinkCard] Requesting transaction for account: ${address}`);
       
-      const queryString = url.split('?')[1];
-      const pairs = queryString.split('&');
-      const result: any = {};
-      
-      pairs.forEach(pair => {
-        const [key, value] = pair.split('=');
-        result[key] = decodeURIComponent(value || '');
+      // 1. Fetch the serialized transaction from the Action server
+      const response = await fetch(actionApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account: address }),
       });
 
-      console.log(`[ProductBlinkCard] Parsed Data:`, result);
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-      return {
-        price: result.price || '0',
-        title: result.title || 'Product',
-        seller: result.seller || '',
-      };
-    } catch (e) {
-      console.error(`[ProductBlinkCard] Parsing error:`, e);
-      return null;
-    }
-  }, [url]);
+      if (!data.transaction) {
+        throw new Error('No transaction returned from server');
+      }
 
-  const handleBuy = async () => {
-    if (!address) {
-      Alert.alert("Authentication Required", "Please connect your wallet to buy.");
-      return;
-    }
-
-    if (!productData || !productData.seller) {
-      Alert.alert("Error", "Invalid product data.");
-      return;
-    }
-
-    setIsBuying(true);
-    try {
+      // 2. Sign and send the transaction using our hardware-integrated wallet
       const connection = new Connection(getRpcUrl(), 'confirmed');
-      
-      // Create a simple transfer transaction
-      // In a real Blink, the server would return this transaction
-      const lamports = Math.floor(parseFloat(productData.price) * LAMPORTS_PER_SOL);
-      
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: new PublicKey(address),
-          toPubkey: new PublicKey(productData.seller),
-          lamports,
-        })
-      );
+      const signature = await sendBase64Transaction(data.transaction, connection);
 
-      const signature = await sendTransaction(transaction, connection);
       if (signature) {
-        Alert.alert("Success", `Purchase successful! Signature: ${signature.slice(0, 8)}...`);
+        Alert.alert("Success", `Transaction successful! ${data.message || ''}`);
+        console.log(`[ProductBlinkCard] Transaction signature: ${signature}`);
       }
     } catch (error: any) {
-      console.error("Purchase error:", error);
-      Alert.alert("Error", error.message || "Failed to complete purchase.");
+      console.error("[ProductBlinkCard] Action error:", error);
+      Alert.alert("Action Failed", error.message || "Failed to execute transaction.");
     } finally {
-      setIsBuying(false);
+      setIsExecuting(false);
     }
   };
 
-  if (!productData) return null;
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="small" color={COLORS.brandPrimary} />
+      </View>
+    );
+  }
 
-  const productImage = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
+  if (!metadata) return null;
+
+  // Use icon from metadata if provided, otherwise fallback to mediaUrls or placeholder
+  const displayImage = metadata.icon || (mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Icons.Shield width={16} height={16} color={COLORS.brandPrimary} />
-        <Text style={styles.headerText}>Solana Blink Listing</Text>
+        <Text style={styles.headerText}>Solana Action (Blink)</Text>
       </View>
 
-      {productImage && (
-        <Image source={{ uri: productImage }} style={styles.productImage} />
+      {displayImage && (
+        <IPFSAwareImage 
+          source={getValidImageSource(displayImage)} 
+          style={styles.productImage} 
+          resizeMode="cover"
+        />
       )}
 
       <View style={styles.content}>
-        <Text style={styles.title}>{productData.title}</Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.priceLabel}>Price</Text>
-          <Text style={styles.priceValue}>{productData.price} SOL</Text>
-        </View>
+        <Text style={styles.title}>{metadata.title}</Text>
+        <Text style={styles.description}>{metadata.description}</Text>
 
         <TouchableOpacity 
-          style={styles.buyButton} 
-          onPress={handleBuy}
-          disabled={isBuying}
+          style={styles.actionButton} 
+          onPress={handleAction}
+          disabled={isExecuting}
         >
-          {isBuying ? (
+          {isExecuting ? (
             <ActivityIndicator size="small" color={COLORS.white} />
           ) : (
             <>
               <Icons.WalletIcon width={18} height={18} color={COLORS.white} />
-              <Text style={styles.buyButtonText}>Buy Now</Text>
+              <Text style={styles.actionButtonText}>{metadata.label || 'Execute Action'}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -129,17 +148,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0, 255, 255, 0.2)',
+    borderColor: 'rgba(50, 212, 222, 0.2)',
     overflow: 'hidden',
     marginTop: 10,
     marginBottom: 5,
+  },
+  centered: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: 'rgba(0, 255, 255, 0.1)',
+    backgroundColor: 'rgba(50, 212, 222, 0.1)',
   },
   headerText: {
     color: COLORS.brandPrimary,
@@ -151,7 +175,7 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%',
     height: 180,
-    resizeMode: 'cover',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   content: {
     padding: 15,
@@ -160,27 +184,15 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 6,
   },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingBottom: 10,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  priceLabel: {
+  description: {
     color: COLORS.greyMid,
     fontSize: 14,
+    lineHeight: 18,
+    marginBottom: 15,
   },
-  priceValue: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  buyButton: {
+  actionButton: {
     backgroundColor: COLORS.brandPrimary,
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,7 +200,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
-  buyButtonText: {
+  actionButtonText: {
     color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',

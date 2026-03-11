@@ -1,5 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Platform, TextInput, StatusBar, Image } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ActivityIndicator, 
+  Alert, 
+  TouchableOpacity, 
+  Platform, 
+  TextInput, 
+  StatusBar, 
+  Image,
+  Dimensions,
+  ScrollView
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@/shared/navigation/RootNavigator';
@@ -12,6 +25,9 @@ import Icons from '@/assets/svgs';
 import TYPOGRAPHY from '@/assets/typography';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 type CommunitiesScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -30,12 +46,19 @@ const CommunitiesScreen = () => {
     dispatch(fetchCommunities(userId));
   }, [dispatch, userId]);
 
+  const featuredCommunities = useMemo(() => {
+    return communities.filter(c => c.is_public).slice(0, 5);
+  }, [communities]);
+
   const filteredCommunities = useMemo(() => {
-    if (!searchQuery) return communities;
-    return communities.filter(c => 
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      c.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    let list = communities;
+    if (searchQuery) {
+      list = communities.filter(c => 
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        c.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return list;
   }, [communities, searchQuery]);
 
   const handleJoinCommunity = async (communityId: string) => {
@@ -48,7 +71,6 @@ const CommunitiesScreen = () => {
       Alert.alert('Success', 'Community joined successfully!');
       dispatch(fetchCommunities(userId));
     } catch (err: any) {
-      console.log("[CommunitiesScreen] Join error:", err);
       if (err.includes('Access Denied')) {
         Alert.alert(
           'Access Denied', 
@@ -67,53 +89,79 @@ const CommunitiesScreen = () => {
     }
   };
 
-  const renderCommunityItem = ({ item }: { item: Community }) => (
+  const renderFeaturedItem = ({ item }: { item: Community }) => (
     <TouchableOpacity
-      style={styles.communityCard}
+      style={styles.featuredCard}
       activeOpacity={0.9}
       onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
     >
-      <View style={styles.cardHeader}>
-        <IPFSAwareImage
-          source={getValidImageSource(item.banner_url)}
-          style={styles.cardBanner}
-          defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=500&auto=format&fit=crop' }}
-        />
-        <View style={styles.cardAvatarWrapper}>
+      <IPFSAwareImage
+        source={getValidImageSource(item.banner_url)}
+        style={styles.featuredBanner}
+        defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=800&auto=format&fit=crop' }}
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(12, 16, 26, 0.95)']}
+        style={styles.featuredGradient}
+      />
+      <View style={styles.featuredInfo}>
+        <View style={styles.featuredAvatarWrapper}>
           <IPFSAwareImage
             source={getValidImageSource(item.avatar_url)}
-            style={styles.cardAvatar}
+            style={styles.featuredAvatar}
             defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name}` }}
           />
         </View>
+        <View style={styles.featuredTextContainer}>
+          <View style={styles.nameRow}>
+            <Text style={styles.featuredName} numberOfLines={1}>{item.name}</Text>
+            {item.is_gated && (
+              <Icons.LockIcon width={12} height={12} color={COLORS.brandPrimary} />
+            )}
+          </View>
+          <Text style={styles.featuredMembers}>{item.memberCount || 0} Seeker Members</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderCommunityItem = ({ item }: { item: Community }) => (
+    <TouchableOpacity
+      style={styles.communityCard}
+      activeOpacity={0.8}
+      onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
+    >
+      <View style={styles.cardAvatarWrapper}>
+        <IPFSAwareImage
+          source={getValidImageSource(item.avatar_url)}
+          style={styles.cardAvatar}
+          defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name}` }}
+        />
       </View>
       
       <View style={styles.cardContent}>
         <View style={styles.nameRow}>
           <Text style={styles.communityName} numberOfLines={1}>{item.name}</Text>
           {item.is_gated && (
-            <Icons.LockIcon width={14} height={14} color={COLORS.brandPrimary} />
+            <Icons.LockIcon width={12} height={12} color={COLORS.brandPrimary} style={{ marginLeft: 4 }} />
           )}
         </View>
         <Text style={styles.memberCount}>{item.memberCount || 0} members</Text>
-        <Text style={styles.communityDescription} numberOfLines={2}>
-          {item.description || "No description available for this community."}
+        <Text style={styles.communityDescription} numberOfLines={1}>
+          {item.description || "Hardware-gated community."}
         </Text>
-        
-        {!item.is_member && (
-          <TouchableOpacity 
-            style={styles.joinButton}
-            onPress={() => handleJoinCommunity(item.id)}
-          >
-            <Text style={styles.joinButtonText}>Join</Text>
-          </TouchableOpacity>
-        )}
-        {item.is_member && (
-          <View style={styles.joinedBadge}>
-            <Text style={styles.joinedText}>Joined</Text>
-          </View>
-        )}
       </View>
+
+      {!item.is_member ? (
+        <TouchableOpacity 
+          style={styles.joinButton}
+          onPress={() => handleJoinCommunity(item.id)}
+        >
+          <Text style={styles.joinButtonText}>Join</Text>
+        </TouchableOpacity>
+      ) : (
+        <Icons.CheckIcon width={16} height={16} color={COLORS.brandPrimary} />
+      )}
     </TouchableOpacity>
   );
 
@@ -121,13 +169,23 @@ const CommunitiesScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.headerTitle}>Communities</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View>
+          <Text style={styles.headerSubtitle}>The Galactic Map</Text>
+          <Text style={styles.headerTitle}>Discovery</Text>
+        </View>
         <TouchableOpacity
           style={styles.headerIcon}
           onPress={() => navigation.navigate('CreateCommunityScreen')}
         >
-          <Icons.PlusCircleIcon width={24} height={24} fill={COLORS.white} />
+          <LinearGradient
+            colors={[COLORS.brandPrimary, '#1D4ED8']}
+            style={styles.createButtonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Icons.PlusCircleIcon width={20} height={20} fill={COLORS.white} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -136,7 +194,7 @@ const CommunitiesScreen = () => {
           <Icons.SearchIcon width={16} height={16} color={COLORS.greyMid} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search Communities"
+            placeholder="Search communities or tokens..."
             placeholderTextColor={COLORS.greyMid}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -145,28 +203,50 @@ const CommunitiesScreen = () => {
         </View>
       </View>
 
-      {loading && communities.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.brandPrimary} />
-        </View>
-      ) : (
-        <FlashList
-          data={filteredCommunities}
-          renderItem={renderCommunityItem}
-          keyExtractor={item => item.id}
-          estimatedItemSize={250}
-          numColumns={1}
-          contentContainerStyle={styles.listContent}
-          onRefresh={() => dispatch(fetchCommunities(userId))}
-          refreshing={loading}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No communities found</Text>
-              <Text style={styles.emptySubtext}>Try searching for something else or create your own!</Text>
-            </View>
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Featured Section */}
+        {!searchQuery && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Featured Colonies</Text>
+            <FlashList
+              horizontal
+              data={featuredCommunities}
+              renderItem={renderFeaturedItem}
+              keyExtractor={item => `featured-${item.id}`}
+              estimatedItemSize={280}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.featuredList}
+            />
+          </View>
+        )}
+
+        {/* All Communities */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {searchQuery ? 'Search Results' : 'Explore All Colonies'}
+          </Text>
+          {loading && communities.length === 0 ? (
+            <ActivityIndicator size="small" color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
+          ) : (
+            <FlashList
+              data={filteredCommunities}
+              renderItem={renderCommunityItem}
+              keyExtractor={item => item.id}
+              estimatedItemSize={80}
+              contentContainerStyle={styles.listContent}
+              scrollEnabled={false}
+              ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No communities found</Text>
+                </View>
+              )}
+            />
           )}
-        />
-      )}
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -176,156 +256,198 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerSubtitle: {
+    color: COLORS.brandPrimary,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
     color: COLORS.white,
     fontFamily: TYPOGRAPHY.fontFamily,
+    marginTop: 2,
   },
   headerIcon: {
-    padding: 4,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  createButtonGradient: {
+    padding: 10,
+    borderRadius: 25,
   },
   searchContainer: {
-    paddingHorizontal: 16,
-    marginVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   searchInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#202327',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    height: 40,
+    height: 48,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   searchInput: {
     flex: 1,
     color: COLORS.white,
-    marginLeft: 10,
-    fontSize: 15,
+    marginLeft: 12,
+    fontSize: 16,
     fontFamily: TYPOGRAPHY.fontFamily,
   },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+  section: {
+    marginTop: 10,
   },
-  communityCard: {
-    backgroundColor: COLORS.darkerBackground,
-    borderRadius: 16,
-    overflow: 'hidden',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.white,
+    marginLeft: 20,
     marginBottom: 16,
-    borderWidth: 0.5,
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  featuredList: {
+    paddingLeft: 20,
+    paddingRight: 10,
+  },
+  featuredCard: {
+    width: 280,
+    height: 180,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginRight: 15,
+    backgroundColor: COLORS.darkerBackground,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  cardHeader: {
-    height: 80,
-    position: 'relative',
-  },
-  cardBanner: {
+  featuredBanner: {
     width: '100%',
     height: '100%',
   },
-  cardAvatarWrapper: {
+  featuredGradient: {
     position: 'absolute',
-    bottom: -20,
-    left: 16,
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 3,
-    borderColor: COLORS.darkerBackground,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '60%',
+  },
+  featuredInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  featuredAvatarWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.brandPrimary,
     overflow: 'hidden',
-    backgroundColor: COLORS.darkerBackground,
+  },
+  featuredAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  featuredTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  featuredName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.white,
+  },
+  featuredMembers: {
+    fontSize: 11,
+    color: COLORS.brandPrimary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+  },
+  communityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  cardAvatarWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.lighterBackground,
   },
   cardAvatar: {
     width: '100%',
     height: '100%',
   },
   cardContent: {
-    paddingTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
   communityName: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.white,
     fontFamily: TYPOGRAPHY.fontFamily,
-    flex: 1,
-    marginRight: 8,
   },
   memberCount: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.greyMid,
-    marginTop: 2,
     fontFamily: TYPOGRAPHY.fontFamily,
   },
   communityDescription: {
-    fontSize: 14,
-    color: COLORS.white,
-    marginTop: 8,
-    lineHeight: 18,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 2,
     fontFamily: TYPOGRAPHY.fontFamily,
   },
   joinButton: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
+    backgroundColor: 'rgba(50, 212, 222, 0.1)',
+    borderRadius: 12,
     paddingVertical: 6,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-end',
-    marginTop: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: COLORS.brandPrimary,
   },
   joinButtonText: {
-    color: COLORS.black,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  joinedBadge: {
-    borderWidth: 1,
-    borderColor: COLORS.greyMid,
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-end',
-    marginTop: 8,
-  },
-  joinedText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 14,
+    color: COLORS.brandPrimary,
+    fontWeight: '800',
+    fontSize: 12,
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 60,
-    paddingHorizontal: 40,
+    padding: 40,
   },
   emptyText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.white,
-    marginBottom: 8,
-  },
-  emptySubtext: {
     fontSize: 15,
     color: COLORS.greyMid,
-    textAlign: 'center',
-    lineHeight: 20,
   }
 });
 
