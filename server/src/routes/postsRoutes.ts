@@ -222,7 +222,7 @@ postsRouter.get('/', async (req: Request, res: Response) => {
 
         // 1. Original posts query
         let postsQuery = knex('posts')
-            .join('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('users', 'posts.author_wallet_address', 'users.id')
             .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
             .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
             .select(knex.raw(postSelect));
@@ -230,8 +230,8 @@ postsRouter.get('/', async (req: Request, res: Response) => {
         // 2. Reposts query
         let repostsQuery = knex('reposts')
             .join('posts', 'reposts.original_post_id', 'posts.id')
-            .join('users', 'posts.author_wallet_address', 'users.id')
-            .join('users as repost_users', 'reposts.reposter_wallet_address', 'repost_users.id')
+            .leftJoin('users', 'posts.author_wallet_address', 'users.id')
+            .leftJoin('users as repost_users', 'reposts.reposter_wallet_address', 'repost_users.id')
             .leftJoin('posts as parent_posts', 'posts.parent_id', 'parent_posts.id')
             .leftJoin('users as parent_users', 'parent_posts.author_wallet_address', 'parent_users.id')
             .select(knex.raw(repostSelect));

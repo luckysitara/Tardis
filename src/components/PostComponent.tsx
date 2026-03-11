@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { RootState } from '@/shared/state/store';
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
+import { useDomainLookup } from '@/shared/hooks/useDomainLookup';
 import { toggleBookmark, deletePost } from '@/shared/state/post/slice';
 import { HighlightedText } from '@/shared/components/HighlightedText';
 import { ProductBlinkCard } from '@/shared/components/ProductBlinkCard';
@@ -51,17 +52,54 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
     navigation.navigate('ThreadDetail', { postId: interactionId });
   };
 
+  const { resolveAddress } = useDomainLookup();
+
+  const truncateAddress = (address: string) => {
+    if (!address || address.length < 10) return address;
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
+  };
+
   // Map fields from either direct props (ThreadPost) or backend format
-  const author_wallet_address = user?.id || (props as any).author_wallet_address;
-  const author_skr_username = user?.username || (props as any).author_skr_username || 'Seeker User';
+  const author_wallet_address = user?.id || (props as any).author_wallet_address || (props as any).userId;
+  const author_skr_username = user?.username || (props as any).author_skr_username || (props as any).authorName;
   
-  // Use user.handle (which contains display_name from server) for displayName
-  // Use user.username (immutable .skr) for handle
-  const displayName = user?.handle || author_skr_username;
-  
-  // Ensure handle starts with @ and contains the full username including .skr
-  const rawHandle = user?.username || author_skr_username;
-  const handle = rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`;
+  const isWalletAddress = (val: string) => val && val.length > 30 && !val.includes('.');
+
+  // 1. Initial Display Name Resolution
+  const getInitialDisplayName = () => {
+    if (user?.handle && !isWalletAddress(user.handle)) return user.handle;
+    if (author_skr_username && !isWalletAddress(author_skr_username)) return author_skr_username;
+    return author_wallet_address ? truncateAddress(author_wallet_address) : 'Seeker User';
+  };
+
+  // 2. Initial Handle Resolution
+  const getInitialHandle = () => {
+    let raw = author_wallet_address ? truncateAddress(author_wallet_address) : 'unknown';
+    if (user?.username && !isWalletAddress(user.username)) raw = user.username;
+    else if (author_skr_username && !isWalletAddress(author_skr_username)) raw = author_skr_username;
+    return raw.startsWith('@') ? raw : `@${raw}`;
+  };
+
+  const [displayName, setDisplayName] = useState(getInitialDisplayName());
+  const [handle, setHandle] = useState(getInitialHandle());
+
+  // Effect to resolve .skr if we only have an address
+  useEffect(() => {
+    const resolveSkr = async () => {
+      if (author_wallet_address && (isWalletAddress(displayName) || isWalletAddress(handle.replace('@', '')))) {
+        try {
+          const result = await resolveAddress(author_wallet_address);
+          if (result.domain) {
+            setDisplayName(result.domain);
+            setHandle(`@${result.domain}`);
+          }
+        } catch (e) {
+          // Silent fail for resolution
+        }
+      }
+    };
+    resolveSkr();
+  }, [author_wallet_address]);
   
   const community_id = (props as any).community_id || (props as any).communityId;
   const is_public = (props as any).is_public || (props as any).isPublic;
@@ -127,7 +165,7 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
   const dispatch = useDispatch<any>();
   const { signMessage } = useTardisMobileWallet();
   const userId = useSelector((state: RootState) => state.auth.address);
-  const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
+  const SERVER_BASE_URL = 'https://seek.kikhaus.com';
 
   const formatRelativeTime = (time: string) => {
     const date = new Date(time);

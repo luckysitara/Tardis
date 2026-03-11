@@ -18,6 +18,9 @@ import knex from '../../db/knex';
 
 // Import the new user service function
 import { deleteUserAccount as deleteUserAccountService } from '../../service/userService'; 
+import { TldParser } from '@onsol/tldparser';
+import { PublicKey } from '@solana/web3.js';
+import { getConnection } from '../../utils/connection';
 
 const profileImageRouter = Router();
 // Removed: upload middleware as /upload endpoint is removed
@@ -42,12 +45,47 @@ profileImageRouter.get('/', async (req: any, res: any) => {
       return res.status(400).json({success: false, error: 'Missing userId'});
     }
 
-    const user = await knex('users').where({id: userId}).first();
-    if (!user) {
-      return res.status(404).json({success: false, error: 'User not found'});
+    let user = await knex('users').where({id: userId}).first();
+    
+    // If user doesn't exist, try to resolve their .skr domain first
+    // This allows fetching profiles of users who haven't logged into the app yet
+    let resolvedUsername = userId;
+    try {
+      const connection = getConnection();
+      const parser = new TldParser(connection);
+      const publicKey = new PublicKey(userId);
+      const domains = await parser.getParsedAllUserDomainsFromTld(publicKey, 'skr');
+      if (domains && domains.length > 0) {
+        resolvedUsername = `${domains[0].domain}.skr`;
+      }
+    } catch (e) {
+      console.log(`[ProfileFetch] .skr resolution failed for ${userId}:`, e);
     }
 
-    console.log(user , "user.attachment_data");
+    if (!user) {
+      // Return a virtual user profile if they have a .skr domain or just the address
+      return res.json({
+        success: true,
+        url: `https://api.dicebear.com/7.x/initials/png?seed=${resolvedUsername}`,
+        username: resolvedUsername,
+        display_name: resolvedUsername,
+        description: '',
+        isHardwareVerified: false,
+        attachmentData: {},
+      });
+    }
+
+    // If user exists but username is just the address, try to update it if we found a .skr
+    if (user.username === user.id && resolvedUsername !== user.id) {
+       await knex('users').where({id: userId}).update({
+         username: resolvedUsername,
+         display_name: resolvedUsername, // Also update display_name if it was a fallback
+         updated_at: new Date()
+       });
+       user.username = resolvedUsername;
+       user.display_name = resolvedUsername;
+    }
+
     return res.json({
       success: true,
       url: user.profile_picture_url,

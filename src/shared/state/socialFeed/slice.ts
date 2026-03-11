@@ -4,7 +4,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Post, User, SocialFeedState } from '@/shared/types/socialFeed.types'; // Assuming Like and Repost are not directly used in slice state
 
 // --- Backend API Base URL ---
-const BACKEND_API_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL ? process.env.EXPO_PUBLIC_SERVER_URL : 'http://138.197.125.251:8085';
+const BACKEND_API_BASE_URL = 'https://seek.kikhaus.com';
  // Use EXPO_PUBLIC_SERVER_URL or default
 
 // --- Async Thunks for API Interactions ---
@@ -74,15 +74,15 @@ export const createPost = createAsyncThunk('socialFeed/createPost', async (postD
   }
 });
 
-export const likePost = createAsyncThunk('socialFeed/likePost', async (payload: { postId: string; userId: string; isLiking: boolean; signature: string }, { rejectWithValue }) => {
+export const likePost = createAsyncThunk('socialFeed/likePost', async (payload: { postId: string; userId: string; isLiking: boolean }, { rejectWithValue }) => {
   try {
-    const { postId, userId, signature } = payload;
+    const { postId, userId } = payload;
     const response = await fetch(`${BACKEND_API_BASE_URL}/api/posts/like`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ postId, userId, signature }),
+      body: JSON.stringify({ postId, userId }),
     });
     if (!response.ok) {
       const errorData = await response.json();
@@ -95,15 +95,15 @@ export const likePost = createAsyncThunk('socialFeed/likePost', async (payload: 
   }
 });
 
-export const repostPost = createAsyncThunk('socialFeed/repostPost', async (payload: { postId: string; userId: string; isReposting: boolean; signature: string; originalPostId?: string }, { rejectWithValue }) => {
+export const repostPost = createAsyncThunk('socialFeed/repostPost', async (payload: { postId: string; userId: string; isReposting: boolean; originalPostId?: string }, { rejectWithValue }) => {
   try {
-    const { postId, userId, signature, originalPostId } = payload;
+    const { postId, userId, originalPostId } = payload;
     const response = await fetch(`${BACKEND_API_BASE_URL}/api/posts/repost`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ postId, userId, signature, originalPostId }),
+      body: JSON.stringify({ postId, userId, originalPostId }),
     });
     if (!response.ok) {
       const errorData = await response.json();

@@ -34,8 +34,8 @@ export async function uploadChatImage(userId: string, imageUri: string): Promise
     formData.append('chatImage', photo);
     formData.append('userId', userId);
 
-    const finalServerUrl = SERVER_URL && SERVER_URL.includes('138.197.125.251') ? 'http://138.197.125.251:8085' : (SERVER_URL || 'http://138.197.125.251:8085');
-    console.log(`[uploadChatImage] Sending request to ${finalServerUrl}/api/chat/images/upload`);
+    const finalServerUrl = 'https://seek.kikhaus.com';
+    console.log(`[uploadChatImage] FORCING request to ${finalServerUrl}/api/chat/images/upload`);
 
     const response = await fetch(`${finalServerUrl}/api/chat/images/upload`, {
       method: 'POST',
