@@ -14,6 +14,7 @@ import { followRouter } from './routes/followRoutes'; // Add this import
 import heliusRouter from './routes/helius'; // Add this import
 import jupiterUltraSwapRouter from './routes/swap/jupiterUltraSwapRoutes'; // Add this import
 import domainRouter from './routes/domainRoutes';
+import actionsRouter from './routes/actions';
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -99,6 +100,7 @@ app.use('/api/follows', followRouter); // Add this line
 app.use('/api/helius', heliusRouter); // Add this line
 app.use('/api/jupiter/ultra', jupiterUltraSwapRouter); // Add this line
 app.use('/api/domain', domainRouter);
+app.use('/api/actions', actionsRouter);
 
 // Socket.io handlers
 io.on('connection', (socket) => {
