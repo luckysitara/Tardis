@@ -18,7 +18,8 @@ import knex from '../../db/knex';
 
 // Import the new user service function
 import { deleteUserAccount as deleteUserAccountService } from '../../service/userService'; 
-import { TldParser } from '@onsol/tldparser';
+import * as tldParserPkg from '@onsol/tldparser';
+const TldParser = (tldParserPkg as any).TldParser || (tldParserPkg as any).default?.TldParser;
 import { PublicKey } from '@solana/web3.js';
 import { getConnection } from '../../utils/connection';
 

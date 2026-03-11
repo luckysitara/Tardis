@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PublicKey } from '@solana/web3.js';
-import { TldParser } from '@onsol/tldparser';
+import * as tldParserPkg from '@onsol/tldparser';
+const TldParser = (tldParserPkg as any).TldParser || (tldParserPkg as any).default?.TldParser;
 import { getConnection } from '../utils/connection';
 
 const domainRouter = Router();
