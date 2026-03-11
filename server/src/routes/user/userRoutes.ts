@@ -1,5 +1,5 @@
 /**
- * File: server/src/routes/profileImageRoutes.ts
+ * File: server/src/routes/user/userRoutes.ts
  *
  * A router that handles:
  * - Basic profile fetch/update (username, description, profilePicUrl)
@@ -7,32 +7,16 @@
  */
 
 import {Router, Request, Response, NextFunction} from 'express';
-import multer from 'multer'; // Keep if multer is still used for avatar upload (if not, remove)
-import sharp from 'sharp'; // Keep if sharp is still used for avatar processing (if not, remove)
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import multer from 'multer';
 import knex from '../../db/knex';
-// Removed: import {uploadToIpfs, uploadToPinata} from '../../utils/ipfs';
-// Removed: import fetch from 'node-fetch'; // No longer needed after removing IPFS upload
-
-// Import the new user service function
 import { deleteUserAccount as deleteUserAccountService } from '../../service/userService'; 
 import * as tldParserPkg from '@onsol/tldparser';
 const TldParser = (tldParserPkg as any).TldParser || (tldParserPkg as any).default?.TldParser;
 import { PublicKey } from '@solana/web3.js';
 import { getConnection } from '../../utils/connection';
+import { verifySignature } from '../../utils/solana';
 
 const profileImageRouter = Router();
-// Removed: upload middleware as /upload endpoint is removed
-const upload = multer({storage: multer.memoryStorage()}); // Only keep if updateProfilePic will use it.
-
-/**
- * Removed: ------------------------------------------
- * Removed:  EXISTING: Upload profile image logic
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.post('/upload', ...);
 
 /**
  * ------------------------------------------
@@ -49,7 +33,6 @@ profileImageRouter.get('/', async (req: any, res: any) => {
     let user = await knex('users').where({id: userId}).first();
     
     // If user doesn't exist, try to resolve their .skr domain first
-    // This allows fetching profiles of users who haven't logged into the app yet
     let resolvedUsername = userId;
     try {
       const connection = getConnection();
@@ -65,7 +48,7 @@ profileImageRouter.get('/', async (req: any, res: any) => {
     }
 
     if (!user) {
-      // Return a virtual user profile if they have a .skr domain or just the address
+      // Return a virtual user profile
       return res.json({
         success: true,
         url: `https://api.dicebear.com/7.x/initials/png?seed=${resolvedUsername}`,
@@ -77,11 +60,11 @@ profileImageRouter.get('/', async (req: any, res: any) => {
       });
     }
 
-    // If user exists but username is just the address, try to update it if we found a .skr
+    // Update if needed
     if (user.username === user.id && resolvedUsername !== user.id) {
        await knex('users').where({id: userId}).update({
          username: resolvedUsername,
-         display_name: resolvedUsername, // Also update display_name if it was a fallback
+         display_name: resolvedUsername,
          updated_at: new Date()
        });
        user.username = resolvedUsername;
@@ -105,90 +88,88 @@ profileImageRouter.get('/', async (req: any, res: any) => {
 
 /**
  * ------------------------------------------
- *  EXISTING: Update user's display name
+ *  NEW: SECURE Profile Update
+ *  Requires signature verification
  * ------------------------------------------
  */
-profileImageRouter.post('/updateUsername', async (req: any, res: any) => {
+profileImageRouter.post('/update', async (req: any, res: any) => {
   try {
-    const {userId, username: newDisplayName} = req.body;
-    if (!userId || !newDisplayName) {
-      return res
-        .status(400)
-        .json({success: false, error: 'Missing userId or display name'});
+    const { 
+      userId, 
+      displayName, 
+      description, 
+      profilePicUrl, 
+      signature, 
+      timestamp 
+    } = req.body;
+
+    if (!userId || !signature || !timestamp) {
+      return res.status(400).json({ success: false, error: 'Missing required fields (userId, signature, timestamp)' });
     }
 
-    const existingUser = await knex('users').where({id: userId}).first();
+    // Reconstruct the message that was signed
+    // The mobile app will sign: {"action":"update_profile","userId":"...","timestamp":"..."}
+    const signedMessage = `{"action":"update_profile","userId":"${userId}","timestamp":"${timestamp}"}`;
+
+    const isSignatureValid = verifySignature(signedMessage, signature, userId);
+    if (!isSignatureValid) {
+      return res.status(401).json({ success: false, error: 'Invalid hardware signature.' });
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      updated_at: new Date(),
+      is_hardware_verified: true
+    };
+    
+    if (displayName !== undefined) updateData.display_name = displayName;
+    if (description !== undefined) updateData.description = description;
+    if (profilePicUrl !== undefined) updateData.profile_picture_url = profilePicUrl;
+
+    const existingUser = await knex('users').where({ id: userId }).first();
     if (!existingUser) {
       await knex('users').insert({
         id: userId,
-        username: userId, // Fallback
-        display_name: newDisplayName,
-        profile_picture_url: null,
+        username: userId,
+        ...updateData,
         created_at: new Date(),
-        updated_at: new Date(),
       });
     } else {
-      await knex('users').where({id: userId}).update({
-        display_name: newDisplayName,
-        updated_at: new Date(),
-      });
+      await knex('users').where({ id: userId }).update(updateData);
     }
 
-    return res.json({success: true, display_name: newDisplayName});
+    return res.json({ 
+      success: true, 
+      message: 'Profile updated with hardware verification',
+      profile: {
+        display_name: updateData.display_name,
+        description: updateData.description,
+        profile_picture_url: updateData.profile_picture_url,
+        isHardwareVerified: true
+      }
+    });
   } catch (error: any) {
-    console.error('[updateDisplayName error]', error);
-    return res.status(500).json({success: false, error: error.message});
+    console.error('[Profile update error]', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
-/**
- * Removed: ------------------------------------------
- * Removed:  NEW: Follow a user
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.post('/follow', ...);
+// Legacy single-field updates (uncommented if still needed, but discouraged)
+profileImageRouter.post('/updateUsername', async (req: any, res: any) => {
+    return res.status(410).json({ success: false, error: 'Endpoint deprecated. Use /api/profile/update with signature.' });
+});
 
-/**
- * Removed: ------------------------------------------
- * Removed:  NEW: Unfollow a user
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.post('/unfollow', ...);
+profileImageRouter.post('/updateDescription', async (req: any, res: any) => {
+    return res.status(410).json({ success: false, error: 'Endpoint deprecated. Use /api/profile/update with signature.' });
+});
 
-/**
- * Removed: ------------------------------------------
- * Removed:  NEW: GET list of a user's followers
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.get('/followers', ...);
-
-/**
- * Removed: ------------------------------------------
- * Removed:  NEW: GET list of a user's following
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.get('/following', ...);
-
-/**
- * Removed: ------------------------------------------
- * Removed:  NEW: Attach or update a coin on the user's profile
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.post('/attachCoin', ...);
-
-/**
- * Removed: ------------------------------------------
- * Removed:  Remove an attached coin from the user's profile
- * Removed: ------------------------------------------
- */
-// Removed: profileImageRouter.post('/removeAttachedCoin', ...);
-
-// Removed: profileImageRouter.get('/search', ...);
+profileImageRouter.post('/updateProfilePic', async (req: any, res: any) => {
+    return res.status(410).json({ success: false, error: 'Endpoint deprecated. Use /api/profile/update with signature.' });
+});
 
 /**
  * ------------------------------------------
  *  NEW: Create a new user
- *  Body: { userId, username, handle }
  * ------------------------------------------
  */
 profileImageRouter.post('/createUser', async (req: any, res: any) => {
@@ -198,15 +179,9 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
       return res.status(400).json({ success: false, error: 'Missing userId' });
     }
 
-    // Check if user already exists
     const existingUser = await knex('users').where({ id: userId }).first();
     
     if (existingUser) {
-      // Improved migration logic:
-      // A placeholder is a username that:
-      // 1. Exactly matches the user ID (wallet address)
-      // 2. Looks like an abbreviated wallet address (e.g., 4...4)
-      // 3. Does not contain a domain dot (like .skr or .sol) while the new one DOES
       const isPlaceholder = existingUser.username === existingUser.id || 
                             /^[a-zA-Z0-9]{3,6}\.\.\.[a-zA-Z0-9]{3,6}$/.test(existingUser.username) ||
                             (!existingUser.username.includes('.') && username && username.includes('.'));
@@ -214,10 +189,9 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
       const hasProperName = username && username.includes('.') && username !== existingUser.username;
 
       if (isPlaceholder && hasProperName) {
-        console.log(`[createUser] Migrating placeholder username ${existingUser.username} to proper identity ${username}`);
         await knex('users').where({ id: userId }).update({
           username: username,
-          display_name: username, // Update display name too for consistency
+          display_name: username,
           updated_at: new Date()
         });
         const updatedUser = await knex('users').where({ id: userId }).first();
@@ -227,7 +201,6 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
       return res.json({ success: true, user: existingUser });
     }
 
-    // Create new user
     const newUser = {
       id: userId,
       username: username || userId,
@@ -240,116 +213,10 @@ profileImageRouter.post('/createUser', async (req: any, res: any) => {
     };
 
     await knex('users').insert(newUser);
-
     return res.json({ success: true, user: newUser });
   } catch (error: any) {
     console.error('[Create user error]', error);
     return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * ------------------------------------------
- *  NEW: Update user's description
- * ------------------------------------------
- */
-profileImageRouter.post('/updateDescription', async (req: any, res: any) => {
-  try {
-    const {userId, description} = req.body;
-    if (!userId) {
-      return res
-        .status(400)
-        .json({success: false, error: 'Missing userId'});
-    }
-
-    const existingUser = await knex('users').where({id: userId}).first();
-    if (!existingUser) {
-      await knex('users').insert({
-        id: userId,
-        username: userId,
-        display_name: userId,
-        description: description || '',
-        profile_picture_url: null,
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
-    } else {
-      await knex('users').where({id: userId}).update({
-        description: description || '',
-        updated_at: new Date(),
-      });
-    }
-
-    return res.json({success: true, description: description || ''});
-  } catch (error: any) {
-    console.error('[updateDescription error]', error);
-    return res.status(500).json({success: false, error: error.message});
-  }
-});
-
-/**
- * ------------------------------------------
- *  NEW: Update user's profile picture URL directly
- *  Body: { userId, profilePicUrl }
- * ------------------------------------------
- */
-profileImageRouter.post('/updateProfilePic', async (req: any, res: any) => {
-  try {
-    const { userId, profilePicUrl } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing userId' 
-      });
-    }
-    
-    if (!profilePicUrl) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing profilePicUrl' 
-      });
-    }
-
-    console.log(`[updateProfilePic] Updating profile picture for userId: ${userId}`);
-    console.log(`[updateProfilePic] New profile picture URL: ${profilePicUrl}`);
-
-    // Check if user exists
-    const existingUser = await knex('users').where({ id: userId }).first();
-    
-    if (!existingUser) {
-      // Create new user if doesn't exist
-      console.log(`[updateProfilePic] User ${userId} not found, creating new record`);
-      await knex('users').insert({
-        id: userId,
-        username: userId, // Default username
-        display_name: userId, // Default display_name
-        profile_picture_url: profilePicUrl,
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
-      console.log(`[updateProfilePic] New user created with profile picture`);
-    } else {
-      // Update existing user
-      console.log(`[updateProfilePic] Updating existing user ${userId}`);
-      await knex('users').where({ id: userId }).update({
-        profile_picture_url: profilePicUrl,
-        updated_at: new Date(),
-      });
-      console.log(`[updateProfilePic] Profile picture updated successfully`);
-    }
-
-    return res.json({ 
-      success: true, 
-      profilePicUrl: profilePicUrl,
-      message: 'Profile picture updated successfully'
-    });
-  } catch (error: any) {
-    console.error('[updateProfilePic error]', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
   }
 });
 
@@ -365,8 +232,6 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
       return res.status(400).json({ success: false, error: 'Missing userId or publicKey' });
     }
 
-    console.log(`[register-key] Registering public key for userId: ${userId}`);
-
     const existingUser = await knex('users').where({ id: userId }).first();
     if (!existingUser) {
       await knex('users').insert({
@@ -374,7 +239,7 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
         username: userId,
         display_name: userId,
         public_encryption_key: publicKey,
-        is_hardware_verified: true, // Registering a key implies hardware signature was provided
+        is_hardware_verified: true,
         created_at: new Date(),
         updated_at: new Date(),
       });
@@ -395,116 +260,20 @@ profileImageRouter.post('/register-key', async (req: any, res: any) => {
 
 /**
  * ------------------------------------------
- *  DEV ONLY: Create test users
- * ------------------------------------------
- */
-profileImageRouter.post('/seed-test-users', async (req: any, res: any) => {
-  try {
-    const testUsers = [
-      {
-        id: 'SeekeR1111111111111111111111111111111111111',
-        username: 'Rose Tyler',
-        display_name: 'rose.skr',
-        description: 'The Bad Wolf.',
-        public_encryption_key: 'rose_test_key_base64_placeholder',
-      },
-      {
-        id: 'SeekeR2222222222222222222222222222222222222',
-        username: 'Captain Jack',
-        display_name: 'jack.skr',
-        description: 'Face of Boe.',
-        public_encryption_key: 'jack_test_key_base64_placeholder',
-      }
-    ];
-
-    for (const user of testUsers) {
-      const existing = await knex('users').where({ id: user.id }).first();
-      if (!existing) {
-        await knex('users').insert({
-          ...user,
-          created_at: new Date(),
-          updated_at: new Date(),
-        });
-      }
-    }
-
-    return res.json({ success: true, message: 'Test users seeded successfully' });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Simple authentication middleware for delete-account route
-const requireAuthForDelete = async (req: any, res: any, next: NextFunction) => {
-  try {
-    const { userId } = req.body;
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Authentication required. Please log in.' 
-       });
-    }
-
-    // Get the token from the Authorization header
-    const token = authHeader.split(' ')[1];
-    
-    // Verify the token and get the user's address
-    // This assumes the token contains the user's wallet address
-    const userAddress = token; // In a real implementation, you would verify the JWT token
-
-    // Ensure the authenticated user can only delete their own account
-    if (userAddress.toLowerCase() !== userId.toLowerCase()) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'You can only delete your own account.' 
-      });
-    }
-
-    // Add the verified user address to the request for use in the route handler
-    req.userAddress = userAddress;
-    next();
-  } catch (error: any) {
-    console.error('[Auth Middleware Error]', error);
-    return res.status(401).json({ 
-      success: false, 
-      error: 'Authentication failed.' 
-    });
-  }
-};
-
-/**
- * ------------------------------------------
  *  NEW: Delete user account
- *  Protected by requireAuthForDelete middleware
  * ------------------------------------------
  */
 profileImageRouter.delete(
   '/delete-account',
-  requireAuthForDelete,
-  async (req: any, res: any, next: NextFunction) => {
-    console.log(`[Route /delete-account] Received request. Body:`, req.body);
+  async (req: any, res: any) => {
     try {
       const { userId } = req.body;
-      
-      console.log(`[Route /delete-account] Extracted userId: ${userId}`);
-
       if (!userId) {
-        console.error('[Route /delete-account] Error: userId is missing from request body.');
-        return res.status(400).json({ success: false, error: 'userId is required in the request body.' });
+        return res.status(400).json({ success: false, error: 'userId is required.' });
       }
-
-      console.log(`[Route /delete-account] Calling deleteUserAccountService for userId: ${userId}`);
       await deleteUserAccountService(userId);
-      
-      console.log(`[Route /delete-account] Successfully deleted account for userId: ${userId}`);
       return res.status(200).json({ success: true, message: 'Account deleted successfully.' });
     } catch (error: any) {
-      console.error('[Delete Account Route Error]', error);
-      if (error.message.includes('User not found')) {
-        return res.status(404).json({ success: false, error: error.message });
-      }
       return res.status(500).json({ success: false, error: error.message || 'Failed to delete account.' });
     }
   },

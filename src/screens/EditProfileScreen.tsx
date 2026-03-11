@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Button, TextInput, TouchableOpacity, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import COLORS from '@/assets/colors';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
-import { updateUsername, updateDescription, updateProfilePicAction } from '@/shared/state/auth/reducer';
+import { updateProfileSecure } from '@/shared/state/auth/reducer';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '@/core/chat/services/chatImageService';
 import Icons from '@/assets/svgs';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
+import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
+import { Buffer } from 'buffer';
 
 const EditProfileScreen = ({ navigation }) => {
   const dispatch = useAppDispatch();
+  const { signMessage } = useWallet();
   const { address: userId, username, displayName, description, profilePicUrl } = useAppSelector(state => state.auth);
 
   const [name, setName] = useState(displayName || username || '');
@@ -41,29 +45,56 @@ const EditProfileScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!userId) return;
+    
+    const hasChanged = 
+      name !== displayName || 
+      bio !== (description || '') || 
+      selectedImage !== null;
+
+    if (!hasChanged) {
+      navigation.goBack();
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       // 1. Upload image if changed
+      let finalProfilePicUrl = profilePicUrl || undefined;
       if (selectedImage) {
-        const uploadedUrl = await uploadChatImage(userId, selectedImage);
-        await dispatch(updateProfilePicAction({ userId, profilePicUrl: uploadedUrl })).unwrap();
+        finalProfilePicUrl = await uploadChatImage(userId, selectedImage);
       }
 
-      // 2. Update name
-      if (name !== displayName) {
-        await dispatch(updateUsername({ userId, newUsername: name })).unwrap();
+      // 2. Request Hardware Signature
+      const timestamp = new Date().toISOString();
+      const messageToSign = `{"action":"update_profile","userId":"${userId}","timestamp":"${timestamp}"}`;
+      const messageUint8 = new Uint8Array(Buffer.from(messageToSign, 'utf8'));
+
+      console.log("[EditProfile] Requesting MWA signature for profile update...");
+      const signature = await signMessage(messageUint8);
+
+      if (!signature) {
+        setIsSaving(false);
+        return;
       }
 
-      // 3. Update bio
-      if (bio !== description) {
-        await dispatch(updateDescription({ userId, newDescription: bio })).unwrap();
-      }
+      const signatureBase64 = Buffer.from(signature).toString('base64');
 
-      Alert.alert('Success', 'Profile updated successfully!');
+      // 3. Dispatch secure update
+      await dispatch(updateProfileSecure({
+        userId,
+        displayName: name,
+        description: bio,
+        profilePicUrl: finalProfilePicUrl,
+        signature: signatureBase64,
+        timestamp
+      })).unwrap();
+
+      Alert.alert('Success', 'Profile updated with hardware verification!');
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Error', error || 'Failed to update profile');
+      console.error('[EditProfile] Save error:', error);
+      Alert.alert('Error', error.message || error || 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
@@ -74,8 +105,8 @@ const EditProfileScreen = ({ navigation }) => {
       <Text style={styles.header}>Edit Your Profile</Text>
 
       <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-        <Image 
-          source={{ uri: selectedImage || profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${username}` }} 
+        <IPFSAwareImage 
+          source={selectedImage ? { uri: selectedImage } : getValidImageSource(profilePicUrl || `https://api.dicebear.com/7.x/initials/png?seed=${username}`)} 
           style={styles.profilePic} 
         />
         <View style={styles.editOverlay}>

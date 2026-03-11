@@ -99,7 +99,58 @@ export const fetchUserProfile = createAsyncThunk(
 );
 
 /**
+ * SECURE: Update the user's profile with hardware signature verification.
+ */
+export const updateProfileSecure = createAsyncThunk(
+  'auth/updateProfileSecure',
+  async (
+    { 
+      userId, 
+      displayName, 
+      description, 
+      profilePicUrl, 
+      signature, 
+      timestamp 
+    }: { 
+      userId: string; 
+      displayName?: string; 
+      description?: string; 
+      profilePicUrl?: string; 
+      signature: string; 
+      timestamp: string;
+    },
+    thunkAPI,
+  ) => {
+    try {
+      const response = await fetch(
+        `${SERVER_BASE_URL}/api/profile/update`,
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ 
+            userId, 
+            displayName, 
+            description, 
+            profilePicUrl, 
+            signature, 
+            timestamp 
+          }),
+        },
+      );
+      const data = await response.json();
+      if (!data.success) {
+        return thunkAPI.rejectWithValue(data.error || 'Failed to update profile');
+      }
+      return data.profile; // Returns { display_name, description, profile_picture_url, isHardwareVerified }
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(error.message || 'Error updating profile');
+    }
+  },
+);
+
+/**
  * Update the user's username in the database.
+ * @deprecated Use updateProfileSecure instead.
  */
 export const updateUsername = createAsyncThunk(
   'auth/updateUsername',
@@ -433,6 +484,14 @@ const authSlice = createSlice({
 
     builder.addCase(updateUsername.fulfilled, (state, action) => {
       state.displayName = action.payload;
+    });
+
+    builder.addCase(updateProfileSecure.fulfilled, (state, action) => {
+      const { display_name, description, profile_picture_url, isHardwareVerified } = action.payload;
+      if (display_name !== undefined) state.displayName = display_name;
+      if (description !== undefined) state.description = description;
+      if (profile_picture_url !== undefined) state.profilePicUrl = profile_picture_url;
+      state.isHardwareVerified = !!isHardwareVerified;
     });
 
     builder.addCase(updateDescription.fulfilled, (state, action) => {
