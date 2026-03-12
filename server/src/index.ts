@@ -15,6 +15,7 @@ import heliusRouter from './routes/helius'; // Add this import
 import jupiterUltraSwapRouter from './routes/swap/jupiterUltraSwapRoutes'; // Add this import
 import domainRouter from './routes/domainRoutes';
 import actionsRouter from './routes/actions';
+import { launchRouter } from './routes/pumpfun/pumpfunLaunch';
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
@@ -101,6 +102,7 @@ app.use('/api/helius', heliusRouter); // Add this line
 app.use('/api/jupiter/ultra', jupiterUltraSwapRouter); // Add this line
 app.use('/api/domain', domainRouter);
 app.use('/api/actions', actionsRouter);
+app.use('/api/pumpfun', launchRouter);
 
 // Socket.io handlers
 io.on('connection', (socket) => {

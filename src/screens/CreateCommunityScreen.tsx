@@ -23,6 +23,8 @@ import Icons from '@/assets/svgs';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '@/core/chat/services/chatImageService';
+import { createAndBuyTokenViaPumpfun } from '@/modules/pump-fun/services/pumpfunService';
+import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 
 type CreateCommunityScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -41,6 +43,7 @@ const CreateCommunityScreen = () => {
   const dispatch = useAppDispatch();
   const { loading, error } = useAppSelector(state => state.community);
   const creatorId = useAppSelector(state => state.auth.address);
+  const { wallet } = useWallet();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -49,6 +52,12 @@ const CreateCommunityScreen = () => {
   const [isPublic, setIsPublic] = useState(true);
   const [gates, setGates] = useState<GateInput[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  // Pump.fun specific state
+  const [launchNewToken, setLaunchNewToken] = useState(false);
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [initialSolBuy, setInitialSolBuy] = useState('0.1');
 
   const pickImage = async (type: 'avatar' | 'banner') => {
     try {
@@ -99,35 +108,60 @@ const CreateCommunityScreen = () => {
       return;
     }
 
+    if (launchNewToken && !tokenSymbol) {
+      Alert.alert('Error', 'Token symbol is required for launch.');
+      return;
+    }
+
     setIsUploading(true);
+    setStatusMessage('Starting community creation...');
+    
     try {
       let avatarUrl = '';
       let bannerUrl = '';
+      let finalGates = [...gates];
 
       // 1. Upload Avatar if selected
       if (selectedAvatar) {
-        try {
-          avatarUrl = await uploadChatImage(creatorId, selectedAvatar);
-        } catch (uploadError) {
-          console.error("Avatar upload error:", uploadError);
-          Alert.alert("Upload Error", "Failed to upload avatar.");
-          setIsUploading(false);
-          return;
-        }
+        setStatusMessage('Uploading community avatar...');
+        avatarUrl = await uploadChatImage(creatorId, selectedAvatar);
       }
 
       // 2. Upload Banner if selected
       if (selectedBanner) {
-        try {
-          bannerUrl = await uploadChatImage(creatorId, selectedBanner);
-        } catch (uploadError) {
-          console.error("Banner upload error:", uploadError);
-          Alert.alert("Upload Error", "Failed to upload banner.");
-          setIsUploading(false);
-          return;
-        }
+        setStatusMessage('Uploading community banner...');
+        bannerUrl = await uploadChatImage(creatorId, selectedBanner);
       }
 
+      // 3. Launch Pump.fun Token if requested
+      if (launchNewToken) {
+        if (!wallet) throw new Error('Wallet not connected');
+        
+        setStatusMessage('Launching Pump.fun token (Seed Vault signing required)...');
+        
+        const launchResult = await createAndBuyTokenViaPumpfun({
+          userPublicKey: creatorId,
+          tokenName: name,
+          tokenSymbol: tokenSymbol,
+          description: description || `Official token for ${name} community.`,
+          imageUri: selectedAvatar || 'https://teal-additional-lemming-515.mypinata.cloud/ipfs/QmZ8Uq8VfT5X5B1T9y9p7m7y8z9w9v8u7t6r5q4p3o2n1m',
+          solAmount: parseFloat(initialSolBuy),
+          solanaWallet: wallet,
+          onStatusUpdate: (msg) => setStatusMessage(`Pump.fun: ${msg}`),
+        });
+
+        console.log('[CreateCommunity] Token launched:', launchResult.mint);
+        
+        // Add the new token as a gate
+        finalGates.push({
+          type: 'TOKEN',
+          mintAddress: launchResult.mint,
+          minBalance: '1',
+          symbol: tokenSymbol
+        });
+      }
+
+      setStatusMessage('Finalizing colony registration...');
       await dispatch(createCommunity({
         name,
         description,
@@ -135,18 +169,24 @@ const CreateCommunityScreen = () => {
         bannerUrl,
         isPublic,
         creatorId,
-        gates: gates.map(gate => ({
+        gates: finalGates.map(gate => ({
           ...gate,
           minBalance: gate.minBalance || '1',
         })),
       })).unwrap();
-      Alert.alert('Success', 'Community created successfully!');
+
+      Alert.alert('Success', launchNewToken 
+        ? `Token launched and community created successfully!` 
+        : 'Community created successfully!');
+      
       dispatch(fetchCommunities());
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err || 'Failed to create community.');
+      console.error('[CreateCommunity] Error:', err);
+      Alert.alert('Error', err.message || err || 'Failed to create community.');
     } finally {
       setIsUploading(false);
+      setStatusMessage('');
     }
   };
 
@@ -156,18 +196,54 @@ const CreateCommunityScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Community</Text>
+        <Text style={styles.headerTitle}>Establish Colony</Text>
         <View style={styles.backButton} />
       </View>
 
-      <Text style={styles.label}>Community Name *</Text>
+      <Text style={styles.label}>Colony Name *</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g., Solana Devs"
+        placeholder="e.g., Seeker Alphas"
         placeholderTextColor={COLORS.greyMid}
         value={name}
         onChangeText={setName}
       />
+
+      <View style={styles.switchContainer}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Launch with New Token</Text>
+          <Text style={{ color: COLORS.greyMid, fontSize: 12 }}>Automatically gate this community with a new Pump.fun token.</Text>
+        </View>
+        <Switch
+          trackColor={{ false: COLORS.greyDark, true: COLORS.brandPrimary }}
+          thumbColor={COLORS.white}
+          onValueChange={setLaunchNewToken}
+          value={launchNewToken}
+        />
+      </View>
+
+      {launchNewToken && (
+        <View style={styles.gateItem}>
+          <Text style={styles.gateLabel}>Token Symbol *</Text>
+          <TextInput
+            style={styles.gateInput}
+            placeholder="e.g., TARDIS"
+            placeholderTextColor={COLORS.greyMid}
+            value={tokenSymbol}
+            onChangeText={setTokenSymbol}
+            autoCapitalize="characters"
+          />
+          <Text style={styles.gateLabel}>Initial Buy Amount (SOL)</Text>
+          <TextInput
+            style={styles.gateInput}
+            placeholder="0.1"
+            placeholderTextColor={COLORS.greyMid}
+            value={initialSolBuy}
+            onChangeText={setInitialSolBuy}
+            keyboardType="numeric"
+          />
+        </View>
+      )}
 
       <Text style={styles.label}>Description</Text>
       <TextInput
@@ -293,6 +369,12 @@ const CreateCommunityScreen = () => {
       </View>
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!statusMessage && (
+        <View style={styles.statusContainer}>
+          <ActivityIndicator size="small" color={COLORS.brandPrimary} />
+          <Text style={styles.statusText}>{statusMessage}</Text>
+        </View>
+      )}
 
       <TouchableOpacity
         style={[styles.submitButton, (loading || isUploading) && styles.submitButtonDisabled]}
@@ -302,7 +384,7 @@ const CreateCommunityScreen = () => {
         {loading || isUploading ? (
           <ActivityIndicator size="small" color={COLORS.white} />
         ) : (
-          <Text style={styles.submitButtonText}>Create Community</Text>
+          <Text style={styles.submitButtonText}>Initialize Colony</Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -468,6 +550,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(50, 212, 222, 0.1)',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  statusText: {
+    color: COLORS.brandPrimary,
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '600',
+  }
 });
 
 export default CreateCommunityScreen;
