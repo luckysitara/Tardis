@@ -65,7 +65,7 @@ export default function PumpfunScreen() {
           containerStyle={styles.cardContainer}
           inputStyle={styles.input}
           buttonStyle={styles.button}
-          launchButtonLabel="Go Live!"
+          launchButtonLabel="Launch"
         />
       </ScrollView>
     </SafeAreaView>

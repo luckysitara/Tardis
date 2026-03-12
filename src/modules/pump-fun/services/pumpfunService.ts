@@ -87,11 +87,14 @@ export async function createAndBuyTokenViaPumpfun({
     formData.append('telegram', telegram || '');
     formData.append('website', website || '');
     formData.append('createdOn', 'https://www.solanaappkit.com');
-    formData.append('image', {
+    
+    // For React Native FormData, the object needs 'uri', 'name', and 'type'
+    const imageFile = {
       uri: imageUri,
-      name: 'token.png',
+      name: 'image.png',
       type: 'image/png',
-    } as any);
+    };
+    formData.append('image', imageFile as any);
 
     const uploadResponse = await fetch(uploadEndpoint, {
       method: 'POST',
