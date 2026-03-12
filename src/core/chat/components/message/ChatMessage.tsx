@@ -326,12 +326,21 @@ function ChatMessage({
 
   // Determine if we should show header and footer based on content type
   const shouldShowHeader = useMemo(() => {
-    // Always show header for other users' messages if showHeader is true
+    // Check if it's a direct chat (only 2 participants)
+    const currentChat = chats.find(c => c.id === message.chat_room_id);
+    const isDirectChat = currentChat?.type === 'direct';
+
+    // In direct chats, never show header (no need for name/avatar for every msg)
+    if (isDirectChat) {
+      return false;
+    }
+
+    // In group/community chats, show header for OTHER users' messages if showHeader is true
     if (!isCurrentUser && showHeader) {
       return true;
     }
     return false;
-  }, [isCurrentUser, showHeader]);
+  }, [isCurrentUser, showHeader, chats, message.chat_room_id]);
 
   // For special content types like NFTs and trades, we might want to show footer
   const shouldShowFooter = useMemo(() => {
@@ -376,7 +385,7 @@ function ChatMessage({
           <View style={{ flex: 1 }}>
             <MessageHeader
               message={message}
-              showAvatar={true}
+              showAvatar={chats.find(c => c.id === message.chat_room_id)?.type !== 'direct'}
               onPressUser={onPressUser || (user => console.log('User pressed:', user.id))}
             />
           </View>

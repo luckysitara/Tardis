@@ -1,5 +1,5 @@
-import {SERVER_URL} from '@env';
-import {createSlice, createAsyncThunk, PayloadAction} from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { SERVER_BASE_URL } from '../../config/server';
 
 export interface AuthState {
   provider: 'privy' | 'dynamic' | 'turnkey' | 'mwa' |  null;
@@ -39,10 +39,8 @@ const initialState: AuthState = {
   attachmentData: {},
 };
 
-const SERVER_BASE_URL = 'https://seek.kikhaus.com';
-
 // Debug environment variable loading (Keeping logs but forcing constant)
-console.log('[Auth Reducer] FORCING SERVER_BASE_URL to:', SERVER_BASE_URL);
+console.log('[Auth Reducer] Using SERVER_BASE_URL:', SERVER_BASE_URL);
 
 /**
  * Register the user's public encryption key on the server.

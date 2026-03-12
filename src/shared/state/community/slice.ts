@@ -1,9 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { Community } from './types'; // Assuming types are defined in types.ts
-
-// Replace with your actual server base URL
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://138.197.125.251:8085';
+import { SERVER_BASE_URL } from '../../config/server';
 
 interface CommunityState {
   communities: Community[];

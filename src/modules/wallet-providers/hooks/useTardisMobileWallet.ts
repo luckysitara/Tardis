@@ -47,6 +47,8 @@ export interface SeekerAuthResult {
   signature?: Uint8Array;
 }
 
+import { SERVER_BASE_URL } from '@/shared/config/server';
+
 export const useTardisMobileWallet = () => {
   const dispatch = useAppDispatch();
   const authState = useSelector((state: RootState) => state.auth);
@@ -116,7 +118,6 @@ export const useTardisMobileWallet = () => {
         
         // Sync with backend immediately
         if (skrName) {
-          const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://138.197.125.251:8085';
           fetch(`${SERVER_BASE_URL}/api/profile/createUser`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

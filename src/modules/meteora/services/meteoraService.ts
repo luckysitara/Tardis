@@ -15,10 +15,10 @@ import {
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import {Buffer} from 'buffer';
-import {SERVER_URL} from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 
-// API base URL - Use local server that implements the SDK
-const API_BASE_URL = `${SERVER_URL || 'http://138.197.125.251:8085'}/api`;
+// API base URL - Use centralized server URL
+const API_BASE_URL = `${SERVER_BASE_URL}/api`;
 
 // Helper function to make API calls
 async function apiCall(endpoint: string, method: string = 'GET', data?: any) {

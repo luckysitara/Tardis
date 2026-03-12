@@ -134,13 +134,13 @@ const CommunityFeedScreen = () => {
 
       <View style={{ flex: 1 }}>
         {activeTab === 'FEED' ? (
-          postsLoading && posts.length === 0 ? (
+          postsLoading && (!posts || posts.length === 0) ? (
             <ActivityIndicator size="large" color={COLORS.brandPrimary} style={{ marginTop: 50 }} />
           ) : (
             <FlashList
-              data={posts}
+              data={Array.isArray(posts) ? posts.filter(p => p && p.id) : []}
               renderItem={({ item }) => <PostComponent {...item} />}
-              keyExtractor={item => item.id}
+              keyExtractor={item => item?.id || `post-${Math.random()}`}
               estimatedItemSize={200}
               onRefresh={handleRefresh}
               refreshing={postsLoading}
@@ -155,13 +155,13 @@ const CommunityFeedScreen = () => {
           <View style={{ flex: 1 }}>
             <FlatList
               ref={flatListRef}
-              data={communityMessages}
-              keyExtractor={item => item.id}
+              data={Array.isArray(communityMessages) ? communityMessages : []}
+              keyExtractor={item => item?.id || `msg-${Math.random()}`}
               renderItem={({ item }) => (
                 <ChatMessage
                   message={{
                     ...item,
-                    user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
+                    user: item?.sender || { id: item?.sender_id, username: 'Unknown', avatar: '' }
                   } as any}
                   currentUser={currentUser}
                   onEditMessage={handleEditMessage}

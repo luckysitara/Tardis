@@ -5,12 +5,10 @@ import type {
   ThreadSection,
 } from '@/core/thread/components/thread.types';
 import {allposts as fallbackPosts} from '../../mocks/posts';
-import {SERVER_URL} from '@env';
+import { SERVER_BASE_URL } from '../../config/server';
 
-const SERVER_BASE_URL = 'https://seek.kikhaus.com';
-
-// Debug environment variable loading
-console.log('[Thread Reducer] FORCING SERVER_BASE_URL to:', SERVER_BASE_URL);
+// Debug environment variable loading (Keeping logs but forcing constant)
+console.log('[Thread Reducer] Using SERVER_BASE_URL:', SERVER_BASE_URL);
 
 // fetchThread
 export const fetchThread = createAsyncThunk(
@@ -272,7 +270,7 @@ interface ThreadState {
 }
 
 const initialState: ThreadState = {
-  allPosts: fallbackPosts,
+  allPosts: [],
   loading: false,
   error: null,
   activeReactionTrayPostId: null,

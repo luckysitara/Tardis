@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { RootState } from '@/shared/state/store';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 import { CreatePostPayload } from '@/shared/state/post/types';
 import { createPost, fetchPosts } from '@/shared/state/post/slice';
@@ -108,8 +109,8 @@ const CreatePostScreen = ({ navigation, route }) => {
       
       let finalContent = postContent.trim();
       if (isListingMode && listingPrice) {
-        // Format: [Text] solana-action:http://138.197.125.251:8085/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]
-        const blinkUrl = `solana-action:http://138.197.125.251:8085/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
+        // Format: [Text] solana-action:https://seek.kikhaus.com/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]
+        const blinkUrl = `solana-action:${SERVER_BASE_URL}/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
         console.log(`[CreatePost] Generated Blink URL: ${blinkUrl}`);
         finalContent = finalContent ? `${finalContent}\n\n${blinkUrl}` : blinkUrl;
       }

@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { fetchWalletActionsAsync } from '@/core/profile/services/profileActions';
 import { Action } from '@/core/profile/types/index';
+import { SERVER_BASE_URL } from '../../config/server';
 
 interface ProfileState {
   actions: {
@@ -61,8 +62,7 @@ export const fetchWalletActionsWithCache = createAsyncThunk(
     // Otherwise proceed with the fetch
     try {
       // Use the backend proxy
-      const serverBase = (getState() as any).shared?.config?.serverBase || 'http://138.197.125.251:8085';
-      const proxyUrl = `${serverBase}/api/helius/transactions/${walletAddress}?limit=20`;
+      const proxyUrl = `${SERVER_BASE_URL}/api/helius/transactions/${walletAddress}?limit=20`;
       const res = await fetch(proxyUrl);
       if (!res.ok) {
         throw new Error(`Proxy fetch failed with status ${res.status}`);

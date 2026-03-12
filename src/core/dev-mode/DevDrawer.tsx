@@ -23,13 +23,10 @@ import {
     // DYNAMIC_ENVIRONMENT_ID,
     HELIUS_API_KEY,
     HELIUS_RPC_CLUSTER,
-    SERVER_URL,
-    // TENSOR_API_KEY,
-    // COINGECKO_API_KEY,
-    // BIRDEYE_API_KEY,
     HELIUS_STAKED_URL,
     HELIUS_STAKED_API_KEY
 } from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 
 // Sample dummy data for profile and posts
 const DUMMY_USER = {
@@ -303,7 +300,7 @@ const MissingEnvVars = () => {
 };
 
 // Log the server URL for debugging
-console.log('SERVER_URL', SERVER_URL);
+console.log('SERVER_BASE_URL', SERVER_BASE_URL);
 
 // Custom fetch with timeout function since AbortSignal.timeout is not supported
 const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 5000): Promise<Response> => {
@@ -324,7 +321,7 @@ const ServerStatus = () => {
     const { setServerStatus } = useDevMode();
     const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
     const [lastChecked, setLastChecked] = useState<Date | null>(null);
-    const [serverUrl, setServerUrl] = useState<string>(SERVER_URL || 'http://138.197.125.251:8085');
+    const [serverUrl, setServerUrl] = useState<string>(SERVER_BASE_URL);
 
     // Check server connection status
     const checkServerStatus = async () => {
@@ -427,10 +424,10 @@ const DevDrawer = () => {
     const checkServerConnection = async () => {
         try {
             setServerConnectionStatus('checking');
-            console.log(`Checking server status in DevDrawer at: ${SERVER_URL || 'http://138.197.125.251:8085'}`);
+            console.log(`Checking server status in DevDrawer at: ${SERVER_BASE_URL}`);
 
             // Use the ws-health endpoint which should be lightweight and fast
-            const response = await fetchWithTimeout(`${SERVER_URL || 'http://138.197.125.251:8085'}/ws-health`, {
+            const response = await fetchWithTimeout(`${SERVER_BASE_URL}/ws-health`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',

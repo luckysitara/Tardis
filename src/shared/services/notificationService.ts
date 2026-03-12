@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import { navigationRef } from '../hooks/useAppNavigation';
-import { SERVER_URL } from '@env';
+import { SERVER_BASE_URL } from '../config/server';
 
 // Configure how notifications are handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -55,7 +55,7 @@ class NotificationService {
   private expoPushToken: string | null = null;
   private notificationListener: any = null;
   private responseListener: any = null;
-  private serverBaseUrl: string = SERVER_URL || 'http://138.197.125.251:8085';
+  private serverBaseUrl: string = SERVER_BASE_URL;
 
   /**
    * Initialize the notification service

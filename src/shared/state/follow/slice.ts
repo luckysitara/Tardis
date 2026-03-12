@@ -1,8 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { SERVER_URL } from '@env';
-
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
+import { SERVER_BASE_URL } from '../../config/server';
 
 interface FollowState {
   following: string[];

@@ -17,15 +17,13 @@ import { resolveTardisIdentity } from '@/shared/services/IdentityService';
 import { RootState } from '@/shared/state/store';
 import { useCustomization } from '@/shared/config/CustomizationProvider';
 import axios from 'axios';
-import { SERVER_URL } from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import COLORS from '@/assets/colors';
 import { useEnvError } from '@/shared/context/EnvErrorContext';
 import { useDevMode } from '@/shared/context/DevModeContext';
 import { generateAndStoreAvatar } from '@/shared/services/diceBearAvatarService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
 
 // SVG animation configurations
 const SVG_CONFIG = {

@@ -10,7 +10,7 @@ export const ENDPOINTS = {
   // Jupiter endpoints – forced to production server if needed
   jupiter: {
     quote: 'https://api.jup.ag/swap/v1/quote',
-    swap: 'https://seek.kikhaus.com' + '/api/jupiter/swap',
+    swap: 'https://seek.kikhaus.com/api/jupiter/swap',
   },
   // Jito block engine endpoint.
   jito: {

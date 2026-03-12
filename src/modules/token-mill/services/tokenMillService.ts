@@ -8,7 +8,7 @@ import {
   LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import {Buffer} from 'buffer';
-import {SERVER_URL} from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import {createSyncNativeInstruction} from '@solana/spl-token';
 import * as spl from '@solana/spl-token';
 import { PUBLIC_KEYS } from '@/shared/config/constants';
@@ -140,7 +140,7 @@ export async function createMarket({
     };
 
     onStatusUpdate?.('Requesting transaction from server...');
-    const resp = await fetch(`${SERVER_URL}/api/markets`, {
+    const resp = await fetch(`${SERVER_BASE_URL}/api/markets`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
@@ -206,7 +206,7 @@ export async function stakeTokens({
   try {
     onStatusUpdate?.('Preparing stake transaction...');
     
-    const resp = await fetch(`${SERVER_URL}/api/stake`, {
+    const resp = await fetch(`${SERVER_BASE_URL}/api/stake`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -274,7 +274,7 @@ export async function createVesting({
   try {
     onStatusUpdate?.('Preparing vesting transaction...');
     
-    const resp = await fetch(`${SERVER_URL}/api/vesting`, {
+    const resp = await fetch(`${SERVER_BASE_URL}/api/vesting`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -351,7 +351,7 @@ export async function releaseVesting({
   try {
     onStatusUpdate?.('Preparing vesting release...');
     
-    const resp = await fetch(`${SERVER_URL}/api/vesting/release`, {
+    const resp = await fetch(`${SERVER_BASE_URL}/api/vesting/release`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -420,7 +420,7 @@ export async function swapTokens({
   try {
     onStatusUpdate?.(`Preparing ${swapType} transaction...`);
     
-    const resp = await fetch(`${SERVER_URL}/api/swap`, {
+    const resp = await fetch(`${SERVER_BASE_URL}/api/swap`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -586,7 +586,7 @@ export async function setBondingCurve({
       bidPrices,
     };
 
-    const resp = await fetch(`${SERVER_URL}/api/set-curve`, {
+    const resp = await fetch(`${SERVER_BASE_URL}/api/set-curve`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
