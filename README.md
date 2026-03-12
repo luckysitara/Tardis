@@ -248,7 +248,7 @@ anchor deploy --provider.cluster mainnet
 
 ---
 
-## 🏆 Hackathon Compliance
+## 🏆 Requirement
 
 | Requirement | Status | Evidence |
 | :--- | :--- | :--- |
