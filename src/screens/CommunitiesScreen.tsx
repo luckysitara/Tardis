@@ -91,81 +91,87 @@ const CommunitiesScreen = () => {
     }
   };
 
-  const renderFeaturedItem = ({ item }: { item: Community }) => (
-    <TouchableOpacity
-      style={styles.featuredCard}
-      activeOpacity={0.9}
-      onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
-    >
-      <IPFSAwareImage
-        source={getValidImageSource(item.banner_url)}
-        style={styles.featuredBanner}
-        defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=800&auto=format&fit=crop' }}
-      />
-      <LinearGradient
-        colors={['transparent', 'rgba(12, 16, 26, 0.95)']}
-        style={styles.featuredGradient}
-      />
-      <View style={styles.featuredInfo}>
-        <View style={styles.featuredAvatarWrapper}>
+  const renderFeaturedItem = ({ item }: { item: Community }) => {
+    if (!item) return null;
+    return (
+      <TouchableOpacity
+        style={styles.featuredCard}
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
+      >
+        <IPFSAwareImage
+          source={getValidImageSource(item.banner_url)}
+          style={styles.featuredBanner}
+          defaultSource={{ uri: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=800&auto=format&fit=crop' }}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(12, 16, 26, 0.95)']}
+          style={styles.featuredGradient}
+        />
+        <View style={styles.featuredInfo}>
+          <View style={styles.featuredAvatarWrapper}>
+            <IPFSAwareImage
+              source={getValidImageSource(item.avatar_url)}
+              style={styles.featuredAvatar}
+              defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name || 'default'}` }}
+            />
+          </View>
+          <View style={styles.featuredTextContainer}>
+            <View style={styles.nameRow}>
+              <Text style={styles.featuredName} numberOfLines={1}>{item.name || 'Unknown colony'}</Text>
+              {item.is_gated && (
+                <Icons.LockIcon width={12} height={12} color={COLORS.brandPrimary} />
+              )}
+            </View>
+            <Text style={styles.featuredMembers}>{item.memberCount || 0} Seeker Members</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderCommunityItem = ({ item }: { item: Community }) => {
+    if (!item) return null;
+    return (
+      <TouchableOpacity
+        style={styles.communityCard}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
+      >
+        <View style={styles.cardAvatarWrapper}>
           <IPFSAwareImage
             source={getValidImageSource(item.avatar_url)}
-            style={styles.featuredAvatar}
-            defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name}` }}
+            style={styles.cardAvatar}
+            defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name || 'default'}` }}
           />
         </View>
-        <View style={styles.featuredTextContainer}>
+        
+        <View style={styles.cardContent}>
           <View style={styles.nameRow}>
-            <Text style={styles.featuredName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.communityName} numberOfLines={1}>{item.name || 'Unknown colony'}</Text>
             {item.is_gated && (
-              <Icons.LockIcon width={12} height={12} color={COLORS.brandPrimary} />
+              <Icons.LockIcon width={12} height={12} color={COLORS.brandPrimary} style={{ marginLeft: 4 }} />
             )}
           </View>
-          <Text style={styles.featuredMembers}>{item.memberCount || 0} Seeker Members</Text>
+          <Text style={styles.memberCount}>{item.memberCount || 0} members</Text>
+          <Text style={styles.communityDescription} numberOfLines={1}>
+            {item.description || "Hardware-gated community."}
+          </Text>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
 
-  const renderCommunityItem = ({ item }: { item: Community }) => (
-    <TouchableOpacity
-      style={styles.communityCard}
-      activeOpacity={0.8}
-      onPress={() => navigation.navigate('CommunityFeed', { communityId: item.id, communityName: item.name })}
-    >
-      <View style={styles.cardAvatarWrapper}>
-        <IPFSAwareImage
-          source={getValidImageSource(item.avatar_url)}
-          style={styles.cardAvatar}
-          defaultSource={{ uri: `https://api.dicebear.com/7.x/initials/png?seed=${item.name}` }}
-        />
-      </View>
-      
-      <View style={styles.cardContent}>
-        <View style={styles.nameRow}>
-          <Text style={styles.communityName} numberOfLines={1}>{item.name}</Text>
-          {item.is_gated && (
-            <Icons.LockIcon width={12} height={12} color={COLORS.brandPrimary} style={{ marginLeft: 4 }} />
-          )}
-        </View>
-        <Text style={styles.memberCount}>{item.memberCount || 0} members</Text>
-        <Text style={styles.communityDescription} numberOfLines={1}>
-          {item.description || "Hardware-gated community."}
-        </Text>
-      </View>
-
-      {!item.is_member ? (
-        <TouchableOpacity 
-          style={styles.joinButton}
-          onPress={() => handleJoinCommunity(item.id)}
-        >
-          <Text style={styles.joinButtonText}>Join</Text>
-        </TouchableOpacity>
-      ) : (
-        <Icons.CheckIcon width={16} height={16} color={COLORS.brandPrimary} />
-      )}
-    </TouchableOpacity>
-  );
+        {!item.is_member ? (
+          <TouchableOpacity 
+            style={styles.joinButton}
+            onPress={() => handleJoinCommunity(item.id)}
+          >
+            <Text style={styles.joinButtonText}>Join</Text>
+          </TouchableOpacity>
+        ) : (
+          <Icons.CheckIcon width={16} height={16} color={COLORS.brandPrimary} />
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>

@@ -13,10 +13,8 @@ import TYPOGRAPHY from '@/assets/typography';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PortfolioView from '@/core/profile/components/portfolio/PortfolioView';
 import LendingView from '@/core/profile/components/lending/LendingView';
-import { SERVER_URL } from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import { logoutSuccess } from '@/shared/state/auth/reducer';
-
-const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
 
 const { width } = Dimensions.get('window');
 

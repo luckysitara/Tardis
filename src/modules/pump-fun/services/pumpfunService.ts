@@ -25,7 +25,8 @@ import {
   buildPumpFunBuyTransaction,
   buildPumpFunSellTransaction,
 } from '../utils/pumpfunUtils';
-import {COMMISSION_WALLET, SERVER_URL} from '@env';
+import {COMMISSION_WALLET} from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import {TransactionService} from '@/modules/wallet-providers';
 
 /**
@@ -74,7 +75,7 @@ export async function createAndBuyTokenViaPumpfun({
     }
 
     onStatusUpdate?.('Uploading token metadata...');
-    const uploadEndpoint = `${SERVER_URL}/api/pumpfun/uploadMetadata`;
+    const uploadEndpoint = `${SERVER_BASE_URL}/api/pumpfun/uploadMetadata`;
 
     const mint = Keypair.generate();
 
@@ -134,17 +135,21 @@ export async function createAndBuyTokenViaPumpfun({
     if (solAmountForPumpFunBuyLamports > 0 && solAmount > 0) {
       onStatusUpdate?.('Preparing initial buy instructions...');
       const global = await pumpSdk.fetchGlobal();
+      if (!global) {
+        throw new Error('Failed to fetch Pump.fun global state.');
+      }
+
       const bondingCurve: BondingCurve = {
-        virtualTokenReserves: global.initialVirtualTokenReserves,
-        virtualSolReserves: global.initialVirtualSolReserves,
-        realTokenReserves: global.initialRealTokenReserves,
+        virtualTokenReserves: new BN(global.initialVirtualTokenReserves.toString()),
+        virtualSolReserves: new BN(global.initialVirtualSolReserves.toString()),
+        realTokenReserves: new BN(global.initialRealTokenReserves.toString()),
         realSolReserves: new BN(0),
-        tokenTotalSupply: new BN(global.tokenTotalSupply),
+        tokenTotalSupply: new BN(global.tokenTotalSupply.toString()),
         complete: false,
         creator: creatorPubkey,
       };
 
-      const solAmountForBuyBN = new BN(solAmountForPumpFunBuyLamports);
+      const solAmountForBuyBN = new BN(solAmountForPumpFunBuyLamports.toString());
       const buyTokenAmount = getBuyTokenAmountFromSolAmount(
         global,
         bondingCurve,

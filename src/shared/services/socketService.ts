@@ -2,6 +2,7 @@
  * Service for managing WebSocket connections for real-time chat
  */
 import { io, Socket } from 'socket.io-client';
+import { SERVER_BASE_URL } from '../config/server';
 
 import { store } from '@/shared/state/store';
 import { 
@@ -39,7 +40,7 @@ class SocketService {
       this.userId = userId;
       this.reconnectAttempts = 0;
 
-      const SOCKET_SERVER_URL = process.env.EXPO_PUBLIC_SERVER_URL || 'http://138.197.125.251:8085'; // Fallback to seek.kikhaus.com if EXPO_PUBLIC_SERVER_URL is undefined
+      const SOCKET_SERVER_URL = SERVER_BASE_URL;
       console.log('Initializing socket connection to:', SOCKET_SERVER_URL);
       
       // Determine if we should force secure WebSockets based on server URL

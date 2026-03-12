@@ -74,7 +74,7 @@ const CommsListScreen = () => {
 
   const filteredChats = useMemo(() => {
     const sorted = [...chats]
-      .filter(chat => chat.type === 'direct')
+      .filter(chat => chat.type === 'direct' || chat.type === 'group')
       .sort((a, b) => {
         const timeA = new Date(a.lastMessage?.created_at || a.updated_at).getTime();
         const timeB = new Date(b.lastMessage?.created_at || b.updated_at).getTime();
@@ -83,22 +83,28 @@ const CommsListScreen = () => {
 
     if (!searchQuery) return sorted;
     return sorted.filter(chat => {
-      const otherParticipant = chat.participants.find(p => p.id !== userId);
+      const otherParticipant = chat.participants?.find(p => p.id !== userId);
       const name = chat.name || otherParticipant?.username || '';
       return name.toLowerCase().includes(searchQuery.toLowerCase());
     });
   }, [chats, searchQuery, userId]);
 
   const renderChatItem = ({ item }: { item: ChatRoom }) => {
-    const otherParticipant = item.participants.find(p => p.id !== userId);
+    const isGroup = item.type === 'group' || item.type === 'global';
+    const otherParticipant = item.participants?.find(p => p.id !== userId);
     const chatName = item.name || otherParticipant?.username || 'Seeker';
-    const avatar = otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`;
+    
+    // Prioritize community avatar for groups, then other participant's avatar for DMs
+    const avatar = isGroup 
+      ? (item.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`)
+      : (otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`);
+      
     const lastMessage = item.lastMessage;
     const isE2EE = item.type === 'direct';
 
     let previewText = lastMessage ? lastMessage.content : 'New chat started';
     
-    if (lastMessage?.is_encrypted && encryptionSeed) {
+    if (lastMessage?.is_encrypted && encryptionSeed && isE2EE) {
       try {
         const otherPk = otherParticipant?.public_encryption_key;
         if (otherPk && otherPk.length > 20) { // Basic validation

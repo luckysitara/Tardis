@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useCustomization } from '@/shared/config/CustomizationProvider';
 import { TURNKEY_ORGANIZATION_ID } from '@env';
 import { useTurnkey } from '@turnkey/sdk-react-native'; 
-import { SERVER_URL } from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import { PublicKey } from '@solana/web3.js';
 
 // Types for the OTP flow
@@ -178,7 +178,6 @@ export function useTurnkeyWalletLogic() {
       // Generate public key for the embedded key
       const targetPublicKey = await createEmbeddedKey();
       
-      const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
       const response = await fetch(`${SERVER_BASE_URL}/api/auth/otpAuth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,7 +264,6 @@ export function useTurnkeyWalletLogic() {
       // Generate public key for the embedded key
       const targetPublicKey = await createEmbeddedKey();
       
-      const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
       const response = await fetch(`${SERVER_BASE_URL}/api/auth/oAuthLogin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

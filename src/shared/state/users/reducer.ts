@@ -3,14 +3,10 @@
  ***************************************************/
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { SERVER_URL } from '@env';
-
-// For local fallback
-const SERVER_BASE_URL = process.env.EXPO_PUBLIC_SERVER_URL || SERVER_URL || 'http://138.197.125.251:8085';
+import { SERVER_BASE_URL } from '../../config/server';
 
 // Debug environment variable loading
-console.log('[Users Reducer] SERVER_URL from @env:', SERVER_URL);
-console.log('[Users Reducer] SERVER_BASE_URL resolved to:', SERVER_BASE_URL);
+console.log('[Users Reducer] Using SERVER_BASE_URL:', SERVER_BASE_URL);
 
 export interface UserProfile {
   id: string;               // user's wallet address

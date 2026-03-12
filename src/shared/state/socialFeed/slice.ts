@@ -2,10 +2,10 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { Post, User, SocialFeedState } from '@/shared/types/socialFeed.types'; // Assuming Like and Repost are not directly used in slice state
+import { SERVER_BASE_URL } from '../../config/server';
 
 // --- Backend API Base URL ---
-const BACKEND_API_BASE_URL = 'https://seek.kikhaus.com';
- // Use EXPO_PUBLIC_SERVER_URL or default
+const BACKEND_API_BASE_URL = SERVER_BASE_URL;
 
 // --- Async Thunks for API Interactions ---
 

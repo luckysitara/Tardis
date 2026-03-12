@@ -49,7 +49,6 @@ export {
   TradeShare,
   ArrowLeftIcon,
   WalletIcon,
-  SwapIconComponent as SwapIcon,
   BookmarkActiveIcon,
   BookmarkIdleIcon,
   CommentIcon,
@@ -57,6 +56,8 @@ export {
   HeartIcon,
   ShareIcon,
   CheckIcon,
+  RocketIcon,
+  ArrowIcon,
 };
 
 // Aliases for NftListingModal and other components
@@ -113,4 +114,6 @@ export default {
   HeartIcon,
   ShareIcon,
   CheckIcon,
+  RocketIcon,
+  ArrowIcon,
 };

@@ -21,6 +21,7 @@ import {
   clusterApiUrl,
   Cluster,
 } from '@solana/web3.js';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
@@ -359,7 +360,7 @@ const SellSection: React.FC<SellSectionProps> = ({
           creatorsHash: compressedData.creatorsHash
         };
         console.log('[handleSellNftOnTensor] sending to server:', params);
-        const resp = await fetch('http://138.197.125.251:8085/api/build-compressed-nft-listing-tx', {
+        const resp = await fetch(`${SERVER_BASE_URL}/api/build-compressed-nft-listing-tx`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

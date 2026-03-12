@@ -24,7 +24,7 @@ export const fetchWalletActionsAsync = createAsyncThunk(
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`Fetching actions for wallet: ${walletAddress} (attempt ${attempt}/${maxRetries})`);
-        const serverBase = ENDPOINTS.serverBase || 'http://138.197.125.251:8085';
+        const serverBase = ENDPOINTS.serverBase;
         const proxyUrl = `${serverBase}/api/helius/transactions/${walletAddress}?limit=20`;
 
         const controller = new AbortController();
@@ -91,7 +91,7 @@ export const fetchWalletActions = async (walletAddress: string, limit: number = 
 
   try {
     console.log('Fetching actions for wallet:', walletAddress);
-    const serverBase = ENDPOINTS.serverBase || 'http://138.197.125.251:8085';
+    const serverBase = ENDPOINTS.serverBase;
     const proxyUrl = `${serverBase}/api/helius/transactions/${walletAddress}?limit=${limit}`;
 
     const controller = new AbortController();

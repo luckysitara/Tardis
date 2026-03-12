@@ -9,11 +9,9 @@ import ProfileSkeleton from '@/core/profile/components/ProfileSkeleton';
 import { ThreadPost } from '@/core/thread/components/thread.types';
 import { fetchAllPosts } from '@/shared/state/thread/reducer';
 import COLORS from '@/assets/colors';
-import { SERVER_URL } from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import { flattenPosts } from '@/core/thread/components/thread.utils';
 import { useFetchNFTs } from '@/modules/nft';
-
-const SERVER_BASE_URL = SERVER_URL || 'http://138.197.125.251:8085';
 
 type OtherProfileRouteProp = RouteProp<RootStackParamList, 'OtherProfile'>;
 
