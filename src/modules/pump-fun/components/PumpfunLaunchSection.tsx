@@ -90,12 +90,11 @@ export const PumpfunLaunchSection: React.FC<PumpfunLaunchSectionProps> = ({
         },
       });
       setStatus('Token launched successfully!');
-      // Success message will be handled by TransactionService
+      Alert.alert('Success', 'Token launched successfully on Pump.fun!');
     } catch (error: any) {
       console.error('Launch error:', error);
-      // Don't show raw error in UI
       setStatus('Transaction failed');
-      // Error notification will be handled by TransactionService
+      Alert.alert('Launch Failed', error.message || 'An unknown error occurred during launch.');
     } finally {
       setTimeout(() => {
         setLoading(false);
