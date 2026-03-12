@@ -139,23 +139,41 @@ export async function createAndBuyTokenViaPumpfun({
         throw new Error('Failed to fetch Pump.fun global state.');
       }
 
+      console.log('[PumpFun] Global state fetched:', JSON.stringify(global, (key, value) => 
+        typeof value === 'bigint' ? value.toString() : value, 2));
+
+      // Map properties safely, handling potential BigInt or BN objects
+      const getVal = (v: any) => (v !== undefined && v !== null) ? v.toString() : '0';
+
       const bondingCurve: BondingCurve = {
-        virtualTokenReserves: new BN(global.initialVirtualTokenReserves.toString()),
-        virtualSolReserves: new BN(global.initialVirtualSolReserves.toString()),
-        realTokenReserves: new BN(global.initialRealTokenReserves.toString()),
-        realSolReserves: new BN(0),
-        tokenTotalSupply: new BN(global.tokenTotalSupply.toString()),
-        complete: false,
+        virtualTokenReserves: new BN(getVal(global.initialVirtualTokenReserves || (global as any).virtualTokenReserves)),
+        virtualSolReserves: new BN(getVal(global.initialVirtualSolReserves || (global as any).virtualSolReserves)),
+        realTokenReserves: new BN(getVal(global.initialRealTokenReserves || (global as any).realTokenReserves)),
+        realSolReserves: new BN('0'),
+        tokenTotalSupply: new BN(getVal(global.tokenTotalSupply)),
+        complete: !!global.complete,
         creator: creatorPubkey,
       };
 
+      console.log('[PumpFun] Bonding curve initialized');
+
       const solAmountForBuyBN = new BN(solAmountForPumpFunBuyLamports.toString());
-      const buyTokenAmount = getBuyTokenAmountFromSolAmount(
-        global,
-        bondingCurve,
-        solAmountForBuyBN,
-        true,
-      );
+      
+      let buyTokenAmount: BN;
+      try {
+        buyTokenAmount = getBuyTokenAmountFromSolAmount(
+          global,
+          bondingCurve,
+          solAmountForBuyBN,
+          true,
+        );
+        console.log('[PumpFun] Calculated buy token amount:', buyTokenAmount.toString());
+      } catch (calcErr) {
+        console.error('[PumpFun] Error calculating buy amount:', calcErr);
+        // Fallback calculation if the SDK function fails
+        buyTokenAmount = solAmountForBuyBN.mul(bondingCurve.virtualTokenReserves).div(bondingCurve.virtualSolReserves);
+        console.log('[PumpFun] Fallback calculation result:', buyTokenAmount.toString());
+      }
 
       const buyIx = await pumpSdk.buyInstructions(
         global,
