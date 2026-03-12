@@ -17,6 +17,7 @@ import {
   CommunitiesScreen, 
   ProfileScreen 
 } from '@/screens';
+import PumpfunScreen from '@/modules/pump-fun/screens/pumpfunScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -108,6 +109,21 @@ export default function MainTabs() {
           }}
         />
         <Tab.Screen
+          name="Launch"
+          component={PumpfunScreen}
+          options={{
+            tabBarIcon: ({ focused, size }) => (
+              <AnimatedTabIcon
+                focused={focused}
+                size={size * 1.15}
+                icon={Icons.RocketIcon || Icons.tensor}
+                iconSelected={Icons.RocketIcon || Icons.tensor}
+                style={iconStyle}
+              />
+            ),
+          }}
+        />
+        <Tab.Screen
           name="Seeker"
           component={ProfileScreen}
           options={{
@@ -135,4 +151,3 @@ const styles = StyleSheet.create({
       : 'rgba(12, 16, 26, 0.75)',
   },
 });
-
