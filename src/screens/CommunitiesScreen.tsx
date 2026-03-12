@@ -47,14 +47,16 @@ const CommunitiesScreen = () => {
   }, [dispatch, userId]);
 
   const featuredCommunities = useMemo(() => {
-    return communities.filter(c => c.is_public).slice(0, 5);
+    if (!communities) return [];
+    return communities.filter(c => c && c.is_public).slice(0, 5);
   }, [communities]);
 
   const filteredCommunities = useMemo(() => {
-    let list = communities;
+    if (!communities) return [];
+    let list = communities.filter(c => c !== null && c !== undefined);
     if (searchQuery) {
-      list = communities.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      list = list.filter(c => 
+        c.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
         c.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
@@ -237,7 +239,7 @@ const CommunitiesScreen = () => {
               horizontal
               data={featuredCommunities}
               renderItem={renderFeaturedItem}
-              keyExtractor={item => `featured-${item.id}`}
+              keyExtractor={item => item?.id ? `featured-${item.id}` : `featured-${Math.random()}`}
               estimatedItemSize={280}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.featuredList}
@@ -256,7 +258,7 @@ const CommunitiesScreen = () => {
             <FlashList
               data={filteredCommunities}
               renderItem={renderCommunityItem}
-              keyExtractor={item => item.id}
+              keyExtractor={item => item?.id || `community-${Math.random()}`}
               estimatedItemSize={80}
               contentContainerStyle={styles.listContent}
               scrollEnabled={false}
