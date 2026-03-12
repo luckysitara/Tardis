@@ -1,7 +1,7 @@
 # 🌌 TARDIS: The Social Network & Financial OS for Solana Seeker
 
 <div align="center">
-  <img src="./Tardis.png" alt="TARDIS Banner" width="800">
+  <img src="./Tardis.png" alt="TARDIS Banner" width="400">
   <br />
   <p align="center">
     <b>Hardware-Attested · Bot-Free · Sovereign Identity · Financial OS</b>
