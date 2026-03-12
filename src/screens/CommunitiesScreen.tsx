@@ -207,6 +207,28 @@ const CommunitiesScreen = () => {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* New Prominent Launch Button */}
+        <View style={styles.launchButtonContainer}>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('CreateCommunityScreen')}
+          >
+            <LinearGradient
+              colors={[COLORS.brandPrimary, '#1D4ED8']}
+              style={styles.mainLaunchButton}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Icons.RocketIcon width={24} height={24} color={COLORS.white} />
+              <View style={styles.launchButtonTextContainer}>
+                <Text style={styles.launchButtonTitle}>Establish New Colony</Text>
+                <Text style={styles.launchButtonSubtitle}>Launch token & gate your community</Text>
+              </View>
+              <Icons.ArrowIcon width={20} height={20} color={COLORS.white} style={{ opacity: 0.7 }} />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
         {/* Featured Section */}
         {!searchQuery && (
           <View style={styles.section}>
@@ -448,7 +470,40 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: COLORS.greyMid,
-  }
+  },
+  launchButtonContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+    marginTop: 10,
+  },
+  mainLaunchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 20,
+    shadowColor: COLORS.brandPrimary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  launchButtonTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  launchButtonTitle: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
+  launchButtonSubtitle: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+    fontFamily: TYPOGRAPHY.fontFamily,
+  },
 });
 
 export default CommunitiesScreen;
