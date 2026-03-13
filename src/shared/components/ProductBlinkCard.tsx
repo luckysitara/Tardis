@@ -102,8 +102,8 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
 
   if (!metadata) return null;
 
-  // Use icon from metadata if provided, otherwise fallback to mediaUrls or placeholder
-  const displayImage = metadata.icon || (mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null);
+  // Use mediaUrls from the post as first priority, then metadata icon as fallback
+  const displayImage = (mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null) || metadata.icon;
 
   return (
     <View style={styles.container}>

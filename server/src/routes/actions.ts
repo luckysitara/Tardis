@@ -17,10 +17,10 @@ const actionsRouter = Router();
  * Returns the Action metadata (Solana Actions Standard)
  */
 actionsRouter.get('/buy', (req: Request, res: Response) => {
-  const { price, title, seller } = req.query;
+  const { price, title, seller, image } = req.query;
   
   const payload = {
-    icon: 'https://teal-additional-lemming-515.mypinata.cloud/ipfs/QmZ8Uq8VfT5X5B1T9y9p7m7y8z9w9v8u7t6r5q4p3o2n1m', // Placeholder icon
+    icon: (image as string) || 'https://teal-additional-lemming-515.mypinata.cloud/ipfs/QmZ8Uq8VfT5X5B1T9y9p7m7y8z9w9v8u7t6r5q4p3o2n1m', // Use provided image or fallback placeholder
     title: `Buy ${title || 'Product'}`,
     description: `Purchase this item for ${price} SOL. All transactions are hardware-signed on Tardis.`,
     label: `Buy for ${price} SOL`,
@@ -28,7 +28,7 @@ actionsRouter.get('/buy', (req: Request, res: Response) => {
       actions: [
         {
           label: `Buy for ${price} SOL`,
-          href: `/api/actions/buy?price=${price}&title=${title}&seller=${seller}`,
+          href: `/api/actions/buy?price=${price}&title=${title}&seller=${seller}&image=${image || ''}`,
         }
       ]
     }

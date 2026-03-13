@@ -50,7 +50,7 @@ export default function PumpfunScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <AppHeader
-        title="Pump.fun"
+        title="Create New Coin"
         showBackButton={true}
         onBackPress={handleBack}
         showDefaultRightIcons={true}
@@ -59,7 +59,6 @@ export default function PumpfunScreen() {
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Create a new coin</Text>
 
         <PumpfunLaunchSection
           containerStyle={styles.cardContainer}

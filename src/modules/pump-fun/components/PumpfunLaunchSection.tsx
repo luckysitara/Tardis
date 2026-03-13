@@ -35,7 +35,7 @@ export const PumpfunLaunchSection: React.FC<PumpfunLaunchSectionProps> = ({
   const [telegram, setTelegram] = useState('');
   const [website, setWebsite] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [solAmount, setSolAmount] = useState('0.001');
+  const [solAmount, setSolAmount] = useState('0');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
