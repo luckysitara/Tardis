@@ -109,8 +109,14 @@ const CreatePostScreen = ({ navigation, route }) => {
       
       let finalContent = postContent.trim();
       if (isListingMode && listingPrice) {
-        // Format: [Text] solana-action:https://seek.kikhaus.com/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]
-        const blinkUrl = `solana-action:${SERVER_BASE_URL}/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
+        // Format: [Text] solana-action:https://seek.kikhaus.com/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]&image=[IMAGE]
+        let blinkUrl = `solana-action:${SERVER_BASE_URL}/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
+        
+        // If we have an uploaded image, include it in the Blink URL so the Action metadata uses it
+        if (mediaUrls.length > 0) {
+          blinkUrl += `&image=${encodeURIComponent(mediaUrls[0])}`;
+        }
+        
         console.log(`[CreatePost] Generated Blink URL: ${blinkUrl}`);
         finalContent = finalContent ? `${finalContent}\n\n${blinkUrl}` : blinkUrl;
       }

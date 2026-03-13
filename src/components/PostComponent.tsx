@@ -424,7 +424,7 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
             {solanaActionUrl && (
               <ProductBlinkCard 
                 url={solanaActionUrl} 
-                mediaUrls={(props as any).media_urls || (props as any).mediaUrls}
+                mediaUrls={mediaUri ? [mediaUri] : []}
               />
             )}
 
