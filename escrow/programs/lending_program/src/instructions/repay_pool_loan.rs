@@ -21,7 +21,7 @@ pub struct RepayPoolLoan<'info> {
 
     #[account(
         mut,
-        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &pool_account.remaining_liquidity.to_le_bytes()],
+        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &active_loan.loan_id.to_le_bytes()],
         bump = active_loan.bump,
         constraint = active_loan.borrower == borrower.key(),
         constraint = active_loan.pool == pool_account.key(),
@@ -81,7 +81,7 @@ pub fn repay_pool_loan_handler(ctx: Context<RepayPoolLoan>) -> Result<()> {
         b"active_loan",
         active_loan.borrower.as_ref(),
         active_loan.pool.as_ref(),
-        &pool.remaining_liquidity.to_le_bytes(),
+        &active_loan.loan_id.to_le_bytes(),
         &[active_loan.bump],
     ]];
 

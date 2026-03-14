@@ -42,7 +42,7 @@ pub struct TakeLoan<'info> {
         init,
         payer = borrower,
         space = 8 + ActiveLoan::INIT_SPACE,
-        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &pool_account.remaining_liquidity.to_le_bytes()],
+        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &pool_account.loans_count.to_le_bytes()],
         bump
     )]
     pub active_loan: Box<Account<'info, ActiveLoan>>,
@@ -104,6 +104,7 @@ pub fn take_loan_handler(
     loan.expiry = Clock::get()?.unix_timestamp + 86400 * 7; // Default 7 days
     loan.status = 0; // Active
     loan.bump = ctx.bumps.active_loan;
+    loan.loan_id = pool.loans_count;
 
     // 5. Transfer Collateral (SKR) to Vault
     let cpi_collateral = TransferChecked {
@@ -143,6 +144,7 @@ pub fn take_loan_handler(
 
     // 7. Update Pool Liquidity
     pool.remaining_liquidity -= amount_to_borrow;
+    pool.loans_count += 1;
 
     Ok(())
 }

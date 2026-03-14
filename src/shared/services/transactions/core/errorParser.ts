@@ -15,11 +15,21 @@ export function parseTransactionError(error: any): string {
       // Check for insufficient funds errors
       const insufficientFundsLog = error.logs.find((log: string) => 
         log.includes('insufficient lamports') || 
-        log.includes('insufficient funds')
+        log.includes('insufficient funds') ||
+        log.includes('0x1') // Common SPL error for insufficient funds
       );
       
       if (insufficientFundsLog) {
-        return 'Transaction failed: Insufficient SOL balance for this transaction';
+        return 'Transaction failed: Insufficient balance (SOL or tokens) for this transaction';
+      }
+
+      // Check for rent-exemption errors
+      const rentExemptionLog = error.logs.find((log: string) => 
+        log.includes('InsufficientFundsForRent')
+      );
+      
+      if (rentExemptionLog) {
+        return 'Transaction failed: Insufficient SOL for transaction fees or rent-exemption.';
       }
       
       // Check for other common errors

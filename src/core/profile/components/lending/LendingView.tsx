@@ -21,6 +21,7 @@ import {
   Connection, 
   LAMPORTS_PER_SOL
 } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 import { 
   TOKEN_PROGRAM_ID, 
   getAssociatedTokenAddress,
@@ -31,8 +32,6 @@ import { getRpcUrl } from '@/modules/data-module';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
-
-const Buffer = global.Buffer;
 
 import { 
   DEFAULT_USDC_TOKEN,
@@ -70,6 +69,23 @@ interface LendingPoolAccount {
     interestRate: anchor.BN;
     vaultBump: number;
     poolBump: number;
+    loansCount: anchor.BN;
+  };
+}
+
+interface ActiveLoanAccount {
+  publicKey: PublicKey;
+  account: {
+    borrower: PublicKey;
+    pool: PublicKey;
+    collateralMint: PublicKey;
+    amountBorrowed: anchor.BN;
+    repaymentAmount: anchor.BN;
+    collateralAmount: anchor.BN;
+    expiry: anchor.BN;
+    status: number;
+    bump: number;
+    loanId: anchor.BN;
   };
 }
 
@@ -83,10 +99,11 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
     wallet, 
     publicKey, 
     signTransaction, 
-    signAllTransactions 
+    signAllTransactions,
   } = useWallet();
-  const [activeTab, setActiveTab] = useState<'MARKET' | 'MY_OFFERS'>('MARKET');
+  const [activeTab, setActiveTab] = useState<'MARKET' | 'MY_OFFERS' | 'MY_LOANS'>('MARKET');
   const [pools, setPools] = useState<LendingPoolAccount[]>([]);
+  const [myLoans, setMyLoans] = useState<ActiveLoanAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -141,13 +158,13 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
         "discriminator": [233, 146, 209, 142, 207, 104, 64, 188],
         "accounts": [
           { "name": "lender", "writable": true, "signer": true },
-          { "name": "loanMint" },
-          { "name": "collateralMint" },
-          { "name": "lenderLoanAta", "writable": true },
-          { "name": "poolAccount", "writable": true },
+          { "name": "loan_mint" },
+          { "name": "collateral_mint" },
+          { "name": "lender_loan_ata", "writable": true },
+          { "name": "pool_account", "writable": true },
           { "name": "vault", "writable": true },
-          { "name": "tokenProgram" },
-          { "name": "systemProgram" }
+          { "name": "token_program" },
+          { "name": "system_program" }
         ],
         "args": [
           { "name": "totalLiquidity", "type": "u64" },
@@ -161,14 +178,14 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
         "discriminator": [193, 114, 252, 230, 240, 48, 169, 137],
         "accounts": [
           { "name": "borrower", "writable": true, "signer": true },
-          { "name": "poolAccount", "writable": true },
-          { "name": "poolVault", "writable": true },
-          { "name": "loanMint" },
-          { "name": "collateralMint" },
-          { "name": "borrowerCollateralAta", "writable": true },
-          { "name": "borrowerLoanAta", "writable": true },
-          { "name": "activeLoan", "writable": true, "signer": true },
-          { "name": "loanVault", "writable": true },
+          { "name": "pool_account", "writable": true },
+          { "name": "pool_vault", "writable": true },
+          { "name": "loan_mint" },
+          { "name": "collateral_mint" },
+          { "name": "borrower_collateral_ata", "writable": true },
+          { "name": "borrower_loan_ata", "writable": true },
+          { "name": "active_loan", "writable": true, "signer": true },
+          { "name": "loan_vault", "writable": true },
           { "name": "pythPriceInfo" },
           { "name": "switchboardPriceInfo" },
           { "name": "tokenProgram" },
@@ -177,6 +194,39 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
         "args": [
           { "name": "amountToBorrow", "type": "u64" }
         ]
+      },
+      {
+        "name": "repay_pool_loan",
+        "discriminator": [224, 93, 144, 77, 61, 17, 137, 54],
+        "accounts": [
+          { "name": "borrower", "writable": true, "signer": true },
+          { "name": "pool_account", "writable": true },
+          { "name": "pool_vault", "writable": true },
+          { "name": "active_loan", "writable": true },
+          { "name": "loan_vault", "writable": true },
+          { "name": "loan_mint" },
+          { "name": "collateral_mint" },
+          { "name": "borrower_loan_ata", "writable": true },
+          { "name": "borrower_collateral_ata", "writable": true },
+          { "name": "token_program" }
+        ],
+        "args": []
+      },
+      {
+        "name": "liquidate_pool_loan",
+        "discriminator": [223, 179, 226, 125, 48, 46, 39, 74],
+        "accounts": [
+          { "name": "lender", "writable": true, "signer": true },
+          { "name": "pool_account", "writable": true },
+          { "name": "active_loan", "writable": true },
+          { "name": "loan_vault", "writable": true },
+          { "name": "collateral_mint" },
+          { "name": "lender_collateral_ata", "writable": true },
+          { "name": "pythPriceInfo" },
+          { "name": "switchboardPriceInfo" },
+          { "name": "tokenProgram" }
+        ],
+        "args": []
       }
     ],
     "accounts": [
@@ -198,7 +248,8 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
             { "name": "max_borrow", "type": "u64" },
             { "name": "interest_rate", "type": "u64" },
             { "name": "vault_bump", "type": "u8" },
-            { "name": "pool_bump", "type": "u8" }
+            { "name": "pool_bump", "type": "u8" },
+            { "name": "loans_count", "type": "u64" }
           ]
         }
       },
@@ -215,41 +266,43 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
             { "name": "collateral_amount", "type": "u64" },
             { "name": "expiry", "type": "i64" },
             { "name": "status", "type": "u8" },
-            { "name": "bump", "type": "u8" }
+            { "name": "bump", "type": "u8" },
+            { "name": "loan_id", "type": "u64" }
           ]
         }
       }
     ]
   }), []);
 
-  const fetchPools = useCallback(async () => {
+  const fetchPoolsAndLoans = useCallback(async () => {
     if (!provider) return;
     setLoading(true);
     try {
       const program = new Program(idl, provider);
-      const allPools = await program.account.lendingPool.all();
-      setPools(allPools as any);
+      
+      const [poolData, loanData] = await Promise.all([
+        program.account.lendingPool.all(),
+        program.account.activeLoan.all()
+      ]);
+
+      setPools(poolData as any);
+      setMyLoans(loanData as any);
     } catch (err) {
-      console.error("Error fetching pools:", err);
+      console.error("Error fetching data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [provider, idl]);
 
-  useEffect(() => { fetchPools(); }, [fetchPools]);
+  useEffect(() => { fetchPoolsAndLoans(); }, [fetchPoolsAndLoans]);
 
-  const onRefresh = () => { setRefreshing(true); fetchPools(); fetchBalances(); };
+  const onRefresh = () => { setRefreshing(true); fetchPoolsAndLoans(); fetchBalances(); };
 
   const handleCreateLendingOrder = async () => {
     if (!provider || !publicKey) return;
     const amountNum = parseFloat(depositAmount);
     if (!amountNum) { Alert.alert("Error", "Enter a valid amount"); return; }
-
-    if (isMainnet) {
-      Alert.alert("Network Mismatch", "The P2P contract is currently on Devnet. Your wallet is on Mainnet. Please notify the developer to deploy the contract to Mainnet.");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -264,38 +317,172 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
       const maxBorrow = new anchor.BN(Math.floor(parseFloat(maxRange) * decimals));
       const interestRate = new anchor.BN(Math.floor(parseFloat(interest) * 100));
 
-      const poolSeed = Buffer.from("pool"); 
-      const vaultSeed = Buffer.from("pool_vault");
-
       const [poolAccount] = PublicKey.findProgramAddressSync(
-        [poolSeed, publicKey.toBuffer(), loanMint.toBuffer()],
+        [Buffer.from("pool"), publicKey.toBuffer(), loanMint.toBuffer()],
         PROGRAM_ID
       );
 
       const [vault] = PublicKey.findProgramAddressSync(
-        [vaultSeed, poolAccount.toBuffer()],
+        [Buffer.from("pool_vault"), poolAccount.toBuffer()],
         PROGRAM_ID
       );
 
-      await program.methods
-        .create_pool(totalLiquidity, minBorrow, maxBorrow, interestRate)
+      const method = program.methods.createPool || (program.methods as any).create_pool;
+      await method(totalLiquidity, minBorrow, maxBorrow, interestRate)
         .accounts({
           lender: publicKey,
-          loanMint: loanMint,
-          collateralMint: collateralMint,
-          lenderLoanAta: lenderLoanAta,
-          poolAccount: poolAccount,
+          loan_mint: loanMint,
+          collateral_mint: collateralMint,
+          lender_loan_ata: lenderLoanAta,
+          pool_account: poolAccount,
           vault,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
+          token_program: TOKEN_PROGRAM_ID,
+          system_program: SystemProgram.programId,
         } as any).rpc();
 
       Alert.alert("Success", "Liquidity Pool Created!");
       setShowCreateModal(false);
-      fetchPools();
+      fetchPoolsAndLoans();
     } catch (err: any) {
-      console.error(err);
       Alert.alert("Error", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmBorrow = async () => {
+    if (!provider || !publicKey || !selectedPool) return;
+    const amount = parseFloat(borrowAmount);
+    if (!amount) return;
+
+    setLoading(true);
+    try {
+      const program = new Program(idl, provider);
+      const { loanMint, collateralMint, loansCount } = selectedPool.account;
+      
+      const borrowerCollateralAta = await getAssociatedTokenAddress(collateralMint, publicKey);
+      const borrowerLoanAta = await getAssociatedTokenAddress(loanMint, publicKey);
+      
+      const [poolVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("pool_vault"), selectedPool.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const [activeLoan] = PublicKey.findProgramAddressSync(
+        [Buffer.from("active_loan"), publicKey.toBuffer(), selectedPool.publicKey.toBuffer(), loansCount.toArrayLike(Buffer, 'le', 8)],
+        PROGRAM_ID
+      );
+
+      const [loanVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("loan_vault"), activeLoan.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const method = program.methods.takeLoan || (program.methods as any).take_loan;
+      const decimals = loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000;
+
+      await method(new anchor.BN(Math.floor(amount * decimals)))
+        .accounts({
+          borrower: publicKey,
+          poolAccount: selectedPool.publicKey,
+          poolVault,
+          loanMint,
+          collateralMint,
+          borrowerCollateralAta,
+          borrowerLoanAta,
+          activeLoan,
+          loanVault,
+          pythPriceInfo: PYTH_SOL_USD,
+          switchboardPriceInfo: SB_SOL_USD,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        } as any).rpc();
+
+      Alert.alert("Success", "Borrowed successfully!");
+      setShowBorrowModal(false);
+      fetchPoolsAndLoans();
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRepay = async (loan: ActiveLoanAccount) => {
+    if (!provider || !publicKey) return;
+    setLoading(true);
+    try {
+      const program = new Program(idl, provider);
+      const poolAccount = pools.find(p => p.publicKey.toBase58() === loan.account.pool.toBase58());
+      if (!poolAccount) throw new Error("Pool not found");
+
+      const [poolVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("pool_vault"), loan.account.pool.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const [loanVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("loan_vault"), loan.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const borrowerLoanAta = await getAssociatedTokenAddress(poolAccount.account.loanMint, publicKey);
+      const borrowerCollateralAta = await getAssociatedTokenAddress(loan.account.collateralMint, publicKey);
+
+      const method = program.methods.repayPoolLoan || (program.methods as any).repay_pool_loan;
+      await method()
+        .accounts({
+          borrower: publicKey,
+          poolAccount: loan.account.pool,
+          poolVault,
+          activeLoan: loan.publicKey,
+          loanVault,
+          loanMint: poolAccount.account.loanMint,
+          collateralMint: loan.account.collateralMint,
+          borrowerLoanAta,
+          borrowerCollateralAta,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        } as any).rpc();
+
+      Alert.alert("Success", "Loan repaid successfully!");
+      fetchPoolsAndLoans();
+    } catch (err: any) {
+      Alert.alert("Repayment Failed", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLiquidate = async (loan: ActiveLoanAccount) => {
+    if (!provider || !publicKey) return;
+    setLoading(true);
+    try {
+      const program = new Program(idl, provider);
+      const [loanVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("loan_vault"), loan.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const lenderCollateralAta = await getAssociatedTokenAddress(loan.account.collateralMint, publicKey);
+
+      const method = program.methods.liquidatePoolLoan || (program.methods as any).liquidate_pool_loan;
+      await method()
+        .accounts({
+          lender: publicKey,
+          poolAccount: loan.account.pool,
+          activeLoan: loan.publicKey,
+          loanVault,
+          collateralMint: loan.account.collateralMint,
+          lenderCollateralAta,
+          pythPriceInfo: PYTH_SOL_USD,
+          switchboardPriceInfo: SB_SOL_USD,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        } as any).rpc();
+
+      Alert.alert("Success", "Loan liquidated successfully!");
+      fetchPoolsAndLoans();
+    } catch (err: any) {
+      Alert.alert("Liquidation Error", err.message);
     } finally {
       setLoading(false);
     }
@@ -308,106 +495,79 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
     return ((totalValueToCover * LTV_RATIO) / skrPrice).toFixed(2);
   }, [borrowAmount, selectedPool, skrPrice]);
 
-  const handleConfirmBorrow = async () => {
-    if (!provider || !publicKey || !selectedPool) return;
-    const amount = parseFloat(borrowAmount);
-    if (!amount) return;
+  const filteredData = useMemo(() => {
+    if (activeTab === 'MARKET') return pools.filter(p => p.account.lender.toBase58() !== address);
+    if (activeTab === 'MY_OFFERS') return pools.filter(p => p.account.lender.toBase58() === address);
+    return myLoans.filter(l => l.account.borrower.toBase58() === address || pools.find(p => p.publicKey.toBase58() === l.account.pool.toBase58())?.account.lender.toBase58() === address);
+  }, [activeTab, pools, myLoans, address]);
 
-    if (isMainnet) {
-      Alert.alert("Network Mismatch", "The P2P contract is currently on Devnet. Your wallet is on Mainnet. Please notify the developer to deploy the contract to Mainnet.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const program = new Program(idl, provider);
-      const loanMint = selectedPool.account.loanMint;
-      const collateralMint = selectedPool.account.collateralMint;
-      const borrowerCollateralAta = await getAssociatedTokenAddress(collateralMint, publicKey);
-      const borrowerLoanAta = await getAssociatedTokenAddress(loanMint, publicKey);
+  const renderItem = ({ item }: { item: any }) => {
+    if (activeTab === 'MY_LOANS') {
+      const loan = item as ActiveLoanAccount;
+      const isBorrower = loan.account.borrower.toBase58() === address;
+      const statusText = loan.account.status === 0 ? 'Active' : (loan.account.status === 1 ? 'Repaid' : 'Liquidated');
       
-      const vaultSeed = Buffer.from("pool_vault");
-      const [poolVault] = PublicKey.findProgramAddressSync(
-        [vaultSeed, selectedPool.publicKey.toBuffer()],
-        PROGRAM_ID
+      return (
+        <View style={styles.offerCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.lenderName}>{isBorrower ? 'Your Loan' : 'User Loan'}</Text>
+            <View style={[styles.interestBadge, { backgroundColor: loan.account.status === 0 ? 'rgba(50, 212, 222, 0.1)' : 'rgba(255,255,255,0.05)' }]}>
+              <Text style={styles.interestText}>{statusText}</Text>
+            </View>
+          </View>
+          <View style={styles.statsRow}>
+            <View>
+              <Text style={styles.statLabel}>Borrowed</Text>
+              <Text style={styles.statValue}>{(loan.account.amountBorrowed.toNumber() / 1_000_000).toFixed(2)} USDC</Text>
+            </View>
+            <View>
+              <Text style={[styles.statLabel, { textAlign: 'right' }]}>Collateral</Text>
+              <Text style={[styles.statValue, { textAlign: 'right' }]}>{(loan.account.collateralAmount.toNumber() / 1_000_000_000).toFixed(2)} SKR</Text>
+            </View>
+          </View>
+          
+          {loan.account.status === 0 && isBorrower && (
+            <TouchableOpacity style={styles.borrowButton} onPress={() => handleRepay(loan)}>
+              <Text style={styles.borrowButtonText}>Repay Loan</Text>
+            </TouchableOpacity>
+          )}
+
+          {loan.account.status === 0 && !isBorrower && (
+            <TouchableOpacity style={[styles.borrowButton, { backgroundColor: COLORS.errorRed }]} onPress={() => handleLiquidate(loan)}>
+              <Text style={[styles.borrowButtonText, { color: COLORS.white }]}>Check & Liquidate</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       );
-
-      // Derive active_loan PDA: [b"active_loan", borrower, pool, remaining_liquidity_le_bytes]
-      const remainingLiquidityBuffer = selectedPool.account.remainingLiquidity.toArrayLike(Buffer, 'le', 8);
-      const [activeLoan] = PublicKey.findProgramAddressSync(
-        [Buffer.from("active_loan"), publicKey.toBuffer(), selectedPool.publicKey.toBuffer(), remainingLiquidityBuffer],
-        PROGRAM_ID
-      );
-
-      // Derive loan_vault PDA: [b"loan_vault", active_loan]
-      const [loanVault] = PublicKey.findProgramAddressSync(
-        [Buffer.from("loan_vault"), activeLoan.toBuffer()],
-        PROGRAM_ID
-      );
-
-      await program.methods
-        .take_loan(new anchor.BN(Math.floor(amount * (loanMint.toBase58() === DEFAULT_USDC_TOKEN.address ? 1_000_000 : 1_000_000_000))))
-        .accounts({
-          borrower: publicKey,
-          poolAccount: selectedPool.publicKey,
-          poolVault: poolVault,
-          loanMint: loanMint,
-          collateralMint: collateralMint,
-          borrowerCollateralAta: borrowerCollateralAta,
-          borrowerLoanAta: borrowerLoanAta,
-          activeLoan: activeLoan,
-          loanVault: loanVault,
-          pythPriceInfo: PYTH_SOL_USD,
-          switchboardPriceInfo: SB_SOL_USD,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-        } as any)
-        .rpc();
-
-      Alert.alert("Success", "Borrowed successfully!");
-      setShowBorrowModal(false);
-      fetchPools();
-    } catch (err: any) {
-      Alert.alert("Error", err.message);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const filteredPools = useMemo(() => {
-    if (activeTab === 'MARKET') {
-      return pools.filter(p => p.account.lender.toBase58() !== address);
-    }
-    return pools.filter(p => p.account.lender.toBase58() === address);
-  }, [pools, address, activeTab]);
-
-  const renderPoolItem = ({ item }: { item: LendingPoolAccount }) => {
-    const isUSDC = item.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address;
+    const pool = item as LendingPoolAccount;
+    const isUSDC = pool.account.loanMint.toBase58() === DEFAULT_USDC_TOKEN.address;
     const tokenSymbol = isUSDC ? 'USDC' : 'SOL';
     const decimals = isUSDC ? 1_000_000 : 1_000_000_000;
 
     return (
       <View style={styles.offerCard}>
         <View style={styles.cardHeader}>
-          <Text style={styles.lenderName}>{tokenSymbol} Pool by {item.account.lender.toBase58().slice(0,4)}</Text>
+          <Text style={styles.lenderName}>{tokenSymbol} Pool by {pool.account.lender.toBase58().slice(0,4)}</Text>
           <View style={styles.interestBadge}>
-            <Text style={styles.interestText}>{(item.account.interestRate.toNumber() / 100).toFixed(1)}% APR</Text>
+            <Text style={styles.interestText}>{(pool.account.interestRate.toNumber() / 100).toFixed(1)}% APR</Text>
           </View>
         </View>
         <View style={styles.statsRow}>
           <View>
             <Text style={styles.statLabel}>Available</Text>
-            <Text style={styles.statValue}>{(item.account.remainingLiquidity.toNumber() / decimals).toFixed(2)} {tokenSymbol}</Text>
+            <Text style={styles.statValue}>{(pool.account.remainingLiquidity.toNumber() / decimals).toFixed(2)} {tokenSymbol}</Text>
           </View>
           <View>
             <Text style={[styles.statLabel, { textAlign: 'right' }]}>Borrow Range</Text>
             <Text style={[styles.statValue, { textAlign: 'right' }]}>
-              {(item.account.minBorrow.toNumber() / decimals).toFixed(0)} - {(item.account.maxBorrow.toNumber() / decimals).toFixed(0)} {tokenSymbol}
+              {(pool.account.minBorrow.toNumber() / decimals).toFixed(0)} - {(pool.account.maxBorrow.toNumber() / decimals).toFixed(0)} {tokenSymbol}
             </Text>
           </View>
         </View>
         {activeTab === 'MARKET' && (
-          <TouchableOpacity style={styles.borrowButton} onPress={() => { setSelectedPool(item); setShowBorrowModal(true); }}>
+          <TouchableOpacity style={styles.borrowButton} onPress={() => { setSelectedPool(pool); setShowBorrowModal(true); }}>
             <Text style={styles.borrowButtonText}>Borrow from Pool</Text>
           </TouchableOpacity>
         )}
@@ -417,19 +577,16 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
 
   const renderHeader = () => (
     <View style={styles.header}>
-      {isMainnet && (
-        <View style={styles.networkWarning}>
-          <Icons.InfoIcon width={16} height={16} fill={COLORS.white} />
-          <Text style={styles.networkWarningText}>The P2P contract is currently on Devnet. Your wallet is on Mainnet. Please notify the developer to deploy the contract to Mainnet.</Text>
-        </View>
-      )}
       <Text style={styles.title}>P2P Lending</Text>
       <View style={styles.tabsContainer}>
         <TouchableOpacity style={[styles.tab, activeTab === 'MARKET' && styles.activeTab]} onPress={() => setActiveTab('MARKET')}>
-          <Text style={[styles.tabText, activeTab === 'MARKET' && styles.activeTabText]}>P2P Market</Text>
+          <Text style={[styles.tabText, activeTab === 'MARKET' && styles.activeTabText]}>Market</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tab, activeTab === 'MY_OFFERS' && styles.activeTab]} onPress={() => setActiveTab('MY_OFFERS')}>
-          <Text style={[styles.tabText, activeTab === 'MY_OFFERS' && styles.activeTabText]}>My Offers</Text>
+          <Text style={[styles.tabText, activeTab === 'MY_OFFERS' && styles.activeTabText]}>Offers</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, activeTab === 'MY_LOANS' && styles.activeTab]} onPress={() => setActiveTab('MY_LOANS')}>
+          <Text style={[styles.tabText, activeTab === 'MY_LOANS' && styles.activeTabText]}>Loans</Text>
         </TouchableOpacity>
       </View>
       {activeTab === 'MY_OFFERS' && (
@@ -444,13 +601,13 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
   return (
     <View style={styles.container}>
       <FlashList
-        data={filteredPools}
-        renderItem={renderPoolItem}
+        data={filteredData}
+        renderItem={renderItem}
         keyExtractor={item => item.publicKey.toBase58()}
         estimatedItemSize={180}
         ListHeaderComponent={<>{ListHeaderComponent && (typeof ListHeaderComponent === 'function' ? <ListHeaderComponent /> : ListHeaderComponent)}{renderHeader()}</>}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.brandPrimary} />}
-        ListEmptyComponent={() => <View style={styles.empty}><Text style={styles.emptyText}>No active lending orders.</Text></View>}
+        ListEmptyComponent={() => <View style={styles.empty}><Text style={styles.emptyText}>Nothing to show here.</Text></View>}
       />
 
       <Modal visible={showCreateModal} animationType="slide" transparent>

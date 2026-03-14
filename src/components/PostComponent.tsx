@@ -7,7 +7,7 @@ import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardi
 import { useDomainLookup } from '@/shared/hooks/useDomainLookup';
 import { toggleBookmark, deletePost } from '@/shared/state/post/slice';
 import { HighlightedText } from '@/shared/components/HighlightedText';
-import { ProductBlinkCard } from '@/shared/components/ProductBlinkCard';
+import BlinkMessage from '@/core/chat/components/message/BlinkMessage';
 import { SERVER_URL } from '@env';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
@@ -422,9 +422,8 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
             {displayContent ? <HighlightedText text={displayContent} style={styles.content} /> : null}
             
             {solanaActionUrl && (
-              <ProductBlinkCard 
+              <BlinkMessage 
                 url={solanaActionUrl} 
-                mediaUrls={mediaUri ? [mediaUri] : []}
               />
             )}
 

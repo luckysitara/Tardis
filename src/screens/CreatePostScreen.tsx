@@ -40,6 +40,7 @@ const CreatePostScreen = ({ navigation, route }) => {
   const [isListingMode, setIsListingMode] = useState(false);
   const [listingPrice, setListingPrice] = useState('');
   const [listingTitle, setListingTitle] = useState('');
+  const [selectedToken, setSelectedToken] = useState('SOL');
   const insets = useSafeAreaInsets();
   
   const dispatch = useAppDispatch();
@@ -109,8 +110,8 @@ const CreatePostScreen = ({ navigation, route }) => {
       
       let finalContent = postContent.trim();
       if (isListingMode && listingPrice) {
-        // Format: [Text] solana-action:https://seek.kikhaus.com/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]&image=[IMAGE]
-        let blinkUrl = `solana-action:${SERVER_BASE_URL}/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
+        // Format: [Text] solana-action:https://seek.kikhaus.com/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]&image=[IMAGE]&token=[TOKEN]
+        let blinkUrl = `solana-action:${SERVER_BASE_URL}/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}&token=${selectedToken}`;
         
         // If we have an uploaded image, include it in the Blink URL so the Action metadata uses it
         if (mediaUrls.length > 0) {
@@ -276,8 +277,27 @@ const CreatePostScreen = ({ navigation, route }) => {
                     value={listingTitle}
                     onChangeText={setListingTitle}
                   />
+
+                  <View style={styles.tokenSelectorContainer}>
+                    <Text style={styles.tokenSelectorLabel}>Accepting Payment In:</Text>
+                    <View style={[styles.pickerWrapper, { flex: 0.6 }]}>
+                      <Picker
+                        selectedValue={selectedToken}
+                        onValueChange={(itemValue) => setSelectedToken(itemValue)}
+                        style={styles.picker}
+                        itemStyle={styles.pickerItem}
+                        dropdownIconColor={COLORS.white}
+                      >
+                        <Picker.Item label="SOL" value="SOL" />
+                        <Picker.Item label="USDC" value="USDC" />
+                        <Picker.Item label="BONK" value="BONK" />
+                      </Picker>
+                      <Icons.ChevronDownIcon width={16} height={16} color={COLORS.greyLight} style={styles.pickerIcon} />
+                    </View>
+                  </View>
+
                   <View style={styles.priceInputContainer}>
-                    <Text style={styles.solSymbol}>SOL</Text>
+                    <Text style={styles.solSymbol}>{selectedToken}</Text>
                     <TextInput
                       style={[styles.listingInput, { flex: 1, marginLeft: 10 }]}
                       placeholder="Price (e.g. 0.5)"
@@ -448,6 +468,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 12,
     padding: 12,
+  },
+  tokenSelectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+  },
+  tokenSelectorLabel: {
+    color: COLORS.greyLight,
+    fontSize: 14,
+    fontWeight: '600',
   },
   listingInput: {
     color: COLORS.white,
