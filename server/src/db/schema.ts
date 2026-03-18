@@ -171,6 +171,23 @@ CREATE TABLE IF NOT EXISTS follows (
     FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (follower_id, following_id)
 );
+
+CREATE TABLE IF NOT EXISTS purchases (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    buyer_wallet_address VARCHAR(255) NOT NULL,
+    seller_wallet_address VARCHAR(255) NOT NULL,
+    post_id CHAR(36) NULL,
+    product_title VARCHAR(255) NOT NULL,
+    price VARCHAR(255) NOT NULL,
+    token_mint VARCHAR(255) NULL,
+    signature TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'completed',
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (buyer_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (seller_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
+);
 `;
 
 export const createTablesPostgresSQL = `
@@ -340,5 +357,22 @@ CREATE TABLE IF NOT EXISTS follows (
     FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (follower_id, following_id)
+);
+
+CREATE TABLE IF NOT EXISTS purchases (
+    id UUID PRIMARY KEY NOT NULL,
+    buyer_wallet_address VARCHAR(255) NOT NULL,
+    seller_wallet_address VARCHAR(255) NOT NULL,
+    post_id UUID NULL,
+    product_title VARCHAR(255) NOT NULL,
+    price VARCHAR(255) NOT NULL,
+    token_mint VARCHAR(255) NULL,
+    signature TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'completed',
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (buyer_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (seller_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
 );
 `;

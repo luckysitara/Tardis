@@ -6,10 +6,12 @@ import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
 import { Connection } from '@solana/web3.js';
 import { getRpcUrl } from '@/modules/data-module/utils/fetch';
 import { IPFSAwareImage, getValidImageSource } from '../utils/IPFSImage';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 
 interface ProductBlinkCardProps {
   url: string; // The solana-action: URL
   mediaUrls?: string[];
+  postId?: string; // Optional: ID of the post containing this listing
 }
 
 interface ActionMetadata {
@@ -20,7 +22,7 @@ interface ActionMetadata {
   error?: string;
 }
 
-export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUrls }) => {
+export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUrls, postId }) => {
   const { address, sendBase64Transaction } = useWallet();
   const [metadata, setMetadata] = useState<ActionMetadata | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +106,43 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
       if (signature) {
         Alert.alert("Success", `Transaction successful! ${data.message || ''}`);
         console.log(`[ProductBlinkCard] Transaction signature: ${signature}`);
+        
+        // 3. Record the purchase in our database
+        try {
+          // Extract product details from the action URL
+          // If actionApiUrl is just /api/actions/buy..., prepend base URL
+          const fullUrl = actionApiUrl.startsWith('http') 
+            ? actionApiUrl 
+            : `${SERVER_BASE_URL.startsWith('http') ? '' : 'https://'}${SERVER_BASE_URL}${actionApiUrl.startsWith('/') ? '' : '/'}${actionApiUrl}`;
+          
+          const queryString = fullUrl.includes('?') ? fullUrl.split('?')[1] : '';
+          const params = new URLSearchParams(queryString);
+          
+          const seller = params.get('seller');
+          const price = params.get('price');
+          const title = params.get('title') || metadata?.title || 'Product';
+          const mint = params.get('mint');
+
+          if (address && seller && price) {
+            console.log('[ProductBlinkCard] Recording purchase in database...');
+            await fetch(`${SERVER_BASE_URL}/api/actions/record-purchase`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                buyer: address,
+                seller,
+                productTitle: decodeURIComponent(title),
+                price,
+                tokenMint: mint,
+                signature,
+                postId: postId
+              }),
+            });
+          }
+        } catch (recordError) {
+          console.error('[ProductBlinkCard] Failed to record purchase:', recordError);
+          // Don't alert the user, the blockchain transaction succeeded anyway
+        }
       }
     } catch (error: any) {
       console.error("[ProductBlinkCard] Action error:", error);

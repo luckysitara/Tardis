@@ -276,7 +276,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
                 (edited)
               </Text>
             )}
-            {solanaActionUrl && <ProductBlinkCard url={solanaActionUrl} mediaUrls={(message as any).media} />}
+            {solanaActionUrl && <ProductBlinkCard url={solanaActionUrl} mediaUrls={(message as any).media} postId={message.id} />}
             {renderReactions()}
           </View>
         );
