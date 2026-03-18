@@ -226,15 +226,21 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
     // We parse their posts to find solana-action URLs
     const listings = await knex('posts')
       .where('author_wallet_address', userId)
-      .andWhere('content', 'like', '%solana-action%')
+      .andWhere(function() {
+        this.where('content', 'like', '%solana-action%')
+            .orWhere('content', 'like', '%Solana-Action%');
+      })
       .select('id', 'content', 'media_urls', 'timestamp');
 
     const formattedListings = listings.map(post => {
       const content = post.content || '';
-      // Extract title and price from the Blink URL in the content
-      const blinkMatch = content.match(/solana-action:.*[?&]title=([^&]+)/);
-      const priceMatch = content.match(/[?&]price=([^&]+)/);
-      const title = blinkMatch ? decodeURIComponent(blinkMatch[1]) : 'Product';
+      // Improved regex to handle various delimiters and ensure we get the title/price
+      const titleMatch = content.match(/[?&]title=([^&\s]+)/i);
+      const priceMatch = content.match(/[?&]price=([^&\s]+)/i);
+      
+      if (!priceMatch) return null; // Not a valid product listing
+
+      const title = titleMatch ? decodeURIComponent(titleMatch[1].replace(/\+/g, ' ')) : 'Product';
       const price = priceMatch ? priceMatch[1] : '0';
       
       let mediaUrls = [];
@@ -250,7 +256,7 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
         image: mediaUrls[0] || null,
         type: 'listing'
       };
-    });
+    }).filter(Boolean);
 
     // 2. Fetch products bought by this user
     const purchases = await knex('purchases')
