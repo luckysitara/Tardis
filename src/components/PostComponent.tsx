@@ -425,6 +425,7 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
               <ProductBlinkCard 
                 url={solanaActionUrl} 
                 mediaUrls={mediaUri ? [mediaUri] : []}
+                postId={id}
               />
             )}
 

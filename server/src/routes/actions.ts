@@ -17,6 +17,8 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
 import { getConnection } from '../utils/connection';
+import knex from '../db/knex';
+import { v4 as uuidv4 } from 'uuid';
 
 const actionsRouter = Router();
 
@@ -39,14 +41,21 @@ const getTokenSymbol = (mint: string) => {
  * GET /api/actions/buy
  * Returns the Action metadata (Solana Actions Standard)
  */
-actionsRouter.get('/buy', (req: Request, res: Response) => {
+actionsRouter.get('/buy', async (req: Request, res: Response) => {
   const { price, title, seller, image, mint } = req.query;
   const tokenSymbol = mint ? getTokenSymbol(mint as string) : 'SOL';
   
+  // Fetch seller verification status
+  let sellerVerified = false;
+  if (seller) {
+    const user = await knex('users').where({ id: seller as string }).first();
+    sellerVerified = !!user?.is_hardware_verified;
+  }
+
   const payload = {
     icon: (image as string) || 'https://teal-additional-lemming-515.mypinata.cloud/ipfs/QmZ8Uq8VfT5X5B1T9y9p7m7y8z9w9v8u7t6r5q4p3o2n1m', // Use provided image or fallback placeholder
     title: `Buy ${title || 'Product'}`,
-    description: `Purchase this item for ${price} ${tokenSymbol}. All transactions are hardware-signed on Tardis.`,
+    description: `Purchase this item for ${price} ${tokenSymbol}.${sellerVerified ? ' ✅ Hardware Verified Seller.' : ''} All transactions are hardware-signed on Tardis.`,
     label: `Buy for ${price} ${tokenSymbol}`,
     links: {
       actions: [
@@ -162,6 +171,111 @@ actionsRouter.options('/buy', (req: Request, res: Response) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Encoding, Accept-Encoding');
   res.sendStatus(204);
+});
+
+/**
+ * POST /api/actions/record-purchase
+ * Records a successful purchase in the database
+ */
+actionsRouter.post('/record-purchase', async (req: Request, res: Response) => {
+  try {
+    const { 
+      buyer, 
+      seller, 
+      productTitle, 
+      price, 
+      tokenMint, 
+      signature,
+      postId
+    } = req.body;
+
+    if (!buyer || !seller || !productTitle || !price || !signature) {
+      return res.status(400).json({ error: 'Missing required purchase data' });
+    }
+
+    const purchaseId = uuidv4();
+    await knex('purchases').insert({
+      id: purchaseId,
+      buyer_wallet_address: buyer,
+      seller_wallet_address: seller,
+      product_title: productTitle,
+      price: price.toString(),
+      token_mint: tokenMint || null,
+      signature,
+      post_id: postId || null,
+      status: 'completed',
+      timestamp: new Date()
+    });
+
+    res.json({ success: true, purchaseId });
+  } catch (error: any) {
+    console.error('[Actions/RecordPurchase] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/actions/commerce/:userId
+ * Returns both listings and purchases for a user
+ */
+actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // 1. Fetch products being sold by this user (listings)
+    // We parse their posts to find solana-action URLs
+    const listings = await knex('posts')
+      .where('author_wallet_address', userId)
+      .andWhere('content', 'like', '%solana-action%')
+      .select('id', 'content', 'media_urls', 'timestamp');
+
+    const formattedListings = listings.map(post => {
+      const content = post.content || '';
+      // Extract title and price from the Blink URL in the content
+      const blinkMatch = content.match(/solana-action:.*[?&]title=([^&]+)/);
+      const priceMatch = content.match(/[?&]price=([^&]+)/);
+      const title = blinkMatch ? decodeURIComponent(blinkMatch[1]) : 'Product';
+      const price = priceMatch ? priceMatch[1] : '0';
+      
+      let mediaUrls = [];
+      try {
+        mediaUrls = JSON.parse(post.media_urls || '[]');
+      } catch (e) {}
+
+      return {
+        id: post.id,
+        title,
+        price,
+        timestamp: post.timestamp,
+        image: mediaUrls[0] || null,
+        type: 'listing'
+      };
+    });
+
+    // 2. Fetch products bought by this user
+    const purchases = await knex('purchases')
+      .where('buyer_wallet_address', userId)
+      .orderBy('timestamp', 'desc');
+
+    const formattedPurchases = purchases.map(p => ({
+      id: p.id,
+      title: p.product_title,
+      price: p.price,
+      timestamp: p.timestamp,
+      seller: p.seller_wallet_address,
+      signature: p.signature,
+      type: 'purchase'
+    }));
+
+    res.json({
+      success: true,
+      listings: formattedListings,
+      purchases: formattedPurchases
+    });
+  } catch (error: any) {
+    console.error('[Actions/Commerce] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default actionsRouter;

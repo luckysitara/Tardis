@@ -72,7 +72,10 @@ const ProfileScreen = ({ navigation, route }) => {
   const { userCommunities, loading: communitiesLoading } = useSelector((state: RootState) => state.community);
   const { bookmarkedPosts, posts: userPosts, loading: postsLoading } = useSelector((state: RootState) => state.post);
   
-  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS' | 'PORTFOLIO' | 'LENDING'>('POSTS');
+  const [activeTab, setActiveTab] = useState<'POSTS' | 'COMMUNITIES' | 'BOOKMARKS' | 'PORTFOLIO' | 'LENDING' | 'COMMERCE'>('POSTS');
+  const [commerceTab, setCommerceTab] = useState<'LISTINGS' | 'PURCHASES'>('LISTINGS');
+  const [commerceData, setCommerceData] = useState({ listings: [], purchases: [] });
+  const [isCommerceLoading, setIsCommerceLoading] = useState(false);
   const [followStats, setFollowStats] = useState({ followersCount: 0, followingCount: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
@@ -88,6 +91,24 @@ const ProfileScreen = ({ navigation, route }) => {
     isHardwareVerified,
     attachmentData: authState.attachmentData
   } : otherUserProfile || {};
+
+  const fetchCommerceData = async () => {
+    try {
+      setIsCommerceLoading(true);
+      const response = await fetch(`${SERVER_BASE_URL}/api/actions/commerce/${targetUserId}`);
+      const data = await response.json();
+      if (data.success) {
+        setCommerceData({
+          listings: data.listings,
+          purchases: data.purchases
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching commerce data:", err);
+    } finally {
+      setIsCommerceLoading(false);
+    }
+  };
 
   const fetchOtherUserProfile = async () => {
     if (isOwnProfile) return;
@@ -338,9 +359,90 @@ const ProfileScreen = ({ navigation, route }) => {
           <Text style={[styles.tabLabel, activeTab === 'LENDING' && styles.activeTabLabel]}>P2P</Text>
           {activeTab === 'LENDING' && <View style={styles.activeIndicator} />}
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.tab} 
+          onPress={() => setActiveTab('COMMERCE')}
+        >
+          <Text style={[styles.tabLabel, activeTab === 'COMMERCE' && styles.activeTabLabel]}>Shop</Text>
+          {activeTab === 'COMMERCE' && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
       </View>
     </View>
   );
+
+  const renderCommerceContent = () => {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={styles.commerceSubTabs}>
+          <TouchableOpacity 
+            style={[styles.subTab, commerceTab === 'LISTINGS' && styles.activeSubTab]} 
+            onPress={() => setCommerceTab('LISTINGS')}
+          >
+            <Text style={[styles.subTabLabel, commerceTab === 'LISTINGS' && styles.activeSubTabLabel]}>Listings</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.subTab, commerceTab === 'PURCHASES' && styles.activeSubTab]} 
+            onPress={() => setCommerceTab('PURCHASES')}
+          >
+            <Text style={[styles.subTabLabel, commerceTab === 'PURCHASES' && styles.activeSubTabLabel]}>Purchases</Text>
+          </TouchableOpacity>
+        </View>
+
+        {isCommerceLoading ? (
+          <ActivityIndicator size="small" color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
+        ) : (
+          <FlashList
+            data={commerceTab === 'LISTINGS' ? commerceData.listings : commerceData.purchases}
+            renderItem={({ item }) => (
+              <View style={styles.commerceItem}>
+                <View style={styles.commerceItemIcon}>
+                  {item.type === 'listing' ? (
+                    item.image ? (
+                      <Image source={{ uri: item.image }} style={styles.productThumbnail} />
+                    ) : (
+                      <Icons.SwapIcon width={24} height={24} color={COLORS.brandPrimary} />
+                    )
+                  ) : (
+                    <Icons.WalletIcon width={24} height={24} color={COLORS.brandPrimary} />
+                  )}
+                </View>
+                <View style={styles.commerceItemDetails}>
+                  <Text style={styles.productTitle}>{item.title}</Text>
+                  <Text style={styles.productMeta}>
+                    {item.type === 'listing' ? `${item.price} SOL/Tokens` : `Paid ${item.price} SOL/Tokens`}
+                  </Text>
+                  <Text style={styles.productDate}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.viewProductButton}
+                  onPress={() => {
+                    if (item.type === 'listing' && item.id) {
+                      navigation.navigate('ThreadDetailScreen', { postId: item.id });
+                    } else if (item.signature) {
+                      Alert.alert("Transaction", `Signature: ${item.signature}`);
+                    }
+                  }}
+                >
+                  <Text style={styles.viewProductText}>{item.type === 'listing' ? 'View' : 'Tx'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            estimatedItemSize={80}
+            keyExtractor={(item, index) => (item.id || index).toString()}
+            ListHeaderComponent={renderProfileHeader}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  {commerceTab === 'LISTINGS' ? 'No active listings.' : 'No purchases yet.'}
+                </Text>
+              </View>
+            )}
+          />
+        )}
+      </View>
+    );
+  };
 
   const renderContent = () => {
     if (!targetUserId) {
@@ -402,6 +504,8 @@ const ProfileScreen = ({ navigation, route }) => {
         return <PortfolioView address={targetUserId} ListHeaderComponent={renderProfileHeader} />;
       case 'LENDING':
         return <LendingView address={targetUserId} ListHeaderComponent={renderProfileHeader} />;
+      case 'COMMERCE':
+        return renderCommerceContent();
     }
   };
 
@@ -650,7 +754,86 @@ const styles = StyleSheet.create({
     color: COLORS.greyMid,
     fontSize: 15,
     textAlign: 'center',
-  }
+  },
+  commerceSubTabs: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 10,
+    padding: 4,
+  },
+  subTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeSubTab: {
+    backgroundColor: 'rgba(50, 212, 222, 0.15)',
+  },
+  subTabLabel: {
+    color: COLORS.greyMid,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activeSubTabLabel: {
+    color: COLORS.brandPrimary,
+  },
+  commerceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  commerceItemIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(50, 212, 222, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    overflow: 'hidden',
+  },
+  productThumbnail: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  commerceItemDetails: {
+    flex: 1,
+  },
+  productTitle: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  productMeta: {
+    color: COLORS.brandPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  productDate: {
+    color: COLORS.greyMid,
+    fontSize: 12,
+  },
+  viewProductButton: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  viewProductText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
 
 export default ProfileScreen;
