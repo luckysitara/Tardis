@@ -13,6 +13,7 @@ import { Platform } from 'react-native';
 import { CLUSTER } from '@env';
 import { store } from '@/shared/state/store';
 import { parseTransactionError, getSuccessMessage } from '@/shared/services/transactions';
+import { waitForConfirmation } from '@/shared/services/transactions/core/helpers';
 import {
   StandardWallet,
   UnifiedWallet,
@@ -275,24 +276,24 @@ export class TransactionService {
     // 3. Confirm transaction if needed
     if (confirmTransaction) {
       filteredStatusCallback?.('Confirming transaction...');
-      let retries = 0;
-      while (retries < maxRetries) {
-        try {
-          await connection.confirmTransaction(signature, 'confirmed');
-          filteredStatusCallback?.('Transaction confirmed!');
-          this.showSuccess(signature);
-          break;
-        } catch (error) {
-          retries++;
-          if (retries >= maxRetries) {
-            filteredStatusCallback?.('Transaction failed');
-            this.showError(new Error('Transaction confirmation failed after maximum retries.'));
-            throw new Error('Transaction confirmation failed after maximum retries.');
-          }
-          filteredStatusCallback?.(`Retrying confirmation (${retries}/${maxRetries})...`);
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+      
+      const isConfirmed = await waitForConfirmation(
+        signature,
+        connection,
+        filteredStatusCallback,
+        maxRetries * 2, // Provide more attempts for reliability
+        2000 // 2 seconds between checks
+      );
+
+      if (isConfirmed) {
+        this.showSuccess(signature);
+      } else if (isConfirmed === false) {
+        this.showError(new Error('Transaction failed on-chain.'));
+        throw new Error('Transaction failed on-chain.');
+      } else {
+        // Inconclusive (timeout)
+        this.showError(new Error('Transaction confirmation timed out. It may still be processed, please check explorer.'));
+        throw new Error('Transaction confirmation timed out. It may still be processed, please check explorer.');
       }
     } else {
       // Show success even if we don't wait for confirmation

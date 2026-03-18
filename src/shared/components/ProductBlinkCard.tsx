@@ -35,10 +35,16 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
         setLoading(true);
         console.log(`[ProductBlinkCard] Fetching metadata from: ${actionApiUrl}`);
         const response = await fetch(actionApiUrl);
+        if (!response.ok) {
+          const text = await response.text();
+          console.error(`[ProductBlinkCard] Metadata fetch failed with status ${response.status}: ${text.substring(0, 100)}`);
+          throw new Error(`Failed to fetch action metadata: ${response.status}`);
+        }
         const data = await response.json();
         setMetadata(data);
-      } catch (e) {
+      } catch (e: any) {
         console.error(`[ProductBlinkCard] Metadata fetch error:`, e);
+        Alert.alert("Error", `Failed to load product details: ${e.message}`);
       } finally {
         setLoading(false);
       }
@@ -65,6 +71,21 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ account: address }),
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`[ProductBlinkCard] Action request failed with status ${response.status}: ${text.substring(0, 100)}`);
+        // Check if it looks like HTML
+        if (text.trim().startsWith('<')) {
+          throw new Error(`Server error (HTTP ${response.status}). Please try again later.`);
+        }
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || errorData.message || `Server error: ${response.status}`);
+        } catch (parseError) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+      }
 
       const data = await response.json();
       
