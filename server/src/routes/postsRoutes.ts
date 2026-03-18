@@ -113,22 +113,39 @@ postsRouter.post('/', async (req: Request, res: Response) => {
                         ? domains[0].domain 
                         : `${domains[0].domain}.skr`;
                 }
-            } catch (e) {
+            } catch (e: any) {
                 console.log(`[PostsRouter] .skr resolution failed for JIT user:`, e.message);
             }
         }
 
-        await knex('users').insert({
-            id: author_wallet_address,
-            username: finalUsername,
-            display_name: finalUsername,
-            created_at: new Date(),
-            updated_at: new Date()
-        }).onConflict('id').merge({
-            username: finalUsername,
-            display_name: finalUsername,
-            updated_at: new Date()
-        });
+        // Check if user exists first to avoid aggressive merge overwriting custom display names
+        const existingUser = await knex('users').where({ id: author_wallet_address }).first();
+        if (!existingUser) {
+            await knex('users').insert({
+                id: author_wallet_address,
+                username: finalUsername,
+                display_name: finalUsername,
+                created_at: new Date(),
+                updated_at: new Date()
+            });
+        } else {
+            // User exists, only update username/display_name if they are still just the wallet address
+            const updateData: any = { updated_at: new Date() };
+            let shouldUpdate = false;
+
+            if (existingUser.username === existingUser.id && finalUsername !== existingUser.id) {
+                updateData.username = finalUsername;
+                shouldUpdate = true;
+                // Also update display_name if it was also just the ID
+                if (existingUser.display_name === existingUser.id) {
+                    updateData.display_name = finalUsername;
+                }
+            }
+
+            if (shouldUpdate) {
+                await knex('users').where({ id: author_wallet_address }).update(updateData);
+            }
+        }
 
         // Generate a UUID for the new post
         const postId = uuidv4();

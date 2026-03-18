@@ -19,6 +19,25 @@ import { verifySignature } from '../../utils/solana';
 const profileImageRouter = Router();
 
 /**
+ * Helper to resolve a user's .skr domain from their wallet address
+ */
+async function resolveSkrUsername(userId: string): Promise<string> {
+  try {
+    const connection = getConnection();
+    const parser = new TldParser(connection);
+    const publicKey = new PublicKey(userId);
+    const domains = await parser.getParsedAllUserDomainsFromTld(publicKey, 'skr');
+    if (domains && domains.length > 0) {
+      const rawDomain = domains[0].domain;
+      return rawDomain.toLowerCase().endsWith('.skr') ? rawDomain : `${rawDomain}.skr`;
+    }
+  } catch (e) {
+    console.log(`[ProfileFetch] .skr resolution failed for ${userId}:`, e);
+  }
+  return userId;
+}
+
+/**
  * ------------------------------------------
  *  EXISTING: Fetch user's profile data
  * ------------------------------------------
@@ -33,19 +52,7 @@ profileImageRouter.get('/', async (req: any, res: any) => {
     let user = await knex('users').where({id: userId}).first();
     
     // If user doesn't exist, try to resolve their .skr domain first
-    let resolvedUsername = userId;
-    try {
-      const connection = getConnection();
-      const parser = new TldParser(connection);
-      const publicKey = new PublicKey(userId);
-      const domains = await parser.getParsedAllUserDomainsFromTld(publicKey, 'skr');
-      if (domains && domains.length > 0) {
-        const rawDomain = domains[0].domain;
-        resolvedUsername = rawDomain.toLowerCase().endsWith('.skr') ? rawDomain : `${rawDomain}.skr`;
-      }
-    } catch (e) {
-      console.log(`[ProfileFetch] .skr resolution failed for ${userId}:`, e);
-    }
+    let resolvedUsername = await resolveSkrUsername(userId);
 
     if (!user) {
       // Return a virtual user profile
@@ -60,15 +67,21 @@ profileImageRouter.get('/', async (req: any, res: any) => {
       });
     }
 
-    // Update if needed
+    // Update if needed (only if username is still the wallet address)
     if (user.username === user.id && resolvedUsername !== user.id) {
-       await knex('users').where({id: userId}).update({
+       const updateData: any = {
          username: resolvedUsername,
-         display_name: resolvedUsername,
          updated_at: new Date()
-       });
+       };
+       
+       // Only overwrite display_name if it's also the wallet address (never updated)
+       if (user.display_name === user.id || !user.display_name) {
+         updateData.display_name = resolvedUsername;
+         user.display_name = resolvedUsername;
+       }
+       
+       await knex('users').where({id: userId}).update(updateData);
        user.username = resolvedUsername;
-       user.display_name = resolvedUsername;
     }
 
     return res.json({
@@ -128,15 +141,19 @@ profileImageRouter.post('/update', async (req: any, res: any) => {
 
     const existingUser = await knex('users').where({ id: userId }).first();
     if (!existingUser) {
+      // For new users, try to resolve their .skr domain for the username field
+      const resolvedUsername = await resolveSkrUsername(userId);
+      
       await knex('users').insert({
         id: userId,
-        username: userId,
+        username: resolvedUsername,
         ...updateData,
         created_at: new Date(),
       });
     } else {
       await knex('users').where({ id: userId }).update(updateData);
     }
+
 
     return res.json({ 
       success: true, 
