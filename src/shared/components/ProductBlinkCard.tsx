@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, TextInput } from 'react-native';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 import { useWallet } from '@/modules/wallet-providers/hooks/useWallet';
@@ -14,12 +14,25 @@ interface ProductBlinkCardProps {
   postId?: string; // Optional: ID of the post containing this listing
 }
 
+interface ActionParameter {
+  name: string;
+  label: string;
+  required?: boolean;
+}
+
 interface ActionMetadata {
   title: string;
   icon: string;
   description: string;
   label: string;
   error?: string;
+  links?: {
+    actions: Array<{
+      label: string;
+      href: string;
+      parameters?: ActionParameter[];
+    }>;
+  };
 }
 
 export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUrls, postId }) => {
@@ -27,6 +40,7 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
   const [metadata, setMetadata] = useState<ActionMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [params, setParams] = useState<Record<string, string>>({});
 
   // Clean the action URL (remove solana-action: prefix and ensure http protocol)
   const actionApiUrl = url.replace('solana-action:', '');
@@ -63,6 +77,17 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
       return;
     }
 
+    // Check if required parameters are filled
+    const action = metadata?.links?.actions?.[0];
+    if (action?.parameters) {
+      for (const p of action.parameters) {
+        if (p.required && !params[p.name]) {
+          Alert.alert("Information Required", `Please enter ${p.label}`);
+          return;
+        }
+      }
+    }
+
     setIsExecuting(true);
     try {
       console.log(`[ProductBlinkCard] Requesting transaction for account: ${address}`);
@@ -71,7 +96,10 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
       const response = await fetch(actionApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account: address }),
+        body: JSON.stringify({ 
+          account: address,
+          data: params // Pass the parameters as 'data' per Action spec
+        }),
       });
 
       if (!response.ok) {
@@ -135,7 +163,10 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
                 price,
                 tokenMint: mint,
                 signature,
-                postId: postId
+                postId: postId,
+                shippingName: params['full_name'],
+                shippingAddress: params['shipping_address'],
+                contactInfo: params['contact']
               }),
             });
           }
@@ -183,6 +214,20 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
       <View style={styles.content}>
         <Text style={styles.title}>{metadata.title}</Text>
         <Text style={styles.description}>{metadata.description}</Text>
+
+        {/* Dynamic Parameters (Shipping Info, etc) */}
+        {metadata.links?.actions?.[0]?.parameters?.map((p: any) => (
+          <View key={p.name} style={styles.parameterContainer}>
+            <Text style={styles.parameterLabel}>{p.label}{p.required ? '*' : ''}</Text>
+            <TextInput
+              style={styles.parameterInput}
+              placeholderTextColor={COLORS.greyMid}
+              value={params[p.name] || ''}
+              onChangeText={(val) => setParams(prev => ({ ...prev, [p.name]: val }))}
+              editable={!isExecuting}
+            />
+          </View>
+        ))}
 
         <TouchableOpacity 
           style={styles.actionButton} 
@@ -251,6 +296,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     marginBottom: 15,
+  },
+  parameterContainer: {
+    marginBottom: 12,
+  },
+  parameterLabel: {
+    color: COLORS.greyMid,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  parameterInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    padding: 10,
+    color: COLORS.white,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   actionButton: {
     backgroundColor: COLORS.brandPrimary,
