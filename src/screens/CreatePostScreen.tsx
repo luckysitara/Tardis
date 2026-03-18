@@ -298,7 +298,7 @@ const CreatePostScreen = ({ navigation, route }) => {
                   {/* Physical Product Toggle */}
                   <View style={[styles.listingToggleContainer, { borderTopWidth: 0, marginTop: 0, paddingVertical: 4 }]}>
                     <View style={styles.listingToggleText}>
-                      <Icons.InfoIcon width={16} height={16} color={COLORS.brandPrimary} />
+                      <Icons.SwapIcon width={16} height={16} color={COLORS.brandPrimary} />
                       <Text style={[styles.listingToggleLabel, { fontSize: 14, marginLeft: 6 }]}>Physical Product (Needs Shipping)</Text>
                     </View>
                     <Switch
