@@ -95,8 +95,10 @@ const ProfileScreen = ({ navigation, route }) => {
   const fetchCommerceData = async () => {
     try {
       setIsCommerceLoading(true);
+      console.log(`[ProfileScreen] Fetching commerce data for userId: ${targetUserId}`);
       const response = await fetch(`${SERVER_BASE_URL}/api/actions/commerce/${targetUserId}`);
       const data = await response.json();
+      console.log(`[ProfileScreen] Raw commerce data received:`, JSON.stringify(data, null, 2));
       if (data.success) {
         setCommerceData({
           listings: data.listings,
@@ -203,6 +205,7 @@ const ProfileScreen = ({ navigation, route }) => {
       
       fetchStats();
       fetchOtherUserProfile();
+      fetchCommerceData();
     }
   }, [dispatch, targetUserId]);
 

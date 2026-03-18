@@ -237,20 +237,27 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
     const { userId } = req.params;
 
     // 1. Fetch products being sold by this user (listings)
+    // We parse their posts to find solana-action URLs or our own action API endpoint
     const listings = await knex('posts')
       .where('author_wallet_address', userId)
       .andWhere(function() {
         this.where('content', 'like', '%solana-action%')
-            .orWhere('content', 'like', '%Solana-Action%');
+            .orWhere('content', 'like', '%Solana-Action%')
+            .orWhere('content', 'like', '%/api/actions/buy%');
       })
       .select('id', 'content', 'media_urls', 'timestamp');
+
+    console.log(`[Commerce API] Raw listings from DB for ${userId}:`, listings.length, listings.map(l => l.id));
 
     const formattedListings = listings.map(post => {
       const content = post.content || '';
       const titleMatch = content.match(/[?&]title=([^&\s]+)/i);
       const priceMatch = content.match(/[?&]price=([^&\s]+)/i);
       
-      if (!priceMatch) return null;
+      if (!priceMatch) {
+        console.warn(`[Commerce API] Listing post ${post.id} skipped due to missing price in content: ${content}`);
+        return null; // Not a valid product listing
+      }
 
       const title = titleMatch ? decodeURIComponent(titleMatch[1].replace(/\+/g, ' ')) : 'Product';
       const price = priceMatch ? priceMatch[1] : '0';
@@ -258,7 +265,9 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
       let mediaUrls = [];
       try {
         mediaUrls = JSON.parse(post.media_urls || '[]');
-      } catch (e) {}
+      } catch (e) {
+        console.warn(`[Commerce API] Post ${post.id} has invalid media_urls JSON:`, post.media_urls);
+      }
 
       return {
         id: post.id,
@@ -269,6 +278,8 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
         type: 'listing'
       };
     }).filter(Boolean);
+
+    console.log(`[Commerce API] Formatted listings to send for ${userId}:`, formattedListings.length, formattedListings.map(l => l.id));
 
     // 2. Fetch products bought by this user
     let formattedPurchases = [];
