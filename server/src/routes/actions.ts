@@ -42,18 +42,20 @@ const getTokenSymbol = (mint: string) => {
  * Returns the Action metadata (Solana Actions Standard)
  */
 actionsRouter.get('/buy', async (req: Request, res: Response) => {
-  const { price, title, seller, image, mint } = req.query;
+  const { price, title, seller, image, mint, physical } = req.query;
   const tokenSymbol = mint ? getTokenSymbol(mint as string) : 'SOL';
   
   // Fetch seller verification status
   let sellerVerified = false;
   if (seller) {
-    const user = await knex('users').where({ id: seller as string }).first();
-    sellerVerified = !!user?.is_hardware_verified;
+    try {
+      const user = await knex('users').where({ id: seller as string }).first();
+      sellerVerified = !!user?.is_hardware_verified;
+    } catch (e) {}
   }
 
-  const payload = {
-    icon: (image as string) || 'https://teal-additional-lemming-515.mypinata.cloud/ipfs/QmZ8Uq8VfT5X5B1T9y9p7m7y8z9w9v8u7t6r5q4p3o2n1m', // Use provided image or fallback placeholder
+  const payload: any = {
+    icon: (image as string) || 'https://teal-additional-lemming-515.mypinata.cloud/ipfs/QmZ8Uq8VfT5X5B1T9y9p7m7y8z9w9v8u7t6r5q4p3o2n1m', 
     title: `Buy ${title || 'Product'}`,
     description: `Purchase this item for ${price} ${tokenSymbol}.${sellerVerified ? ' ✅ Hardware Verified Seller.' : ''} All transactions are hardware-signed on Tardis.`,
     label: `Buy for ${price} ${tokenSymbol}`,
@@ -61,7 +63,24 @@ actionsRouter.get('/buy', async (req: Request, res: Response) => {
       actions: [
         {
           label: `Buy for ${price} ${tokenSymbol}`,
-          href: `/api/actions/buy?price=${price}&title=${title}&seller=${seller}&image=${image || ''}${mint ? `&mint=${mint}` : ''}`,
+          href: `/api/actions/buy?price=${price}&title=${title}&seller=${seller}&image=${image || ''}${mint ? `&mint=${mint}` : ''}${physical ? `&physical=true` : ''}`,
+          parameters: physical === 'true' ? [
+            {
+              name: "full_name",
+              label: "Full Name for Shipping",
+              required: true
+            },
+            {
+              name: "shipping_address",
+              label: "Delivery Address",
+              required: true
+            },
+            {
+              name: "contact",
+              label: "Contact Email/Phone",
+              required: true
+            }
+          ] : []
         }
       ]
     }
@@ -76,7 +95,7 @@ actionsRouter.get('/buy', async (req: Request, res: Response) => {
  */
 actionsRouter.post('/buy', async (req: Request, res: Response) => {
   try {
-    const { account } = req.body; // The user's wallet address
+    const { account, data } = req.body; // The user's wallet address and parameters
     const { price, seller, mint } = req.query;
 
     if (!account) {
@@ -163,19 +182,8 @@ actionsRouter.post('/buy', async (req: Request, res: Response) => {
 });
 
 /**
- * OPTIONS /api/actions/buy
- * CORS Preflight
- */
-actionsRouter.options('/buy', (req: Request, res: Response) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Encoding, Accept-Encoding');
-  res.sendStatus(204);
-});
-
-/**
  * POST /api/actions/record-purchase
- * Records a successful purchase in the database
+ * Records a successful purchase in the database with optional shipping info
  */
 actionsRouter.post('/record-purchase', async (req: Request, res: Response) => {
   try {
@@ -186,7 +194,10 @@ actionsRouter.post('/record-purchase', async (req: Request, res: Response) => {
       price, 
       tokenMint, 
       signature,
-      postId
+      postId,
+      shippingName,
+      shippingAddress,
+      contactInfo
     } = req.body;
 
     if (!buyer || !seller || !productTitle || !price || !signature) {
@@ -203,6 +214,9 @@ actionsRouter.post('/record-purchase', async (req: Request, res: Response) => {
       token_mint: tokenMint || null,
       signature,
       post_id: postId || null,
+      shipping_name: shippingName || null,
+      shipping_address: shippingAddress || null,
+      contact_info: contactInfo || null,
       status: 'completed',
       timestamp: new Date()
     });
@@ -223,7 +237,6 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
     const { userId } = req.params;
 
     // 1. Fetch products being sold by this user (listings)
-    // We parse their posts to find solana-action URLs
     const listings = await knex('posts')
       .where('author_wallet_address', userId)
       .andWhere(function() {
@@ -234,11 +247,10 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
 
     const formattedListings = listings.map(post => {
       const content = post.content || '';
-      // Improved regex to handle various delimiters and ensure we get the title/price
       const titleMatch = content.match(/[?&]title=([^&\s]+)/i);
       const priceMatch = content.match(/[?&]price=([^&\s]+)/i);
       
-      if (!priceMatch) return null; // Not a valid product listing
+      if (!priceMatch) return null;
 
       const title = titleMatch ? decodeURIComponent(titleMatch[1].replace(/\+/g, ' ')) : 'Product';
       const price = priceMatch ? priceMatch[1] : '0';
@@ -259,19 +271,27 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
     }).filter(Boolean);
 
     // 2. Fetch products bought by this user
-    const purchases = await knex('purchases')
-      .where('buyer_wallet_address', userId)
-      .orderBy('timestamp', 'desc');
+    let formattedPurchases = [];
+    try {
+      const purchases = await knex('purchases')
+        .where('buyer_wallet_address', userId)
+        .orderBy('timestamp', 'desc');
 
-    const formattedPurchases = purchases.map(p => ({
-      id: p.id,
-      title: p.product_title,
-      price: p.price,
-      timestamp: p.timestamp,
-      seller: p.seller_wallet_address,
-      signature: p.signature,
-      type: 'purchase'
-    }));
+      formattedPurchases = purchases.map(p => ({
+        id: p.id,
+        title: p.product_title,
+        price: p.price,
+        timestamp: p.timestamp,
+        seller: p.seller_wallet_address,
+        signature: p.signature,
+        shippingName: p.shipping_name,
+        shippingAddress: p.shipping_address,
+        contactInfo: p.contact_info,
+        type: 'purchase'
+      }));
+    } catch (e) {
+      console.warn('[Commerce] Purchases table might not exist yet');
+    }
 
     res.json({
       success: true,
@@ -282,6 +302,17 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
     console.error('[Actions/Commerce] Error:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+/**
+ * OPTIONS /api/actions/buy
+ * CORS Preflight
+ */
+actionsRouter.options('/buy', (req: Request, res: Response) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Encoding, Accept-Encoding');
+  res.sendStatus(204);
 });
 
 export default actionsRouter;

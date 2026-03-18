@@ -38,6 +38,7 @@ const CreatePostScreen = ({ navigation, route }) => {
   const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [isListingMode, setIsListingMode] = useState(false);
+  const [isPhysical, setIsPhysical] = useState(false);
   const [listingPrice, setListingPrice] = useState('');
   const [listingTitle, setListingTitle] = useState('');
   const [selectedToken, setSelectedToken] = useState('SKR'); // Default to SKR
@@ -120,6 +121,10 @@ const CreatePostScreen = ({ navigation, route }) => {
         // Format: [Text] solana-action:https://seek.kikhaus.com/api/actions/buy?price=[PRICE]&title=[TITLE]&seller=[SELLER]&image=[IMAGE]
         let blinkUrl = `solana-action:${SERVER_BASE_URL}/api/actions/buy?price=${listingPrice}&title=${encodeURIComponent(listingTitle || 'Product')}&seller=${userId}`;
         
+        if (isPhysical) {
+          blinkUrl += `&physical=true`;
+        }
+
         const tokenMint = TOKENS[selectedToken];
         if (tokenMint) {
           blinkUrl += `&mint=${tokenMint}`;
@@ -289,6 +294,21 @@ const CreatePostScreen = ({ navigation, route }) => {
                     value={listingTitle}
                     onChangeText={setListingTitle}
                   />
+
+                  {/* Physical Product Toggle */}
+                  <View style={[styles.listingToggleContainer, { borderTopWidth: 0, marginTop: 0, paddingVertical: 4 }]}>
+                    <View style={styles.listingToggleText}>
+                      <Icons.InfoIcon width={16} height={16} color={COLORS.brandPrimary} />
+                      <Text style={[styles.listingToggleLabel, { fontSize: 14, marginLeft: 6 }]}>Physical Product (Needs Shipping)</Text>
+                    </View>
+                    <Switch
+                      value={isPhysical}
+                      onValueChange={setIsPhysical}
+                      trackColor={{ false: COLORS.borderDarkColor, true: COLORS.brandPrimary }}
+                      thumbColor={COLORS.white}
+                    />
+                  </View>
+
                   <View style={styles.priceInputContainer}>
                     <View style={[styles.pickerWrapper, { flex: 0, width: 110, marginRight: 10 }]}>
                       <Picker
