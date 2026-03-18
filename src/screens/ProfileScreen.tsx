@@ -371,26 +371,34 @@ const ProfileScreen = ({ navigation, route }) => {
     </View>
   );
 
+  const renderCommerceHeader = () => (
+    <View>
+      {renderProfileHeader()}
+      <View style={styles.commerceTabsContainer}>
+        <TouchableOpacity 
+          style={[styles.commerceTab, commerceTab === 'LISTINGS' && styles.activeCommerceTab]} 
+          onPress={() => setCommerceTab('LISTINGS')}
+        >
+          <Text style={[styles.commerceTabText, commerceTab === 'LISTINGS' && styles.activeCommerceTabText]}>My Listings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.commerceTab, commerceTab === 'PURCHASES' && styles.activeCommerceTab]} 
+          onPress={() => setCommerceTab('PURCHASES')}
+        >
+          <Text style={[styles.commerceTabText, commerceTab === 'PURCHASES' && styles.activeCommerceTabText]}>My Purchases</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const renderCommerceContent = () => {
     return (
       <View style={{ flex: 1 }}>
-        <View style={styles.commerceSubTabs}>
-          <TouchableOpacity 
-            style={[styles.subTab, commerceTab === 'LISTINGS' && styles.activeSubTab]} 
-            onPress={() => setCommerceTab('LISTINGS')}
-          >
-            <Text style={[styles.subTabLabel, commerceTab === 'LISTINGS' && styles.activeSubTabLabel]}>Listings</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.subTab, commerceTab === 'PURCHASES' && styles.activeSubTab]} 
-            onPress={() => setCommerceTab('PURCHASES')}
-          >
-            <Text style={[styles.subTabLabel, commerceTab === 'PURCHASES' && styles.activeSubTabLabel]}>Purchases</Text>
-          </TouchableOpacity>
-        </View>
-
         {isCommerceLoading ? (
-          <ActivityIndicator size="small" color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
+          <View style={{ flex: 1 }}>
+            {renderProfileHeader()}
+            <ActivityIndicator size="small" color={COLORS.brandPrimary} style={{ marginTop: 20 }} />
+          </View>
         ) : (
           <FlashList
             data={commerceTab === 'LISTINGS' ? commerceData.listings : commerceData.purchases}
@@ -430,7 +438,7 @@ const ProfileScreen = ({ navigation, route }) => {
             )}
             estimatedItemSize={80}
             keyExtractor={(item, index) => (item.id || index).toString()}
-            ListHeaderComponent={renderProfileHeader}
+            ListHeaderComponent={renderCommerceHeader}
             ListEmptyComponent={() => (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>
@@ -755,29 +763,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
   },
-  commerceSubTabs: {
+  commerceTabsContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 4,
     marginHorizontal: 16,
     marginTop: 10,
-    borderRadius: 10,
-    padding: 4,
+    marginBottom: 8,
   },
-  subTab: {
+  commerceTab: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
     borderRadius: 8,
   },
-  activeSubTab: {
-    backgroundColor: 'rgba(50, 212, 222, 0.15)',
+  activeCommerceTab: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  subTabLabel: {
+  commerceTabText: {
     color: COLORS.greyMid,
+    fontWeight: '700',
     fontSize: 14,
-    fontWeight: '600',
   },
-  activeSubTabLabel: {
+  activeCommerceTabText: {
     color: COLORS.brandPrimary,
   },
   commerceItem: {
