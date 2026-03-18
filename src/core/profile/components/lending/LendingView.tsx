@@ -242,6 +242,9 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
   const onRefresh = () => { setRefreshing(true); fetchPools(); fetchBalances(); };
 
   const handleCreateLendingOrder = async () => {
+    Alert.alert("Coming Soon", "P2P Lending is currently under development and will be available in the next update.");
+    return;
+
     if (!provider || !publicKey) return;
     const amountNum = parseFloat(depositAmount);
     if (!amountNum) { Alert.alert("Error", "Enter a valid amount"); return; }
@@ -309,6 +312,9 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
   }, [borrowAmount, selectedPool, skrPrice]);
 
   const handleConfirmBorrow = async () => {
+    Alert.alert("Coming Soon", "Borrowing features are currently under development and will be available in the next update.");
+    return;
+
     if (!provider || !publicKey || !selectedPool) return;
     const amount = parseFloat(borrowAmount);
     if (!amount) return;
