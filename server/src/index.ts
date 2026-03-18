@@ -98,10 +98,10 @@ app.use('/api/posts', postsRouter); // Add this line
 app.use('/api/chat', chatRouter); // Add this line
 app.use('/api/communities', communityRouter); // Add this line
 app.use('/api/follows', followRouter); // Add this line
+app.use('/api/actions', actionsRouter); // Add this line
 app.use('/api/helius', heliusRouter); // Add this line
 app.use('/api/jupiter/ultra', jupiterUltraSwapRouter); // Add this line
 app.use('/api/domain', domainRouter);
-app.use('/api/actions', actionsRouter);
 app.use('/api/pumpfun', launchRouter);
 
 // Socket.io handlers
@@ -287,11 +287,11 @@ const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
       console.log('✅ Added status column to chat_messages table.');
     } catch (e) {}
 
-    // 3. Create notifications table
+    // Migration: Create notifications table
     try {
       const idType = isPostgres ? 'UUID' : 'CHAR(36)';
       const timestampType = isPostgres ? 'TIMESTAMPTZ' : 'DATETIME';
-      
+
       await knex.raw(`
         CREATE TABLE IF NOT EXISTS notifications (
             id ${idType} PRIMARY KEY NOT NULL,
@@ -308,6 +308,36 @@ const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
       `);
       console.log('✅ Ensured notifications table exists.');
     } catch (e) {}
+
+    // Migration: Create purchases table
+    try {
+      const idType = isPostgres ? 'UUID' : 'CHAR(36)';
+      const timestampType = isPostgres ? 'TIMESTAMPTZ' : 'DATETIME';
+
+      await knex.raw(`
+        CREATE TABLE IF NOT EXISTS purchases (
+            id ${idType} PRIMARY KEY NOT NULL,
+            buyer_wallet_address VARCHAR(255) NOT NULL,
+            seller_wallet_address VARCHAR(255) NOT NULL,
+            post_id ${idType} NULL,
+            product_title VARCHAR(255) NOT NULL,
+            price VARCHAR(255) NOT NULL,
+            token_mint VARCHAR(255) NULL,
+            signature TEXT NOT NULL,
+            shipping_name VARCHAR(255) NULL,
+            shipping_address TEXT NULL,
+            contact_info VARCHAR(255) NULL,
+            status VARCHAR(50) DEFAULT 'completed',
+            timestamp ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (buyer_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (seller_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
+        );
+      `);
+      console.log('✅ Ensured purchases table exists.');
+    } catch (e) {}
+
 
     // 4. Migration: Clean up double .skr extensions in users table
     try {

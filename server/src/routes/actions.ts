@@ -277,26 +277,40 @@ actionsRouter.get('/commerce/:userId', async (req: Request, res: Response) => {
         .where('buyer_wallet_address', userId)
         .orderBy('timestamp', 'desc');
 
-      formattedPurchases = purchases.map(p => ({
-        id: p.id,
-        title: p.product_title,
-        price: p.price,
-        timestamp: p.timestamp,
-        seller: p.seller_wallet_address,
-        signature: p.signature,
-        shippingName: p.shipping_name,
-        shippingAddress: p.shipping_address,
-        contactInfo: p.contact_info,
-        type: 'purchase'
+      // Fetch seller names/verification for purchases
+      formattedPurchases = await Promise.all(purchases.map(async (p) => {
+        const seller = await knex('users').where({ id: p.seller_wallet_address }).first();
+        return {
+          id: p.id,
+          title: p.product_title,
+          price: p.price,
+          timestamp: p.timestamp,
+          seller: p.seller_wallet_address,
+          sellerName: seller?.display_name || p.seller_wallet_address,
+          sellerVerified: !!seller?.is_hardware_verified,
+          signature: p.signature,
+          shippingName: p.shipping_name,
+          shippingAddress: p.shipping_address,
+          contactInfo: p.contact_info,
+          type: 'purchase'
+        };
       }));
     } catch (e) {
       console.warn('[Commerce] Purchases table might not exist yet');
     }
 
+    // 3. Get user's own verification status
+    let userVerified = false;
+    try {
+      const user = await knex('users').where({ id: userId }).first();
+      userVerified = !!user?.is_hardware_verified;
+    } catch (e) {}
+
     res.json({
       success: true,
       listings: formattedListings,
-      purchases: formattedPurchases
+      purchases: formattedPurchases,
+      userVerified
     });
   } catch (error: any) {
     console.error('[Actions/Commerce] Error:', error);
