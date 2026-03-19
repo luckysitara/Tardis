@@ -5,11 +5,13 @@ anchor_version = "0.32.1"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-lending_program = "E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP"
-
 [programs.devnet]
 lending_program = "E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP"
+sales_escrow = "9NbGsgPsvCCCQVKzxYG8tyU9XHJVvur2KtUFcKackL9t"
+
+[programs.localnet]
+lending_program = "E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP"
+sales_escrow = "9NbGsgPsvCCCQVKzxYG8tyU9XHJVvur2KtUFcKackL9t"
 
 [registry]
 url = "https://api.apr.dev"
