@@ -25,6 +25,9 @@ export const PUBLIC_KEYS = {
   wSolMint: 'So11111111111111111111111111111111111111112',
   // Default receiver public key for transfers
   defaultReceiver: '24MDwQXG2TWiST8ty1rjcrKgtaYaMiLdRxFQawYgZh4v',
+  // Escrow Program IDs
+  SALES_ESCROW_ID: '9NbGsgPsvCCCQVKzxYG8tyU9XHJVvur2KtUFcKackL9t',
+  LENDING_ESCROW_ID: 'E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP',
   jitoTipAccounts: [
     '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
     'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
