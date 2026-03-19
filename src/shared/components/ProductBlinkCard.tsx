@@ -41,6 +41,7 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
   const [loading, setLoading] = useState(true);
   const [isExecuting, setIsExecuting] = useState(false);
   const [params, setParams] = useState<Record<string, string>>({});
+  const [showForm, setShowForm] = useState(false);
 
   // Clean the action URL (remove solana-action: prefix and ensure http protocol)
   const actionApiUrl = url.replace('solana-action:', '');
@@ -134,6 +135,7 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
       if (signature) {
         Alert.alert("Success", `Transaction successful! ${data.message || ''}`);
         console.log(`[ProductBlinkCard] Transaction signature: ${signature}`);
+        setShowForm(false);
         
         // 3. Record the purchase in our database
         try {
@@ -215,8 +217,8 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
         <Text style={styles.title}>{metadata.title}</Text>
         <Text style={styles.description}>{metadata.description}</Text>
 
-        {/* Dynamic Parameters (Shipping Info, etc) */}
-        {metadata.links?.actions?.[0]?.parameters?.map((p: any) => (
+        {/* Dynamic Parameters (Shipping Info, etc) - Only show if user clicked Buy */}
+        {showForm && metadata.links?.actions?.[0]?.parameters?.map((p: any) => (
           <View key={p.name} style={styles.parameterContainer}>
             <Text style={styles.parameterLabel}>{p.label}{p.required ? '*' : ''}</Text>
             <TextInput
@@ -229,20 +231,41 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
           </View>
         ))}
 
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={handleAction}
-          disabled={isExecuting}
-        >
-          {isExecuting ? (
-            <ActivityIndicator size="small" color={COLORS.white} />
-          ) : (
-            <>
-              <Icons.WalletIcon width={18} height={18} color={COLORS.white} />
-              <Text style={styles.actionButtonText}>{metadata.label || 'Execute Action'}</Text>
-            </>
+        <View style={styles.buttonContainer}>
+          {showForm && (
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => setShowForm(false)}
+              disabled={isExecuting}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, showForm ? { flex: 2 } : { width: '100%' }]} 
+            onPress={() => {
+              const hasParams = (metadata.links?.actions?.[0]?.parameters?.length ?? 0) > 0;
+              if (hasParams && !showForm) {
+                setShowForm(true);
+              } else {
+                handleAction();
+              }
+            }}
+            disabled={isExecuting}
+          >
+            {isExecuting ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <>
+                <Icons.WalletIcon width={18} height={18} color={COLORS.white} />
+                <Text style={styles.actionButtonText}>
+                  {showForm ? 'Confirm & Pay' : (metadata.label || 'Buy Now')}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -279,7 +302,7 @@ const styles = StyleSheet.create({
   },
   productImage: {
     width: '100%',
-    height: 180,
+    height: 250,
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
   },
   content: {
@@ -329,4 +352,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 10,
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cancelButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
+

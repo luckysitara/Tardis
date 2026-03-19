@@ -11,7 +11,7 @@
            "**/*"
          ],
          "android": {
-          "package": "com.tardis.app",
+          "package": "xyz.tardis.app",
           "adaptiveIcon": {
             "foregroundImage": "./src/assets/images/tardis_icon.jpg",
             "backgroundColor": "#00050D"
@@ -21,7 +21,7 @@
           ]
         },
         "ios": {
-          "bundleIdentifier": "com.tardis.app",
+          "bundleIdentifier": "xyz.tardis.app",
           "infoPlist": {
             "NSPhotoLibraryUsageDescription": "We need access to your photos to let you pick images."
           }
