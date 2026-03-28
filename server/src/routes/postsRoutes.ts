@@ -102,7 +102,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
         // Ensure user exists (JIT creation) with .skr resolution
         let finalUsername = author_skr_username;
         const isWallet = (val: string) => val && val.length > 30 && !val.includes('.');
-        
+
         if (isWallet(finalUsername)) {
             try {
                 const connection = getConnection();
@@ -117,10 +117,10 @@ postsRouter.post('/', async (req: Request, res: Response) => {
                 console.log(`[PostsRouter] .skr resolution failed for JIT user:`, e.message);
             }
         }
-
-        // Check if user exists first to avoid aggressive merge overwriting custom display names
+        console.log('[PostsRouter] Checking for existing user or creating JIT user...');
         const existingUser = await knex('users').where({ id: author_wallet_address }).first();
         if (!existingUser) {
+            console.log(`[PostsRouter] User ${author_wallet_address} not found, inserting new user with username: ${finalUsername}`);
             await knex('users').insert({
                 id: author_wallet_address,
                 username: finalUsername,
@@ -128,27 +128,32 @@ postsRouter.post('/', async (req: Request, res: Response) => {
                 created_at: new Date(),
                 updated_at: new Date()
             });
+            console.log(`[PostsRouter] New user ${author_wallet_address} inserted.`);
         } else {
-            // User exists, only update username/display_name if they are still just the wallet address
             const updateData: any = { updated_at: new Date() };
             let shouldUpdate = false;
+            console.log(`[PostsRouter] User ${author_wallet_address} exists. Checking if update needed.`);
 
             if (existingUser.username === existingUser.id && finalUsername !== existingUser.id) {
                 updateData.username = finalUsername;
                 shouldUpdate = true;
-                // Also update display_name if it was also just the ID
                 if (existingUser.display_name === existingUser.id) {
                     updateData.display_name = finalUsername;
                 }
+                console.log(`[PostsRouter] User ${author_wallet_address} username/display_name updated to ${finalUsername}.`);
             }
 
             if (shouldUpdate) {
                 await knex('users').where({ id: author_wallet_address }).update(updateData);
+                console.log(`[PostsRouter] User ${author_wallet_address} updated in DB.`);
+            } else {
+                console.log(`[PostsRouter] User ${author_wallet_address} update not needed.`);
             }
         }
 
         // Generate a UUID for the new post
         const postId = uuidv4();
+        console.log(`[PostsRouter] Generated postId: ${postId}. Inserting post into DB...`);
 
         // Store post in database
         await knex('posts').insert({
@@ -167,6 +172,7 @@ postsRouter.post('/', async (req: Request, res: Response) => {
             parent_id,
             is_public: !!is_public
         });
+        console.log(`[PostsRouter] Post ${postId} inserted into DB. Triggering notifications...`);
 
         // Trigger notifications asynchronously
         processMentions(content, author_wallet_address, postId, 'post');
@@ -177,29 +183,30 @@ postsRouter.post('/', async (req: Request, res: Response) => {
                 }
             });
         }
+        console.log(`[PostsRouter] Notifications triggered. Fetching saved post details...`);
 
         // Fetch the inserted post with user details
         const savedPost = await knex('posts')
             .leftJoin('users', 'posts.author_wallet_address', 'users.id')
             .select(
-                'posts.*', 
-                'users.profile_picture_url', 
-                'users.display_name', 
-                'users.username', 
+                'posts.*',
+                'users.profile_picture_url',
+                'users.display_name',
+                'users.username',
                 'users.public_encryption_key',
                 knex.raw('(SELECT COUNT(*) FROM posts as p2 WHERE p2.parent_id = posts.id) as reply_count')
             )
             .where('posts.id', postId)
             .first();
+        console.log(`[PostsRouter] Saved post details fetched for ${postId}. Responding...`);
 
         return res.status(201).json({ success: true, post: mapPost(savedPost) });
 
-    } catch (error: any) {
+        } catch (error: any) {
         console.error('[POST /api/posts] Error creating post:', error);
         return res.status(500).json({ success: false, error: error.message });
-    }
-});
-
+        }
+        });
 // GET /api/posts - Retrieve a list of posts
 postsRouter.get('/', async (req: Request, res: Response) => {
     console.log('[GET /api/posts] Fetching posts with query:', req.query);

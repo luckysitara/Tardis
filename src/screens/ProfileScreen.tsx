@@ -428,10 +428,15 @@ const ProfileScreen = ({ navigation, route }) => {
                 <TouchableOpacity 
                   style={styles.viewProductButton}
                   onPress={() => {
+                    console.log('[ProfileScreen] View button pressed:', item);
                     if (item.type === 'listing' && item.id) {
+                      console.log(`[ProfileScreen] Navigating to ThreadDetailScreen with postId: ${item.id}`);
                       navigation.navigate('ThreadDetailScreen', { postId: item.id });
                     } else if (item.signature) {
+                      console.log(`[ProfileScreen] Showing transaction alert for signature: ${item.signature}`);
                       Alert.alert("Transaction", `Signature: ${item.signature}`);
+                    } else {
+                      console.warn('[ProfileScreen] View button clicked, but no action taken. Item:', item);
                     }
                   }}
                 >
