@@ -12,7 +12,7 @@
   [![Blinks](https://img.shields.io/badge/Solana-Blinks-blue?style=for-the-badge)](https://solana.com/developers/actions)
 </div>
 
----
+
 
 ## 🔍 The Problem: The "Social-Trust" Gap
 
@@ -23,13 +23,13 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 
 ## 💡 The Solution: A Hardware-Locked Social Moat
 
-**TARDIS** is the first **Social-Financial OS** built to turn the Solana Seeker into a sovereign communication and wealth-management node. We move past "apps" into a **Hardware-Attested Ecosystem**.
+**TARDIS** is the first **Social-Financial OS** built to turn the Solana Seeker into a sovereign communication and wealth-management node. We move past "apps" into a **Hardware-Attested Ecosystem.**
 
 *   **Verified Humanity:** Every user is a confirmed human, verified via **Seeker Hardware Attestation** and the **Seeker Genesis Token (SGT)**.
 *   **Unforgeable Identity:** Your **.skr handle** is cryptographically anchored to your device's **Seed Vault**.
 *   **Atomic Finance:** We bring the market *into* the conversation. Lending, commerce, and token launches happen via **Solana Actions (Blinks)** directly in the feed.
 
----
+
 
 ## 🚀 Core Pillars
 
@@ -40,7 +40,7 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 - 🛍️ **Social Commerce & Escrow:** Secure buyer/seller protection through an **Anchor-based Escrow contract**, rendered via interactive **Blinks**.
 - 📊 **Financial Terminal:** A high-fidelity dashboard for **Pump.fun** launches, portfolio management, and real-time social-financial signals.
 
----
+
 
 ## 🎮 User Guide: Step-by-Step TARDIS Walkthrough
 
@@ -67,28 +67,79 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 1.  **DM:** Message other Seeker owners with **E2EE** (keys derived from Seed Vault).
 2.  **Tip:** Send instant SOL/SPL tips 💸 next to a user's name without leaving the conversation.
 
-### 6. Financial OS (Lending & Portfolio)
-1.  **Lend/Borrow:** Access P2P credit markets. Your reputation is tied to your hardware ID, reducing risk.
-2.  **Dashboard:** Track staking rewards, balances, and NFT floor prices in a unified view.
 
----
 
-## 🤖 Reimagine AI (Solana Agent Kit)
+## 📦 Installation & Local Setup
 
-**The "Grok" of Solana.** Reimagine executes trades via natural language:
-- *"Swap 1 SOL for $SKR if price hits $0.50"*
-- *"What is my total net worth across all colonies?"*
+To run TARDIS locally for development or testing, follow these steps.
 
----
+### 1. Prerequisites
+- **Node.js** (v18+)
+- **pnpm** (`npm install -g pnpm`)
+- **Android Studio** (for Seeker Emulator or Physical Device)
+- **Solana Seeker** (Physical device or Emulator with MWA support)
+
+### 2. Clone the Repository
+```bash
+git clone https://github.com/luckysitara/Tardis.git
+cd Tardis
+```
+
+### 3. Backend Setup (Server)
+1. **Navigate to server:**
+   ```bash
+   cd server
+   pnpm install
+   ```
+2. **Configure Environment:**
+   Copy the example environment file and update it with your credentials (e.g., Supabase, Solana RPC, Pinata).
+   ```bash
+   cp .env.example .env
+   ```
+3. **Run Server:**
+   ```bash
+   pnpm dev
+   ```
+
+### 4. Mobile App Setup (Frontend)
+1. **Navigate back to root and install dependencies:**
+   ```bash
+   cd ..
+   pnpm install
+   ```
+2. **Configure Environment:**
+   Update the `.env` file in the root directory with your **Backend URL** (e.g., `http://10.0.2.2:3000` for Android emulator).
+3. **Run on Android (Debug):**
+   ```bash
+   npx expo run:android
+   ```
+4. **Run on Android (Release Variant):**
+   ```bash
+   npx expo run:android --variant=release
+   ```
+
+
+
+## 🛠 Technical Architecture
+
+```text
+[ Solana Seeker ] <--- MWA ---> [ TARDIS Mobile App ] <--- Socket.io ---> [ TARDIS Backend ]
+       |                                |                                     |
+[ Seed Vault ]                  [ Redux / Thunks ]                    [ Node.js / Knex ]
+       |                                |                                     |
+[ X25519 Keys ]                 [ Escrow Smart Contract ]             [ Supabase / RLS ]
+```
+
+
 
 ## 🗺 Phased Roadmap
 
 - **Phase 1: The Big Bang** (Hardware Auth & Identity) ✅
 - **Phase 2: Materialization** (Signed Social Feed & Blinks) ✅
 - **Phase 3: Zero-Knowledge** (E2EE DMs & Hardware Keys) ✅
-- **Phase 4: Financial OS** (Lending, Escrow, Portfolio) 🚧
+- **Phase 4: Financial OS** (Lending, Escrow, Portfolio) ✅
 - **Phase 5: Galactic Map** (AI Alpha, Node Staking) 🚧
 
----
+
 
 **Transmitting from the Seeker... See you in the Town Square.** 🛸
