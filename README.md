@@ -6,6 +6,8 @@
   <p align="center">
     <b>Hardware-Attested · Bot-Free · Sovereign Identity · Financial Terminal</b>
   </p>
+  
+  [![Download APK](https://img.shields.io/badge/Download-APK-orange?style=for-the-badge&logo=android)](./Tardis.apk)
 
   [![Solana Seeker](https://img.shields.io/badge/Solana-Seeker-000?style=for-the-badge&logo=solana&logoColor=9945FF)](https://solanamobile.com/)
   [![Seed Vault](https://img.shields.io/badge/Seed_Vault-Secure-green?style=for-the-badge)](https://solanamobile.com/seed-vault)
@@ -68,6 +70,11 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 2.  **Tip:** Send instant SOL/SPL tips 💸 next to a user's name without leaving the conversation.
 
 
+## 📲 Quick Install
+If you are viewing this on your **Solana Seeker** or an Android device, you can download the latest build directly:
+
+> [!IMPORTANT]
+> **[Download Tardis.apk](./Tardis.apk)**
 
 ## 📦 Installation & Local Setup
 
