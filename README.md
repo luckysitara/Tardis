@@ -119,7 +119,12 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 
 ### 📺 Product Demo
 Watch the TARDIS ecosystem in action, from hardware-native onboarding to social commerce and encrypted messaging.
-> **[Watch Demo Video](./demo.mp4)**
+
+- **Local Stream:** **[Watch Demo Video](./demo.mp4)**
+- **Cloud Links (No Download):**
+  - [Full Demo (Pitch + App)](https://www.loom.com/share/2131fbc8d8ee4bd7b69ce6905a9205d8)
+  - [Edited Demo](https://www.loom.com/share/d63926589a594e6eba8488a14106fb31)
+  - [App Only (No Pitch)](https://www.loom.com/share/a98fe2d0935e407a9c5133b6d807d3b1)
 
 ### 📊 Pitch Deck
 A comprehensive look at the TARDIS vision, market opportunity, and technical moat.
