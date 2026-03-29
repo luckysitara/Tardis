@@ -71,6 +71,11 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 
 
 ## 📲 Quick Install
+
+[!CAUTION]
+📱 Hardware Requirement: Solana Mobile Only
+TARDIS requires a Solana Seeker (or Saga) device to function.
+This app leverages Seed Vault and Hardware Attestation for core security and identity features. It will not run on standard Android devices or emulators without the Solana Mobile Stack (SMS) and physical secure element support.
 If you are viewing this on your **Solana Seeker** or an Android device, you can download the latest build directly:
 
 > [!IMPORTANT]
