@@ -23,6 +23,7 @@
 - [💡 The Solution](#-the-solution)
 - [🚀 Core Pillars](#-core-pillars)
 - [🎮 User Guide: Step-by-Step TARDIS Walkthrough](#-user-guide-step-by-step-tardis-walkthrough)
+- [🎥 Media & Resources](#-media--resources)
 - [🤖 Reimagine AI (Solana Agent Kit)](#-reimagine-ai-solana-agent-kit)
 - [📲 Quick Install](#-quick-install)
 - [📦 Installation & Local Setup](#-installation--local-setup)
@@ -111,6 +112,18 @@ Web2 social platforms and generic dApps are failing the **Solana Seeker** commun
 1.  **Tardis Agent:** Open the **Reimagine AI** screen.
 2.  **Natural Language Commands:** Type commands like *"Swap 0.5 SOL for $BONK"* or *"What is the floor price of my Mad Lads?"*
 3.  **Lending:** Use the **Financial** tab to request or provide P2P collateralized loans.
+
+---
+
+## 🎥 Media & Resources
+
+### 📺 Product Demo
+Watch the TARDIS ecosystem in action, from hardware-native onboarding to social commerce and encrypted messaging.
+> **[Watch Demo Video](./demo.mp4)**
+
+### 📊 Pitch Deck
+A comprehensive look at the TARDIS vision, market opportunity, and technical moat.
+> **[View Pitch Deck (PDF)](./tardis_pitch.pdf)**
 
 ---
 
