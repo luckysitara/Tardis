@@ -3,7 +3,7 @@
     "name": "Solana App Kit",
     "slug": "solana-app-kit",
     "scheme": "solanaappkit",
-    "version": "0.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
