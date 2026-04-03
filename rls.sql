@@ -170,6 +170,20 @@ CREATE TABLE IF NOT EXISTS follows (
     UNIQUE (follower_id, following_id)
 );
 
+-- PUSH TOKENS TABLE
+CREATE TABLE IF NOT EXISTS push_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expo_push_token VARCHAR(500) NOT NULL UNIQUE,
+    device_id VARCHAR(255) NULL,
+    platform VARCHAR(20) NOT NULL,
+    app_version VARCHAR(50) NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ==========================================
 -- 2. INDEXES FOR PERFORMANCE
 -- ==========================================
@@ -177,6 +191,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(chat_room_id)
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_wallet_address);
 CREATE INDEX IF NOT EXISTS idx_posts_community ON posts(community_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user ON push_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_active ON push_tokens(is_active);
 
 -- ==========================================
 -- 3. ENABLE ROW LEVEL SECURITY (RLS)
@@ -194,6 +210,7 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE message_reactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
 
 -- ==========================================
 -- 4. SECURITY POLICIES (Using DO blocks for safety)
@@ -333,6 +350,13 @@ DO $$ BEGIN
     END IF;
 END $$;
 
+-- PUSH TOKENS
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users manage own push tokens') THEN
+        CREATE POLICY "Users manage own push tokens" ON push_tokens FOR ALL USING (auth.uid()::text = user_id);
+    END IF;
+END $$;
+
 -- ==========================================
 -- 5. UPDATED_AT TRIGGERS
 -- ==========================================
@@ -362,5 +386,8 @@ DO $$ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_chat_messages') THEN
         CREATE TRIGGER set_updated_at_chat_messages BEFORE UPDATE ON chat_messages FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'set_updated_at_push_tokens') THEN
+        CREATE TRIGGER set_updated_at_push_tokens BEFORE UPDATE ON push_tokens FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
     END IF;
 END $$;
