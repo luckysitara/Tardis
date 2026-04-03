@@ -338,6 +338,31 @@ const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
       console.log('✅ Ensured purchases table exists.');
     } catch (e) {}
 
+    // Migration: Create push_tokens table
+    try {
+      const serialType = isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+      const timestampType = isPostgres ? 'TIMESTAMPTZ' : 'DATETIME';
+
+      await knex.raw(`
+        CREATE TABLE IF NOT EXISTS push_tokens (
+            id ${serialType},
+            user_id VARCHAR(255) NOT NULL,
+            expo_push_token VARCHAR(500) NOT NULL UNIQUE,
+            device_id VARCHAR(255) NULL,
+            platform VARCHAR(20) NOT NULL,
+            app_version VARCHAR(50) NULL,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_used_at ${timestampType} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+      console.log('✅ Ensured push_tokens table exists.');
+    } catch (e) {
+      console.error('❌ Failed to ensure push_tokens table exists:', e.message);
+    }
+
 
     // 4. Migration: Clean up double .skr extensions in users table
     try {

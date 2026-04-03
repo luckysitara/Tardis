@@ -191,6 +191,20 @@ CREATE TABLE IF NOT EXISTS purchases (
     FOREIGN KEY (seller_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS push_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id VARCHAR(255) NOT NULL,
+    expo_push_token VARCHAR(500) NOT NULL UNIQUE,
+    device_id VARCHAR(255) NULL,
+    platform VARCHAR(20) NOT NULL,
+    app_version VARCHAR(50) NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 `;
 
 export const createTablesPostgresSQL = `
@@ -377,5 +391,19 @@ CREATE TABLE IF NOT EXISTS purchases (
     FOREIGN KEY (buyer_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (seller_wallet_address) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS push_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    expo_push_token VARCHAR(500) NOT NULL UNIQUE,
+    device_id VARCHAR(255) NULL,
+    platform VARCHAR(20) NOT NULL,
+    app_version VARCHAR(50) NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 `;
