@@ -3,6 +3,7 @@
 import knex from '../db/knex';
 import { Post, Like, Repost, CreatePostRequest } from '../types/socialFeed.d';
 import { v4 as uuidv4 } from 'uuid'; // For generating UUIDs if not using defaultTo(knex.raw('gen_random_uuid()'))
+import { createNotification } from '../service/notificationService';
 
 // Mock signature verification for now
 // In a real scenario, this would involve reconstructing the message and using a Solana library to verify
@@ -126,6 +127,12 @@ export class SocialFeedService {
             await knex('posts').where({ id: postId }).increment('likes_count', 1);
             likesCountChange = 1;
             isLikedByMe = true;
+
+            // Trigger notification
+            const post = await knex('posts').where({ id: postId }).first();
+            if (post) {
+                createNotification(post.user_id, 'like', userId, postId);
+            }
         }
 
         const post = await knex('posts').where({ id: postId }).first();
@@ -156,6 +163,12 @@ export class SocialFeedService {
             await knex('posts').where({ id: postId }).increment('reposts_count', 1);
             repostsCountChange = 1;
             isRepostedByMe = true;
+
+            // Trigger notification
+            const post = await knex('posts').where({ id: postId }).first();
+            if (post) {
+                createNotification(post.user_id, 'repost', userId, postId);
+            }
         }
 
         const post = await knex('posts').where({ id: postId }).first();

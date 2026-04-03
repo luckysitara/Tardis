@@ -80,6 +80,9 @@ import TransactionNotification from './src/core/shared-ui/TransactionNotificatio
 // Import DevMode components
 import DevDrawer from './src/core/dev-mode/DevDrawer';
 
+// Import Notification Service
+import notificationService from './src/shared/services/notificationService';
+
 // Import Environment Error provider and new components
 import DevModeStatusBar from './src/core/dev-mode/DevModeStatusBar';
 import { DevModeProvider, useDevMode } from '@/shared/context/DevModeContext';
@@ -135,6 +138,17 @@ const PersistLoading = () => (
 export default function App() {
   const config = DefaultCustomizationConfig;
   // Removed: const [dynamicInitialized, setDynamicInitialized] = useState(false);
+
+  useEffect(() => {
+    // Initialize notification service
+    notificationService.initialize().catch(err => {
+      console.error('Failed to initialize notification service:', err);
+    });
+
+    return () => {
+      notificationService.cleanup();
+    };
+  }, []);
 
   // Removed: Dynamic initialization useEffect
   // useEffect(() => {

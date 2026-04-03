@@ -623,6 +623,12 @@ postsRouter.post('/:id/like', async (req: Request, res: Response) => {
         // Increment post like count
         await knex('posts').where({ id: post_id }).increment('like_count', 1);
 
+        // Trigger notification
+        const post = await knex('posts').where({ id: post_id }).first();
+        if (post) {
+            createNotification(post.author_wallet_address, 'like', user_wallet_address, post_id);
+        }
+
         return res.json({ success: true, liked: true });
     } catch (error: any) {
         console.error('[POST /api/posts/:id/like] Error:', error);
@@ -665,6 +671,12 @@ postsRouter.post('/:id/repost', async (req: Request, res: Response) => {
 
         // Increment post repost count
         await knex('posts').where({ id: original_post_id }).increment('repost_count', 1);
+
+        // Trigger notification
+        const post = await knex('posts').where({ id: original_post_id }).first();
+        if (post) {
+            createNotification(post.author_wallet_address, 'repost', reposter_wallet_address, original_post_id);
+        }
 
         return res.json({ success: true });
     } catch (error: any) {

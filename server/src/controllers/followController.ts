@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../db/knex';
 import { v4 as uuidv4 } from 'uuid';
+import { createNotification } from '../service/notificationService';
 
 export async function followUser(req: Request, res: Response) {
   try {
@@ -20,6 +21,9 @@ export async function followUser(req: Request, res: Response) {
       follower_id: followerId,
       following_id: followingId
     }).onConflict(['follower_id', 'following_id']).ignore();
+
+    // Trigger notification
+    createNotification(followingId, 'follow', followerId);
 
     return res.json({ success: true });
   } catch (error: any) {
