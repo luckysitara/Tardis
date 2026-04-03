@@ -16,7 +16,8 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
-import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
+import { Program, AnchorProvider } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { getConnection } from '../utils/connection';
 import knex from '../db/knex';
 import { v4 as uuidv4 } from 'uuid';
