@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // YOUR CORE LOGIC
 import { useTardisMobileWallet } from '@/modules/wallet-providers/hooks/useTardisMobileWallet';
 import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
-import { loginSuccess, setVerified } from '@/shared/state/auth/reducer';
+import { loginSuccess, setVerified, fetchUserProfile } from '@/shared/state/auth/reducer';
 import { verifyHardware, verifySGT } from '@/shared/services/VerificationService';
 import { resolveTardisIdentity } from '@/shared/services/IdentityService';
 
@@ -79,6 +79,12 @@ const LandingScreen: React.FC = () => {
           authToken: auth.authToken, 
           username: resolvedUsername 
         }));
+        
+        // Fetch full profile immediately to ensure name/avatar are updated
+        dispatch(fetchUserProfile(auth.address)).catch(err => {
+          console.error('[Landing] Failed to fetch user profile after login:', err);
+        });
+
         dispatch(setVerified(true));
       } else {
         setStatus('AUTH_FAILED: ACCESS_DENIED');

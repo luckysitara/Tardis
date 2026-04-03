@@ -61,7 +61,6 @@ export const ProductBlinkCard: React.FC<ProductBlinkCardProps> = ({ url, mediaUr
         setMetadata(data);
       } catch (e: any) {
         console.error(`[ProductBlinkCard] Metadata fetch error:`, e);
-        Alert.alert("Error", `Failed to load product details: ${e.message}`);
       } finally {
         setLoading(false);
       }
