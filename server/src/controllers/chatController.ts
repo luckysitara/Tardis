@@ -354,6 +354,26 @@ export async function sendMessage(req: Request, res: Response) {
     // Trigger notifications asynchronously
     processMentions(content, userId, messageId, 'message');
 
+    // Notify other participants in the chat room
+    try {
+      const otherParticipants = await knex('chat_participants')
+        .where('chat_room_id', chatId)
+        .whereNot('user_id', userId)
+        .select('user_id');
+
+      for (const p of otherParticipants) {
+        createNotification(
+          p.user_id,
+          'message',
+          userId,
+          chatId,
+          isEncrypted ? 'New encrypted message' : (content ? (content.substring(0, 50) + (content.length > 50 ? '...' : '')) : 'Sent a photo')
+        );
+      }
+    } catch (notifError) {
+      console.error('[Notification Error] Failed to notify participants:', notifError);
+    }
+
     // Get the created message to return
     const message = await knex('chat_messages').where({ id: messageId }).first();
 

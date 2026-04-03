@@ -30,6 +30,7 @@ import {
 } from '@/screens';
 import TardisShield from '@/components/auth/TardisShield';
 import socketService from '@/shared/services/socketService';
+import notificationService from '@/shared/services/notificationService';
 
 export type RootStackParamList = {
   LandingScreen: undefined;
@@ -142,6 +143,10 @@ export default function RootNavigator() {
     if (isLoggedIn && isVerified && userId) {
       console.log('[RootNavigator] Initializing Socket Service...');
       socketService.initSocket(userId);
+
+      // Register for push notifications if not already registered
+      console.log('[RootNavigator] Ensuring push token is registered with server...');
+      notificationService.registerTokenWithServer(userId);
     }
 
     const initEncryption = async () => {

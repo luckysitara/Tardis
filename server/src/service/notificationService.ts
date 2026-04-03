@@ -1,10 +1,11 @@
 import knex from '../db/knex';
 import { v4 as uuidv4 } from 'uuid';
 import { extractMentions } from '../utils/mentions';
+import expoNotificationService from '../services/expoNotificationService';
 
 export async function createNotification(
   userId: string,
-  type: 'mention' | 'like' | 'repost' | 'reply' | 'follow',
+  type: 'mention' | 'like' | 'repost' | 'reply' | 'follow' | 'message',
   actorId: string,
   resourceId?: string,
   content?: string
@@ -26,6 +27,81 @@ export async function createNotification(
     });
     
     console.log(`[Notification] Created ${type} notification for ${userId}`);
+
+    // Trigger push notification
+    try {
+      // Get the actor's info (for the notification title/body)
+      const actor = await knex('users').where({ id: actorId }).first();
+      const actorName = actor ? (actor.display_name || actor.username || 'Someone') : 'Someone';
+
+      // Get user's push tokens
+      const pushTokens = await knex('push_tokens')
+        .where({ user_id: userId, is_active: true })
+        .select('expo_push_token');
+
+      if (pushTokens.length > 0) {
+        const tokenList = pushTokens.map(t => t.expo_push_token);
+        
+        let title = 'New Notification';
+        let body = '';
+        let screen = 'MainTabs';
+        let params = {};
+
+        switch (type) {
+          case 'message':
+            title = `New message from ${actorName}`;
+            body = content || 'Sent you a message';
+            screen = 'ChatScreen';
+            params = { chatId: resourceId };
+            break;
+          case 'mention':
+            title = 'You were mentioned';
+            body = `${actorName} mentioned you in a post: "${content}"`;
+            screen = 'ThreadDetail';
+            params = { postId: resourceId };
+            break;
+          case 'reply':
+            title = 'New reply';
+            body = `${actorName} replied to your post: "${content}"`;
+            screen = 'ThreadDetail';
+            params = { postId: resourceId };
+            break;
+          case 'like':
+            title = 'New like';
+            body = `${actorName} liked your post`;
+            screen = 'ThreadDetail';
+            params = { postId: resourceId };
+            break;
+          case 'repost':
+            title = 'New repost';
+            body = `${actorName} reposted your post`;
+            screen = 'ThreadDetail';
+            params = { postId: resourceId };
+            break;
+          case 'follow':
+            title = 'New follower';
+            body = `${actorName} started following you`;
+            screen = 'Profile';
+            params = { userId: actorId };
+            break;
+        }
+
+        await expoNotificationService.sendNotifications(tokenList, {
+          title,
+          body,
+          data: {
+            screen,
+            params: JSON.stringify(params),
+            type,
+            resourceId
+          }
+        });
+        console.log(`[Notification] Push notification sent to ${tokenList.length} tokens for ${userId}`);
+      }
+    } catch (pushError) {
+      console.error('[Notification] Error sending push notification:', pushError);
+    }
+
     return id;
   } catch (error) {
     console.error('[Notification] Error creating notification:', error);
