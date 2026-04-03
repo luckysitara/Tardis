@@ -29,6 +29,9 @@ import { Buffer } from 'buffer';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '@/core/chat/services/chatImageService';
+import IPFSAwareImage from '@/shared/components/IPFSAwareImage';
+import { getValidImageSource } from '@/shared/utils/image';
+import { DEFAULT_IMAGES } from '@/shared/config/constants';
 
 const CreatePostScreen = ({ navigation, route }) => {
   const { parentId, authorHandle } = route.params || {};
@@ -55,6 +58,8 @@ const CreatePostScreen = ({ navigation, route }) => {
   const { signMessage, address: userId } = useWallet();
   const authState = useSelector((state: RootState) => state.auth);
   const username = authState.username || 'Anonymous';
+  const profilePicUrl = authState.profilePicUrl;
+  const displayName = authState.displayName || username;
   const { communities } = useSelector((state: RootState) => state.community);
 
   useEffect(() => {
@@ -222,8 +227,8 @@ const CreatePostScreen = ({ navigation, route }) => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.inputContainer}>
-            <Image
-              source={require('@/assets/images/User.png')}
+            <IPFSAwareImage
+              source={getValidImageSource(profilePicUrl || DEFAULT_IMAGES.user)}
               style={styles.avatar}
             />
             <View style={styles.postInputArea}>
