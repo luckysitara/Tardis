@@ -579,7 +579,7 @@ const DevDrawer = () => {
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>App Version:</Text>
                             <Text style={styles.infoValue}>
-                                {(process.env as any).npm_package_version || '0.1.0'}
+                                {(process.env as any).npm_package_version || '3.0.0'}
                             </Text>
                         </View>
 

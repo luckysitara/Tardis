@@ -15,6 +15,9 @@ import {
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { fetchChatMessages, deleteMessage } from '@/shared/state/chat/slice';
+import { initiateCall } from '@/shared/state/call/slice';
+import callService from '@/shared/services/callService';
+import { requestCallPermissions } from '@/shared/utils/permissions';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
@@ -140,6 +143,28 @@ const ChatScreen = () => {
     flatListRef.current?.scrollToEnd({ animated: false });
   }, []);
 
+  const handleAudioCall = async () => {
+    if (otherParticipant) {
+      const hasPermission = await requestCallPermissions(false);
+      if (!hasPermission) return;
+
+      dispatch(initiateCall({ remoteUser: otherParticipant as any, isVideo: false }));
+      callService.startCall(otherParticipant, false);
+      navigation.navigate('CallScreen');
+    }
+  };
+
+  const handleVideoCall = async () => {
+    if (otherParticipant) {
+      const hasPermission = await requestCallPermissions(true);
+      if (!hasPermission) return;
+
+      dispatch(initiateCall({ remoteUser: otherParticipant as any, isVideo: true }));
+      callService.startCall(otherParticipant, true);
+      navigation.navigate('CallScreen');
+    }
+  };
+
   const renderHeader = () => (
     <View style={[styles.header, { paddingTop: insets.top }]}>
       <TouchableOpacity 
@@ -165,9 +190,17 @@ const ChatScreen = () => {
         </View>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.headerAction}>
-        <Icons.Settings width={20} height={20} color={COLORS.brandPrimary} />
-      </TouchableOpacity>
+      <View style={styles.headerActions}>
+        <TouchableOpacity style={styles.headerAction} onPress={handleAudioCall}>
+          <Text style={{ fontSize: 20 }}>📞</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerAction} onPress={handleVideoCall}>
+          <Text style={{ fontSize: 20 }}>📹</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerAction}>
+          <Icons.Settings width={20} height={20} color={COLORS.brandPrimary} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -278,6 +311,10 @@ const styles = StyleSheet.create({
     color: COLORS.brandPrimary,
     marginLeft: 4,
     fontWeight: '600',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerAction: {
     padding: 8,

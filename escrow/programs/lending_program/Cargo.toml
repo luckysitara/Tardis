@@ -1,6 +1,6 @@
 [package]
 name = "lending_program"
-version = "0.1.0"
+version = "3.0.0"
 description = "P2P Lending & Borrowing Program"
 edition = "2021"
 

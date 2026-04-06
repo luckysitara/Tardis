@@ -278,6 +278,13 @@ class NotificationService {
         } catch (tokenError: any) {
           retryCount++;
           console.warn(`⚠️ Token generation attempt ${retryCount} failed:`, tokenError);
+          
+          if (tokenError.message.includes('FirebaseApp is not initialized')) {
+            console.error('❌ FCM Error: Firebase is not initialized. For Android push notifications, you must configure FCM credentials in Expo/EAS.');
+            // This is a configuration issue, no point in retrying
+            break; 
+          }
+
           if (retryCount >= maxRetries) {
             throw tokenError;
           }

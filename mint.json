@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Solana App Kit",
+  "name": "Tardis",
   "logo": {
     "light": "/public/logo/light.svg",
     "dark": "/public/logo/dark.svg"

@@ -177,6 +177,43 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- WebRTC Call Signaling ---
+
+  socket.on('call_offer', (data) => {
+    const { to, ...payload } = data;
+    console.log(`Relaying call_offer from ${socket.data.userId} to ${to}`);
+    socket.to(`user:${to}`).emit('call_offer', {
+      from: socket.data.userId,
+      ...payload
+    });
+  });
+
+  socket.on('call_answer', (data) => {
+    const { to, ...payload } = data;
+    console.log(`Relaying call_answer from ${socket.data.userId} to ${to}`);
+    socket.to(`user:${to}`).emit('call_answer', {
+      from: socket.data.userId,
+      ...payload
+    });
+  });
+
+  socket.on('ice_candidate', (data) => {
+    const { to, ...payload } = data;
+    console.log(`Relaying ice_candidate from ${socket.data.userId} to ${to}`);
+    socket.to(`user:${to}`).emit('ice_candidate', {
+      from: socket.data.userId,
+      ...payload
+    });
+  });
+
+  socket.on('call_hangup', (data) => {
+    const { to } = data;
+    console.log(`Relaying call_hangup from ${socket.data.userId} to ${to}`);
+    socket.to(`user:${to}`).emit('call_hangup', {
+      from: socket.data.userId
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });

@@ -1,6 +1,6 @@
 {
   "name": "Tardis",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "An End-End Encrypted social platform for the seekers",
   "private": true,
   "scripts": {
@@ -117,6 +117,7 @@
     "react-native-tab-view": "^4.0.5",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.19.13",
+    "react-native-webrtc": "^124.0.7",
     "react-native-webview": "13.12.5",
     "react-redux": "^9.2.0",
     "redux": "^5.0.1",

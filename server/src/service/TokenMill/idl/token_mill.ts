@@ -8,7 +8,7 @@ export type TokenMillType = {
   "address": "JoeaRXgtME3jAoz5WuFXGEndfv4NPH9nBxsLq44hk9J",
   "metadata": {
     "name": "tokenMill",
-    "version": "0.1.0",
+    "version": "3.0.0",
     "spec": "0.1.0",
     "description": "Created with Anchor"
   },

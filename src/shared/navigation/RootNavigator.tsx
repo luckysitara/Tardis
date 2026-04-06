@@ -49,6 +49,7 @@ export type RootStackParamList = {
   ThreadDetail: { postId: string };
   Swap: { inputMint?: string; outputMint?: string };
   Send: { token?: any; amount?: string; recipientAddress?: string };
+  CallScreen: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -120,6 +121,15 @@ const AuthenticatedStack: React.FC = () => {
           options={{
             headerShown: false,
             animation: 'slide_from_right'
+          }}
+        />
+        <Stack.Screen 
+          name="CallScreen" 
+          component={CallScreen} 
+          options={{ 
+            headerShown: false,
+            animation: 'fade',
+            gestureEnabled: false,
           }}
         />
       </Stack.Navigator>

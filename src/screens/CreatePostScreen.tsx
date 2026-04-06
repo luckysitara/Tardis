@@ -29,8 +29,7 @@ import { Buffer } from 'buffer';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadChatImage } from '@/core/chat/services/chatImageService';
-import IPFSAwareImage from '@/shared/components/IPFSAwareImage';
-import { getValidImageSource } from '@/shared/utils/image';
+import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 
 const CreatePostScreen = ({ navigation, route }) => {

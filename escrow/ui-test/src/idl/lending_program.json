@@ -2,7 +2,7 @@
   "address": "E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP",
   "metadata": {
     "name": "lending_program",
-    "version": "0.1.0",
+    "version": "3.0.0",
     "spec": "0.1.0",
     "description": "P2P Lending & Borrowing Program"
   },

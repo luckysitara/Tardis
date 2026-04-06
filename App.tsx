@@ -1,7 +1,14 @@
 // App.tsx
 import 'react-native-get-random-values';
 import { Buffer } from 'buffer';
+import * as SplashScreen from 'expo-splash-screen';
+
 global.Buffer = Buffer;
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might cause some errors here, we can ignore them */
+});
 
 // Add a global dev mode flag that can be used anywhere in the app
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -76,6 +83,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 //   initDynamicClient,
 // } from './src/modules/wallet-providers/services/walletProviders/dynamic';
 import TransactionNotification from './src/core/shared-ui/TransactionNotification';
+import { IncomingCallModal } from '@/core/chat';
 
 // Import DevMode components
 import DevDrawer from './src/core/dev-mode/DevDrawer';
@@ -187,6 +195,7 @@ export default function App() {
   const GlobalUIElements = () => (
     <>
       <TransactionNotification />
+      <IncomingCallModal />
     </>
   );
 
@@ -196,6 +205,16 @@ export default function App() {
   //   organizationId: config.auth.turnkey.organizationId,
   // };
 
+  const onBeforeLift = async () => {
+    try {
+      // Small delay to ensure any additional UI stabilizes
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await SplashScreen.hideAsync();
+    } catch (e) {
+      console.warn('[SplashScreen] Error hiding splash screen:', e);
+    }
+  };
+
   // Wrap the app with EnvErrorProvider for global env variable error handling
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -203,7 +222,7 @@ export default function App() {
         <SafeAreaProvider>
           <StatusBar backgroundColor={COLORS.background} barStyle="light-content" translucent={true} />
           <ReduxProvider store={store}>
-            <PersistGate loading={<PersistLoading />} persistor={persistor}>
+            <PersistGate loading={<PersistLoading />} persistor={persistor} onBeforeLift={onBeforeLift}>
               <DevModeProvider>
                 <EnvErrorProvider>
                   <View style={{ flex: 1, backgroundColor: COLORS.background }}>

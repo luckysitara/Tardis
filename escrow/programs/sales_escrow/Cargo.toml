@@ -1,6 +1,6 @@
 [package]
 name = "sales_escrow"
-version = "0.1.0"
+version = "3.0.0"
 description = "Secure P2P Sales Escrow Program"
 edition = "2021"
 
