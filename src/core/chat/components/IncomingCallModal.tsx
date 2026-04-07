@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
@@ -70,14 +71,14 @@ const IncomingCallModal = () => {
               style={[styles.actionButton, styles.declineButton]} 
               onPress={handleDecline}
             >
-               <Text style={{ fontSize: 24 }}>📞</Text>
+               <Ionicons name="close" size={32} color={COLORS.white} />
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={[styles.actionButton, styles.acceptButton]} 
               onPress={handleAccept}
             >
-               <Text style={{ fontSize: 24 }}>📞</Text>
+               <Ionicons name="call" size={32} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -144,7 +145,6 @@ const styles = StyleSheet.create({
   },
   declineButton: {
     backgroundColor: '#FF3B30',
-    transform: [{ rotate: '135deg' }],
   },
   acceptButton: {
     backgroundColor: '#34C759',

@@ -13,6 +13,7 @@ import {
 import { RTCView } from 'react-native-webrtc';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
@@ -160,7 +161,7 @@ const CallScreen = () => {
                 style={[styles.controlButton, isMuted && styles.controlButtonActive]} 
                 onPress={handleToggleMute}
               >
-                <Text style={{ fontSize: 24 }}>{isMuted ? '🔇' : '🎤'}</Text>
+                <Ionicons name={isMuted ? "mic-off" : "mic"} size={28} color={COLORS.white} />
               </TouchableOpacity>
 
               {isVideo && (
@@ -169,14 +170,14 @@ const CallScreen = () => {
                     style={[styles.controlButton, isCameraOff && styles.controlButtonActive]} 
                     onPress={handleToggleCamera}
                   >
-                    <Text style={{ fontSize: 24 }}>{isCameraOff ? '❌' : '📹'}</Text>
+                    <Ionicons name={isCameraOff ? "videocam-off" : "videocam"} size={28} color={COLORS.white} />
                   </TouchableOpacity>
 
                   <TouchableOpacity 
-                    style={styles.controlButton} 
+                    style={styles.iconButtonSmall} 
                     onPress={handleSwitchCamera}
                   >
-                    <Text style={{ fontSize: 24 }}>🔄</Text>
+                    <Ionicons name="camera-reverse" size={28} color={COLORS.white} />
                   </TouchableOpacity>
                 </>
               )}
@@ -185,7 +186,7 @@ const CallScreen = () => {
                 style={[styles.controlButton, styles.hangupButton]} 
                 onPress={handleHangup}
               >
-                <Text style={{ fontSize: 24 }}>📞</Text>
+                <Ionicons name="call" size={28} color={COLORS.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -299,6 +300,13 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 10,
+  },
+  iconButtonSmall: {
+    width: 56,
+    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 10,

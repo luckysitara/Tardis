@@ -1,6 +1,6 @@
 {
   "name": "Tardis",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "An End-End Encrypted social platform for the seekers",
   "private": true,
   "scripts": {

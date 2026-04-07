@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Animated,
   StatusBar,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
@@ -21,6 +23,7 @@ import { requestCallPermissions } from '@/shared/utils/permissions';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
+import { Ionicons } from '@expo/vector-icons';
 import ChatComposer from '@/core/chat/components/chat-composer/ChatComposer';
 import ChatMessage from '@/core/chat/components/message/ChatMessage';
 import socketService from '@/shared/services/socketService';
@@ -35,7 +38,6 @@ const ChatScreen = () => {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { chatId, title } = route.params;
-  console.log(`[ChatScreen V2] Initialized with chatId: ${chatId}, title: ${title}`);
 
   const { address: userId, username, profilePicUrl } = useAppSelector(state => state.auth);
   const { messages, chats, loadingMessages } = useAppSelector(state => state.chat);
@@ -43,15 +45,19 @@ const ChatScreen = () => {
   const chatMessages = messages[chatId] || [];
   const currentChat = chats.find(c => c.id === chatId);
   
-  const otherParticipant = useMemo(() => 
-    currentChat?.participants.find(p => p.id !== userId),
-  [currentChat, userId]);
+  const isGroup = currentChat?.type === 'group' || currentChat?.type === 'global';
+  const otherParticipant = useMemo(() => currentChat?.participants.find(p => p.id !== userId), [currentChat, userId]);
+
+  const headerAvatar = useMemo(() => {
+    if (isGroup) return currentChat?.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${title}`;
+    return otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${title}`;
+  }, [isGroup, currentChat, otherParticipant, title]);
 
   const flatListRef = useRef<any>(null);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [editingMessage, setEditingMessage] = useState<any>(null);
+  const [showCallMenu, setShowCallMenu] = useState(false);
 
-  // Security Pulsing
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -70,23 +76,54 @@ const ChatScreen = () => {
       if (chatId) {
         dispatch(fetchChatMessages({ chatId, resetUnread: true }));
         socketService.joinChat(chatId);
-        if (userId) {
-          socketService.markMessagesRead(chatId, userId);
-        }
+        if (userId) socketService.markMessagesRead(chatId, userId);
       }
     }, [chatId, dispatch, userId])
   );
 
   useEffect(() => {
-    // Mark messages as read when new ones arrive and we are viewing
     if (chatMessages.length > 0 && userId) {
        const lastMsg = chatMessages[chatMessages.length - 1];
-       // If the last message is NOT from me and NOT read (and we are here), mark as read
        if (lastMsg && lastMsg.sender_id !== userId && (lastMsg as any).status !== 'read') {
          socketService.markMessagesRead(chatId, userId);
        }
     }
   }, [chatMessages, userId, chatId]);
+
+  /**
+   * Groups messages by date and injects date separators
+   */
+  const messagesWithDates = useMemo(() => {
+    if (chatMessages.length === 0) return [];
+    
+    const result: any[] = [];
+    let lastDate = '';
+
+    chatMessages.forEach((msg, index) => {
+      const msgDate = new Date(msg.created_at || (msg as any).createdAt).toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      if (msgDate !== lastDate) {
+        // Handle "Today" and "Yesterday"
+        const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const yesterday = new Date(Date.now() - 86400000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        let label = msgDate;
+        if (msgDate === today) label = 'Today';
+        else if (msgDate === yesterday) label = 'Yesterday';
+
+        result.push({ id: `date-${msgDate}`, type: 'date_separator', label });
+        lastDate = msgDate;
+      }
+      result.push(msg);
+    });
+
+    return result;
+  }, [chatMessages]);
 
   const currentUser = useMemo(() => ({
     id: userId || '',
@@ -97,155 +134,104 @@ const ChatScreen = () => {
   }), [userId, username, profilePicUrl]);
 
   const handleSendMessage = (content: string, imageUrl?: string) => {
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
-  const handleEditMessage = useCallback((message: any) => {
-    setEditingMessage(message);
-    setReplyingTo(null);
-  }, []);
-
   const handleDeleteMessage = useCallback(async (message: any) => {
-    console.log(`[ChatScreen V2] handleDeleteMessage called for messageId: ${message.id}, userId: ${userId}, chatId: ${chatId}`);
     if (userId && chatId) {
       try {
         const timestamp = new Date().toISOString();
-        const messageToSign = JSON.stringify({ id: message.id, userId, timestamp });
-        
-        const signature = await signMessage(messageToSign);
-        if (!signature) {
-          console.log('[ChatScreen] Delete cancelled: No signature provided');
-          return;
-        }
-
-        const signatureBase64 = Buffer.from(signature).toString('base64');
-
-        await dispatch(deleteMessage({ 
-          messageId: message.id, 
-          userId,
-          signature: signatureBase64,
-          timestamp
-        })).unwrap();
-        
-        console.log(`[ChatScreen] deleteMessage success`);
+        const signature = await signMessage(JSON.stringify({ id: message.id, userId, timestamp }));
+        if (!signature) return;
+        await dispatch(deleteMessage({ messageId: message.id, userId, signature: Buffer.from(signature).toString('base64'), timestamp })).unwrap();
         socketService.deleteMessage(chatId, message.id);
-      } catch (err) {
-        console.error(`[ChatScreen] deleteMessage failure:`, err);
-      }
-    } else {
-      console.warn(`[ChatScreen] Cannot delete message: missing userId (${userId}) or chatId (${chatId})`);
+      } catch (err) { console.error(err); }
     }
   }, [userId, chatId, dispatch, signMessage]);
 
-  const onListContentSizeChange = useCallback(() => {
-    flatListRef.current?.scrollToEnd({ animated: false });
-  }, []);
-
-  const handleAudioCall = async () => {
+  const startCall = async (isVideo: boolean) => {
+    setShowCallMenu(false);
+    if (isGroup) {
+      Alert.alert('Group Call', 'Group calls are not yet supported.');
+      return;
+    }
     if (otherParticipant) {
-      const hasPermission = await requestCallPermissions(false);
+      const hasPermission = await requestCallPermissions(isVideo);
       if (!hasPermission) return;
-
-      dispatch(initiateCall({ remoteUser: otherParticipant as any, isVideo: false }));
-      callService.startCall(otherParticipant, false);
+      dispatch(initiateCall({ remoteUser: otherParticipant as any, isVideo }));
+      callService.startCall(otherParticipant, isVideo);
       navigation.navigate('CallScreen');
     }
   };
-
-  const handleVideoCall = async () => {
-    if (otherParticipant) {
-      const hasPermission = await requestCallPermissions(true);
-      if (!hasPermission) return;
-
-      dispatch(initiateCall({ remoteUser: otherParticipant as any, isVideo: true }));
-      callService.startCall(otherParticipant, true);
-      navigation.navigate('CallScreen');
-    }
-  };
-
-  const renderHeader = () => (
-    <View style={[styles.header, { paddingTop: insets.top }]}>
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.brandPrimary} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7}>
-        <IPFSAwareImage
-          source={getValidImageSource(otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${title}`)}
-          style={styles.headerAvatar}
-        />
-        <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Secure Chat'}</Text>
-          <View style={styles.securityStatus}>
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <Icons.Shield width={10} height={10} color={COLORS.brandPrimary} />
-            </Animated.View>
-            <Text style={styles.securityText}>End-to-End Encrypted</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.headerAction} onPress={handleAudioCall}>
-          <Text style={{ fontSize: 20 }}>📞</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerAction} onPress={handleVideoCall}>
-          <Text style={{ fontSize: 20 }}>📹</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerAction}>
-          <Icons.Settings width={20} height={20} color={COLORS.brandPrimary} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      {renderHeader()}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={28} color={COLORS.brandPrimary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7} onPress={() => !isGroup && otherParticipant && navigation.navigate('Profile', { userId: otherParticipant.id })}>
+          <IPFSAwareImage source={getValidImageSource(headerAvatar)} style={styles.headerAvatar} />
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Secure Chat'}</Text>
+            <View style={styles.securityStatus}>
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}><Icons.Shield width={10} height={10} color={COLORS.brandPrimary} /></Animated.View>
+              <Text style={styles.securityText}>End-to-End Encrypted</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerAction} onPress={() => setShowCallMenu(true)}><Ionicons name="call-outline" size={24} color={COLORS.brandPrimary} /></TouchableOpacity>
+          <TouchableOpacity style={styles.headerAction}><Ionicons name="ellipsis-vertical" size={24} color={COLORS.brandPrimary} /></TouchableOpacity>
+        </View>
+      </View>
+
+      <Modal transparent visible={showCallMenu} animationType="fade" onRequestClose={() => setShowCallMenu(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCallMenu(false)}>
+          <View style={styles.callMenu}>
+            <TouchableOpacity style={styles.callMenuItem} onPress={() => startCall(false)}><Ionicons name="call-outline" size={24} color={COLORS.white} /><Text style={styles.callMenuText}>Audio Call</Text></TouchableOpacity>
+            <View style={styles.menuDivider} /><TouchableOpacity style={styles.callMenuItem} onPress={() => startCall(true)}><Ionicons name="videocam-outline" size={24} color={COLORS.white} /><Text style={styles.callMenuText}>Video Call</Text></TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.content}>
         {loadingMessages && chatMessages.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.brandPrimary} />
-          </View>
+          <View style={styles.loadingContainer}><ActivityIndicator size="large" color={COLORS.brandPrimary} /></View>
         ) : (
           <FlatList
             ref={flatListRef}
-            data={chatMessages}
+            data={messagesWithDates}
             keyExtractor={item => item.id}
             renderItem={({ item }) => {
+              if (item.type === 'date_separator') {
+                return (
+                  <View style={styles.dateSeparator}>
+                    <View style={styles.dateBadge}><Text style={styles.dateText}>{item.label}</Text></View>
+                  </View>
+                );
+              }
               return (
                 <ChatMessage
-                  message={{
-                    ...item,
-                    user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' }
-                  } as any}
+                  message={{ ...item, user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' } } as any}
                   currentUser={currentUser}
                   onPressUser={(user) => navigation.navigate('Profile', { userId: user.id })}
                   onPressMessage={(msg) => setReplyingTo(msg)}
-                  onEditMessage={handleEditMessage}
+                  onEditMessage={(msg) => { setEditingMessage(msg); setReplyingTo(null); }}
                   onDeleteMessage={handleDeleteMessage}
                 />
               );
             }}
             contentContainerStyle={styles.messageList}
-            onContentSizeChange={onListContentSizeChange}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
             removeClippedSubviews={Platform.OS === 'android'}
             initialNumToRender={15}
           />
         )}
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.composerWrapper, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <ChatComposer
             currentUser={currentUser}
@@ -263,76 +249,29 @@ const ChatScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    backgroundColor: 'rgba(12, 16, 26, 0.95)',
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.darkerBackground,
-  },
-  titleContainer: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.white,
-    fontFamily: TYPOGRAPHY.fontFamily,
-  },
-  securityStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 1,
-  },
-  securityText: {
-    fontSize: 10,
-    color: COLORS.brandPrimary,
-    marginLeft: 4,
-    fontWeight: '600',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerAction: {
-    padding: 8,
-  },
-  content: {
-    flex: 1,
-  },
-  messageList: {
-    paddingVertical: 16,
-  },
-  composerWrapper: {
-    backgroundColor: COLORS.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 10, backgroundColor: 'rgba(12, 16, 26, 0.95)', borderBottomWidth: 0.5, borderBottomColor: 'rgba(255, 255, 255, 0.1)' },
+  backButton: { padding: 4 },
+  headerInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: 8 },
+  headerAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.darkerBackground },
+  titleContainer: { marginLeft: 10, flex: 1 },
+  headerTitle: { fontSize: 16, fontWeight: '800', color: COLORS.white, fontFamily: TYPOGRAPHY.fontFamily },
+  securityStatus: { flexDirection: 'row', alignItems: 'center', marginTop: 1 },
+  securityText: { fontSize: 10, color: COLORS.brandPrimary, marginLeft: 4, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  headerAction: { padding: 8 },
+  content: { flex: 1 },
+  messageList: { paddingVertical: 16 },
+  composerWrapper: { backgroundColor: COLORS.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: 100, paddingRight: 20 },
+  callMenu: { backgroundColor: COLORS.darkerBackground, borderRadius: 15, padding: 8, width: 180, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 10 },
+  callMenuItem: { flexDirection: 'row', alignItems: 'center', padding: 12 },
+  callMenuText: { color: COLORS.white, marginLeft: 12, fontSize: 15, fontWeight: '600' },
+  menuDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 8 },
+  dateSeparator: { alignItems: 'center', marginVertical: 16 },
+  dateBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10 },
+  dateText: { color: COLORS.greyMid, fontSize: 12, fontWeight: '600' },
 });
 
 export default ChatScreen;

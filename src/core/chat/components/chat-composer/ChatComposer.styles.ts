@@ -17,10 +17,14 @@ export function getChatComposerBaseStyles() {
       flexDirection: 'row',
       backgroundColor: '#2F3336', // X/WhatsApp dark grey input
       borderRadius: 24,
-      paddingHorizontal: 16,
+      paddingHorizontal: 12, // Reduced to fit plus button
       paddingVertical: 8,
       minHeight: 44,
       alignItems: 'center',
+    },
+    plusButton: {
+      padding: 4,
+      marginRight: 4,
     },
     composerInput: {
       flex: 1,

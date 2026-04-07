@@ -16,6 +16,7 @@ import { fetchUserChats, setSelectedChat, ChatRoom } from '@/shared/state/chat/s
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
+import { Ionicons } from '@expo/vector-icons';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import { decryptMessage, getKeypairFromSeed } from '@/shared/utils/crypto';
 import { Buffer } from 'buffer';
@@ -94,7 +95,6 @@ const CommsListScreen = () => {
     const otherParticipant = item.participants?.find(p => p.id !== userId);
     const chatName = item.name || otherParticipant?.username || 'Seeker';
     
-    // Prioritize community avatar for groups, then other participant's avatar for DMs
     const avatar = isGroup 
       ? (item.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`)
       : (otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`);
@@ -107,7 +107,7 @@ const CommsListScreen = () => {
     if (lastMessage?.is_encrypted && encryptionSeed && isE2EE) {
       try {
         const otherPk = otherParticipant?.public_encryption_key;
-        if (otherPk && otherPk.length > 20) { // Basic validation
+        if (otherPk && otherPk.length > 20) {
           const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
           const keypair = getKeypairFromSeed(seedUint8);
           const decrypted = decryptMessage(
@@ -181,7 +181,7 @@ const CommsListScreen = () => {
           style={styles.headerIcon}
           onPress={() => navigation.navigate('StartChatScreen')}
         >
-          <Icons.PlusCircleIcon width={24} height={24} fill={COLORS.white} />
+          <Ionicons name="create-outline" size={26} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
@@ -210,7 +210,7 @@ const CommsListScreen = () => {
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Icons.PlusCircleIcon width={40} height={40} fill={COLORS.greyMid} />
+            <Ionicons name="chatbubbles-outline" size={48} color={COLORS.greyMid} />
             <Text style={styles.emptyText}>Welcome to your inbox</Text>
             <Text style={styles.emptySubtext}>Message anyone on Solana with end-to-end encryption.</Text>
           </View>

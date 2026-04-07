@@ -41,8 +41,8 @@ function MessageHeader({ message, showAvatar = true, onPressUser }: MessageHeade
         {showAvatar && (
           <IPFSAwareImage
             source={
-              user.avatar
-                ? getValidImageSource(user.avatar)
+              (user.avatar || (user as any).profile_picture_url)
+                ? getValidImageSource(user.avatar || (user as any).profile_picture_url)
                 : DEFAULT_IMAGES.user
             }
             style={messageHeaderStyles.avatar}

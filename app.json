@@ -3,7 +3,7 @@
     "name": "Tardis",
     "slug": "tardis",
     "scheme": "tardisapp",
-    "version": "3.0.0",
+    "version": "4.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./src/assets/images/tardis_icon.jpg",
@@ -18,7 +18,7 @@
     "android": {
       "package": "xyz.tardis.app",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/tardis_icon.jpg",
         "backgroundColor": "#00050D"
