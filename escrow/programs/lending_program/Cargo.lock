@@ -1031,7 +1031,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lending_program"
-version = "0.1.0"
+version = "3.0.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

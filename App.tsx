@@ -231,17 +231,17 @@ export default function App() {
                       <TurnkeyProvider config={turnkeySessionConfig}>
                         <NavigationContainer ref={navigationRef}>
                           <RootNavigator />
+                          <GlobalUIElements />
                         </NavigationContainer>
                         {getDynamicWebView()}
-                        <GlobalUIElements />
                       </TurnkeyProvider>
                     ) : ( */}
                       <>
                         <NavigationContainer ref={navigationRef}>
                           <RootNavigator />
+                          <GlobalUIElements />
                         </NavigationContainer>
                         {/* Removed Dynamic WebView */}
-                        <GlobalUIElements />
                       </>
                     {/* )} */}
 

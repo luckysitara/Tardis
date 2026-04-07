@@ -26,7 +26,8 @@ import {
   CommunityFeedScreen,
   ThreadDetailScreen,
   SwapScreen,
-  SendScreen
+  SendScreen,
+  CallScreen
 } from '@/screens';
 import TardisShield from '@/components/auth/TardisShield';
 import socketService from '@/shared/services/socketService';
