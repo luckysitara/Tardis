@@ -164,6 +164,14 @@ const ChatScreen = () => {
     }
   };
 
+  const handleHeaderPress = () => {
+    if (isGroup) {
+      navigation.navigate('GroupProfile', { chatId });
+    } else if (otherParticipant) {
+      navigation.navigate('Profile', { userId: otherParticipant.id });
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -171,7 +179,7 @@ const ChatScreen = () => {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color={COLORS.brandPrimary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7} onPress={() => !isGroup && otherParticipant && navigation.navigate('Profile', { userId: otherParticipant.id })}>
+        <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7} onPress={handleHeaderPress}>
           <IPFSAwareImage source={getValidImageSource(headerAvatar)} style={styles.headerAvatar} />
           <View style={styles.titleContainer}>
             <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Secure Chat'}</Text>

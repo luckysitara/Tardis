@@ -97,7 +97,15 @@ const AuthenticatedStack: React.FC = () => {
           options={{ 
             headerShown: false,
             animation: 'slide_from_right',
-          }}
+          }} 
+        />
+        <Stack.Screen 
+          name="GroupProfile" 
+          component={GroupProfileScreen} 
+          options={{ 
+            headerShown: false,
+            animation: 'slide_from_bottom',
+          }} 
         />
         <Stack.Screen 
           name="StartChatScreen" 

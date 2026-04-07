@@ -14,6 +14,7 @@ export { default as StartChatScreen } from './StartChatScreen';
 export { default as CreateCommunityScreen } from './CreateCommunityScreen';
 export { default as CommunityFeedScreen } from './CommunityFeedScreen';
 export { default as ThreadDetailScreen } from './ThreadDetailScreen';
+export { default as GroupProfileScreen } from './GroupProfileScreen';
 export { default as CallScreen } from './CallScreen';
 export { default as SwapScreen } from '../modules/swap/screens/SwapScreen';
 export { default as SendScreen } from '../modules/swap/screens/SendScreen';
