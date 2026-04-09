@@ -33,7 +33,7 @@ const callSlice = createSlice({
   initialState,
   reducers: {
     initiateCall: (state, action: PayloadAction<{ remoteUser: ChatParticipant; isVideo: boolean }>) => {
-      state.callStatus = 'dialing';
+      state.callStatus = 'ringing';
       state.remoteUser = action.payload.remoteUser;
       state.isVideo = action.payload.isVideo;
       state.isIncoming = false;

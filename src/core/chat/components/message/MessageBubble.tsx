@@ -9,6 +9,7 @@ import MessageNFT from './MessageNFT';
 import COLORS from '@/assets/colors';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
 import Icons from '@/assets/svgs';
+import { Ionicons } from '@expo/vector-icons';
 import { ThreadPost } from '@/core/thread/components/thread.types';
 import BlinkMessage from './BlinkMessage';
 import { HighlightedText } from '@/shared/components/HighlightedText';
@@ -60,6 +61,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
         if (ad.tradeData) return 'trade';
         if (ad.nftData) return 'nft';
         if (ad.type === 'tip') return 'tip';
+        if (ad.type === 'call_log') return 'call_log';
         if (ad.image_url) return 'image';
     }
 
@@ -206,6 +208,21 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
       case 'nft':
         if (nftData) return <MessageNFT nftData={nftData} isCurrentUser={isCurrentUser} />;
         break;
+      case 'call_log':
+        const callData = specializedSource;
+        const isMissed = callData.status === 'missed';
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+            <Ionicons 
+              name={callData.callType === 'video' ? "videocam" : "call"} 
+              size={18} 
+              color={isMissed ? COLORS.errorRed : COLORS.brandPrimary} 
+            />
+            <Text style={[textStyle, { marginLeft: 8, fontSize: 14 }]}>
+              {messageText}
+            </Text>
+          </View>
+        );
       case 'tip':
         const tipData = specializedSource;
         return (
@@ -284,7 +301,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
     return null;
   };
 
-  if (contentType === 'trade' || contentType === 'nft' || contentType === 'tip') {
+  if (contentType === 'trade' || contentType === 'nft' || contentType === 'tip' || contentType === 'call_log') {
     return <View style={bubbleStyle}>{renderPostContent(message)}</View>;
   }
 

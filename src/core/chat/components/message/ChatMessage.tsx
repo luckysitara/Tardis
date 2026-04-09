@@ -137,6 +137,7 @@ function ChatMessage({
 
   const contentType = useMemo(() => {
     if (!message || typeof message !== 'object') return 'text';
+    if (message.additional_data?.type === 'call_log') return 'call_log';
     if ('tradeData' in message && message.tradeData) return 'trade';
     if ('nftData' in message && message.nftData) return 'nft';
     if (message.image_url || (message as any).imageUrl) return 'media';

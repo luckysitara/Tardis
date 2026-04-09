@@ -111,10 +111,21 @@ const CreatePostScreen = ({ navigation, route }) => {
           mediaUrls.push(uploadedUrl);
         } catch (uploadError) {
           console.error("Image upload error:", uploadError);
-          Alert.alert("Upload Error", "Failed to upload image. Post without image?");
-          // Option to continue or cancel - for now, we'll cancel
-          setIsPosting(false);
-          return;
+          const shouldContinue = await new Promise((resolve) => {
+            Alert.alert(
+              "Upload Error", 
+              "Failed to upload image. Would you like to post without the image?",
+              [
+                { text: "Cancel", onPress: () => resolve(false), style: "cancel" },
+                { text: "Post Without Image", onPress: () => resolve(true) }
+              ]
+            );
+          });
+          
+          if (!shouldContinue) {
+            setIsPosting(false);
+            return;
+          }
         }
       }
 
@@ -555,8 +566,9 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     width: '100%',
-    height: 200,
-    resizeMode: 'cover',
+    height: 250,
+    resizeMode: 'contain',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   removeImageButton: {
     position: 'absolute',
