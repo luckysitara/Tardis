@@ -75,10 +75,14 @@ const ChatScreen = () => {
     useCallback(() => {
       if (chatId) {
         dispatch(fetchChatMessages({ chatId, resetUnread: true }));
+        // Fetch room details if not found in state (e.g. on refresh)
+        if (!currentChat) {
+          dispatch(fetchChatRoomById(chatId));
+        }
         socketService.joinChat(chatId);
         if (userId) socketService.markMessagesRead(chatId, userId);
       }
-    }, [chatId, dispatch, userId])
+    }, [chatId, dispatch, userId, currentChat])
   );
 
   useEffect(() => {

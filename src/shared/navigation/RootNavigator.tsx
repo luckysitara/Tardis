@@ -25,6 +25,7 @@ import {
   CreateCommunityScreen,
   CommunityFeedScreen,
   ThreadDetailScreen,
+  GroupProfileScreen,
   SwapScreen,
   SendScreen,
   CallScreen
@@ -48,6 +49,7 @@ export type RootStackParamList = {
   CreateCommunityScreen: undefined;
   CommunityFeed: { communityId: string; communityName?: string };
   ThreadDetail: { postId: string };
+  GroupProfile: { chatId: string };
   Swap: { inputMint?: string; outputMint?: string };
   Send: { token?: any; amount?: string; recipientAddress?: string };
   CallScreen: undefined;

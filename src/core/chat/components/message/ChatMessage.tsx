@@ -17,9 +17,6 @@ import socketService from '@/shared/services/socketService';
 import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 
-/**
- * Formats a timestamp into a readable format
- */
 const formatTime = (timestamp: Date | string | number | undefined): string => {
   if (!timestamp) return '';
   try {
@@ -45,7 +42,7 @@ function ChatMessage({
 }: ChatMessageProps) {
   const dispatch = useAppDispatch();
   const encryptionSeed = useAppSelector(state => state.auth.encryptionSeed);
-  const chats = useAppSelector(state => state.chat.chats);
+  const { chats, selectedChatId } = useAppSelector(state => state.chat);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const materializeAnim = useRef(new Animated.Value(0)).current;
@@ -53,95 +50,58 @@ function ChatMessage({
   const handleTipSent = async (signature: string, amount: number, symbol: string) => {
     try {
       const resultAction = await dispatch(sendMessage({
-        chatId: message.chat_room_id,
+        chatId: message.chat_room_id || (message as any).chatId || selectedChatId || '',
         userId: currentUser.id,
         content: `Sent a tip of ${amount} ${symbol} 💸`,
-        additionalData: { 
-          type: 'tip', 
-          amount, 
-          symbol, 
-          signature 
-        },
+        additionalData: { type: 'tip', amount, symbol, signature },
       })).unwrap();
 
-      if (resultAction && resultAction.id) {
-        socketService.sendMessage(message.chat_room_id, {
+      if (resultAction?.id) {
+        socketService.sendMessage(resultAction.chat_room_id, {
           ...resultAction,
           senderId: currentUser.id,
-          chatId: message.chat_room_id
+          chatId: resultAction.chat_room_id
         });
       }
-    } catch (error) {
-      console.error('Error sharing tip message:', error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const handleSelectEmoji = (emoji: string) => {
-    dispatch(addReactionToMessage({
-      messageId: message.id,
-      userId: currentUser.id,
-      emoji,
-      chatId: message.chat_room_id
-    }));
-    socketService.sendReaction(message.chat_room_id, message.id, emoji, currentUser.id);
+    const cid = message.chat_room_id || (message as any).chatId || selectedChatId;
+    if (cid) {
+      dispatch(addReactionToMessage({ messageId: message.id, userId: currentUser.id, emoji, chatId: cid }));
+      socketService.sendReaction(cid, message.id, emoji, currentUser.id);
+    }
   };
 
   const handlePressReaction = (emoji: string) => {
     const userReaction = message.reactions?.find(r => r.user_id === currentUser.id && r.emoji === emoji);
     if (userReaction) {
-      dispatch(removeReactionFromMessage({
-        messageId: message.id,
-        userId: currentUser.id,
-        emoji,
-        chatId: message.chat_room_id
-      }));
-      socketService.sendRemoveReaction(message.chat_room_id, message.id, emoji, currentUser.id);
-    } else {
-      handleSelectEmoji(emoji);
-    }
+      const cid = message.chat_room_id || (message as any).chatId || selectedChatId;
+      if (cid) {
+        dispatch(removeReactionFromMessage({ messageId: message.id, userId: currentUser.id, emoji, chatId: cid }));
+        socketService.sendRemoveReaction(cid, message.id, emoji, currentUser.id);
+      }
+    } else { handleSelectEmoji(emoji); }
   };
 
   useEffect(() => {
-    Animated.timing(materializeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(materializeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
   }, [materializeAnim]);
 
   const isCurrentUser = useMemo(() => {
     if (!message || typeof message !== 'object') return false;
-    return (
-      (message.user && message.user.id === currentUser.id) ||
-      ('sender_id' in message && message.sender_id === currentUser.id) ||
-      ('senderId' in message && message.senderId === currentUser.id)
-    );
+    return (message.user?.id === currentUser.id) || (message.sender_id === currentUser.id) || ((message as any).senderId === currentUser.id);
   }, [message, currentUser.id]);
 
   const handleLongPress = () => {
     if (message.is_deleted) return;
-    
-    const options = [
-      { text: 'React', onPress: () => setShowReactionPicker(true) }
-    ];
-
-    if (!isCurrentUser) {
-      options.push({ text: 'Send Tip 💸', onPress: () => setShowTipModal(true) });
-    }
-
+    const options = [{ text: 'React', onPress: () => setShowReactionPicker(true) }];
+    if (!isCurrentUser) options.push({ text: 'Send Tip 💸', onPress: () => setShowTipModal(true) });
     if (isCurrentUser) {
       options.push({ text: 'Edit', onPress: () => onEditMessage && onEditMessage(message) });
-      options.push({
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          setTimeout(() => {
-            onDeleteMessage && onDeleteMessage(message);
-          }, 300);
-        }
-      });
+      options.push({ text: 'Delete', style: 'destructive', onPress: () => setTimeout(() => onDeleteMessage && onDeleteMessage(message), 300) });
     }
-
     options.push({ text: 'Cancel', style: 'cancel' });
     Alert.alert('Message Actions', 'Choose an action:', options);
     onLongPress && onLongPress({} as any);
@@ -153,9 +113,11 @@ function ChatMessage({
     
     if (msg.is_encrypted && msg.nonce && encryptionSeed) {
       try {
-        const currentChat = chats.find(c => c.id === msg.chat_room_id);
+        const mid = msg.chat_room_id || msg.chatId || msg.chat_id || selectedChatId;
+        const currentChat = chats.find(c => c.id === mid);
+        
         if (currentChat && currentChat.type === 'direct') {
-          const otherParticipant = currentChat.participants.find(p => p.id !== currentUser.id);
+          const otherParticipant = currentChat.participants.find(p => p.id !== currentUser.id) || currentChat.participants[0];
           if (otherParticipant && otherParticipant.public_encryption_key) {
             const seedUint8 = new Uint8Array(Buffer.from(encryptionSeed, 'base64'));
             const keypair = getKeypairFromSeed(seedUint8);
@@ -163,20 +125,15 @@ function ChatMessage({
             return decrypted || '[Locked Transmission]';
           }
         }
-      } catch (err) {
-        return '[Decryption error]';
-      }
+      } catch (err) { return '[Decryption error]'; }
     }
     return message.content;
-  }, [message, encryptionSeed, chats, currentUser.id]);
+  }, [message, encryptionSeed, chats, currentUser.id, selectedChatId]);
 
   const displayMessage = useMemo(() => {
     if (!message || typeof message !== 'object') return { content: '' } as any;
     return { ...message, content: decryptedContent };
   }, [message, decryptedContent]);
-
-  const baseStyles = getMessageBaseStyles();
-  const styles = mergeStyles(baseStyles, styleOverrides, undefined);
 
   const contentType = useMemo(() => {
     if (!message || typeof message !== 'object') return 'text';
@@ -187,9 +144,10 @@ function ChatMessage({
   }, [message]);
 
   const shouldShowHeader = useMemo(() => {
-    const currentChat = chats.find(c => c.id === message.chat_room_id);
+    const mid = message.chat_room_id || (message as any).chatId || selectedChatId;
+    const currentChat = chats.find(c => c.id === mid);
     return currentChat?.type !== 'direct' && !isCurrentUser && showHeader;
-  }, [isCurrentUser, showHeader, chats, message.chat_room_id]);
+  }, [isCurrentUser, showHeader, chats, message.chat_room_id, selectedChatId, message]);
 
   const timestamp = message.created_at || (message as any).createdAt || new Date();
   const fontFamily = styleOverrides?.text && (styleOverrides.text as TextStyle).fontFamily;
@@ -202,63 +160,20 @@ function ChatMessage({
         </View>
       )}
 
-      <Animated.View style={[
-        {
-          maxWidth: '85%',
-          opacity: materializeAnim,
-          transform: [{ 
-            translateY: materializeAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [10, 0]
-            }) 
-          }]
-        },
-        isCurrentUser ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }
-      ]}>
-        <Pressable
-          onPress={() => onPressMessage && onPressMessage(message)}
-          onLongPress={handleLongPress}
-          delayLongPress={500}
-          style={({ pressed }) => [{
-            maxWidth: contentType === 'text' ? '85%' : '100%',
-            opacity: pressed ? 0.7 : 1,
-            alignSelf: isCurrentUser ? 'flex-end' : 'flex-start',
-          }]}
-        >
+      <Animated.View style={[{ maxWidth: '85%', opacity: materializeAnim, transform: [{ translateY: materializeAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }, isCurrentUser ? { alignSelf: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+        <Pressable onPress={() => onPressMessage && onPressMessage(message)} onLongPress={handleLongPress} delayLongPress={500} style={({ pressed }) => [{ maxWidth: contentType === 'text' ? '85%' : '100%', opacity: pressed ? 0.7 : 1, alignSelf: isCurrentUser ? 'flex-end' : 'flex-start' }]}>
           <View style={{ position: 'relative' }}>
-            <MessageBubble message={displayMessage} isCurrentUser={isCurrentUser} themeOverrides={themeOverrides} styleOverrides={{
-                ...styleOverrides,
-                container: {
-                    paddingBottom: 22, // Space for timestamp for everyone
-                    ...(styleOverrides?.container || {})
-                }
-            }} />
-            
-            <View style={{
-                position: 'absolute',
-                bottom: 6,
-                right: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-            }}>
-                <Text style={{
-                    fontSize: 10,
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    fontFamily: fontFamily,
-                    marginRight: 4,
-                }}>
-                    {formatTime(timestamp)}
-                </Text>
-                {isCurrentUser && (
-                    (message as any).status === 'read' ? (
-                        <View style={{ flexDirection: 'row' }}>
-                            <Icons.CheckIcon width={10} height={10} color={COLORS.brandPrimary} />
-                            <Icons.CheckIcon width={10} height={10} color={COLORS.brandPrimary} style={{ marginLeft: -6 }} />
-                        </View>
-                    ) : (
-                        <Icons.CheckIcon width={10} height={10} color="rgba(255, 255, 255, 0.4)" />
-                    )
-                )}
+            <MessageBubble message={displayMessage} isCurrentUser={isCurrentUser} themeOverrides={themeOverrides} styleOverrides={{ ...styleOverrides, container: { paddingBottom: 22, ...(styleOverrides?.container || {}) } }} />
+            <View style={{ position: 'absolute', bottom: 6, right: 10, flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.5)', fontFamily: fontFamily, marginRight: 4 }}>{formatTime(timestamp)}</Text>
+                {isCurrentUser && ((message as any).status === 'read' ? (
+                    <View style={{ flexDirection: 'row' }}>
+                        <Icons.CheckIcon width={10} height={10} color={COLORS.brandPrimary} />
+                        <Icons.CheckIcon width={10} height={10} color={COLORS.brandPrimary} style={{ marginLeft: -6 }} />
+                    </View>
+                ) : (
+                    <Icons.CheckIcon width={10} height={10} color="rgba(255, 255, 255, 0.4)" />
+                ))}
             </View>
           </View>
         </Pressable>
@@ -270,7 +185,7 @@ function ChatMessage({
       </Animated.View>
 
       <ReactionPicker visible={showReactionPicker} onClose={() => setShowReactionPicker(false)} onSelectEmoji={handleSelectEmoji} />
-      <TipModal visible={showTipModal} onClose={() => setShowTipModal(false)} recipientAddress={(message.user?.id || message.sender_id || message.senderId) as string} recipientName={(message.user?.username || 'User') as string} onTipSent={handleTipSent} />
+      <TipModal visible={showTipModal} onClose={() => setShowTipModal(false)} recipientAddress={(message.user?.id || message.sender_id || (message as any).senderId) as string} recipientName={(message.user?.username || 'User') as string} onTipSent={handleTipSent} />
     </View>
   );
 }
