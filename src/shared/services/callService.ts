@@ -193,7 +193,8 @@ class CallService {
   public async handleIceCandidate(data: any) {
     if (!this.pc) return;
     const { from, ciphertext, nonce } = data;
-    const remoteUser = store.getState().call.remoteUser || state.chat.chats.flatMap(c => c.participants).find(p => p.id === from);
+    const state = store.getState();
+    const remoteUser = state.call.remoteUser || state.chat.chats.flatMap(c => c.participants).find(p => p.id === from);
     if (!remoteUser?.public_encryption_key) return;
 
     const decryptedCandidate = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);

@@ -62,12 +62,12 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
     let dName = 'Seeker User';
     let hName = 'unknown';
 
-    if (user?.handle && !isWalletAddress(user.handle)) dName = user.handle;
+    if (user && user.handle && !isWalletAddress(user.handle)) dName = user.handle;
     else if (author_skr_username && !isWalletAddress(author_skr_username)) dName = author_skr_username;
     else if (author_wallet_address) dName = truncateAddress(author_wallet_address);
 
     let rawH = author_wallet_address ? truncateAddress(author_wallet_address) : 'unknown';
-    if (user?.username && !isWalletAddress(user.username)) rawH = user.username;
+    if (user && user.username && !isWalletAddress(user.username)) rawH = user.username;
     else if (author_skr_username && !isWalletAddress(author_skr_username)) rawH = author_skr_username;
     hName = rawH.startsWith('@') ? rawH : `@${rawH}`;
 

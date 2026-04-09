@@ -9,8 +9,8 @@ function MessageHeader({ message, showAvatar = true, onPressUser }: MessageHeade
   // Handle ThreadPost or MessageData types
   const user = message.user;
 
-  // Skip header if it shouldn't be shown
-  if (!showAvatar) return null;
+  // Skip header if it shouldn't be shown or user is missing
+  if (!showAvatar || !user) return null;
 
   const handleUserPress = () => {
     if (onPressUser && user) {
