@@ -5,7 +5,7 @@ import expoNotificationService from '../services/expoNotificationService';
 
 export async function createNotification(
   userId: string,
-  type: 'mention' | 'like' | 'repost' | 'reply' | 'follow' | 'message',
+  type: 'mention' | 'like' | 'repost' | 'reply' | 'follow' | 'message' | 'post',
   actorId: string,
   resourceId?: string,
   content?: string
@@ -84,6 +84,12 @@ export async function createNotification(
             screen = 'Profile';
             params = { userId: actorId };
             break;
+          case 'post':
+            title = `New post from ${actorName}`;
+            body = content ? (content.substring(0, 50) + (content.length > 50 ? '...' : '')) : 'Shared a new post';
+            screen = 'ThreadDetail';
+            params = { postId: resourceId };
+            break;
         }
 
         await expoNotificationService.sendNotifications(tokenList, {
@@ -105,6 +111,39 @@ export async function createNotification(
     return id;
   } catch (error) {
     console.error('[Notification] Error creating notification:', error);
+  }
+}
+
+/**
+ * Notify all followers of a user when they create a new post
+ */
+export async function notifyFollowers(
+  authorId: string,
+  postId: string,
+  content: string
+) {
+  try {
+    console.log(`[Notification] Notifying followers of ${authorId} about post ${postId}`);
+    
+    // Get all followers
+    const followers = await knex('follows')
+      .where({ following_id: authorId })
+      .select('follower_id');
+
+    if (followers.length === 0) return;
+
+    // Create notifications for each follower
+    for (const f of followers) {
+      await createNotification(
+        f.follower_id,
+        'post',
+        authorId,
+        postId,
+        content.substring(0, 100) // Preview
+      );
+    }
+  } catch (error) {
+    console.error('[Notification] Error notifying followers:', error);
   }
 }
 

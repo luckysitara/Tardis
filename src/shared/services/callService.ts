@@ -32,6 +32,7 @@ const configuration = {
 class CallService {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
   private remoteUserId: string | null = null;
   private currentChatId: string | null = null;
   private isCaller: boolean = false;
@@ -140,8 +141,18 @@ class CallService {
       };
 
       this.pc.ontrack = (event) => {
-        console.log('[CallService] Received remote track');
-        store.dispatch(setRemoteStream(event.streams[0]));
+        console.log('[CallService] Received remote track:', event.track.kind);
+        if (event.streams && event.streams[0]) {
+          console.log('[CallService] Using provided stream from event');
+          store.dispatch(setRemoteStream(event.streams[0]));
+        } else {
+          console.log('[CallService] No stream provided, creating new MediaStream for track');
+          if (!this.remoteStream) {
+            this.remoteStream = new MediaStream();
+          }
+          this.remoteStream.addTrack(event.track);
+          store.dispatch(setRemoteStream(this.remoteStream));
+        }
       };
 
       try {
@@ -252,8 +263,18 @@ class CallService {
       };
 
       this.pc.ontrack = (event) => {
-        console.log('[CallService] Received remote track');
-        store.dispatch(setRemoteStream(event.streams[0]));
+        console.log('[CallService] Received remote track:', event.track.kind);
+        if (event.streams && event.streams[0]) {
+          console.log('[CallService] Using provided stream from event');
+          store.dispatch(setRemoteStream(event.streams[0]));
+        } else {
+          console.log('[CallService] No stream provided, creating new MediaStream for track');
+          if (!this.remoteStream) {
+            this.remoteStream = new MediaStream();
+          }
+          this.remoteStream.addTrack(event.track);
+          store.dispatch(setRemoteStream(this.remoteStream));
+        }
       };
 
       // Add local tracks
@@ -398,6 +419,7 @@ class CallService {
       this.pc.close();
       this.pc = null;
     }
+    this.remoteStream = null;
     this.remoteUserId = null;
     this.currentChatId = null;
     this.isCaller = false;

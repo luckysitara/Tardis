@@ -16,11 +16,13 @@ import jupiterUltraSwapRouter from './routes/swap/jupiterUltraSwapRoutes'; // Ad
 import domainRouter from './routes/domainRoutes';
 import actionsRouter from './routes/actions';
 import { launchRouter } from './routes/pumpfun/pumpfunLaunch';
+import { notificationRouter } from './routes/notifications/notificationRoutes';
 
 // Removed: turnkeyAuthRouter and adminAuthRouter imports
 import cors from 'cors';
 import { setupConnection } from './utils/connection';
-import { createTablesSQL, createTablesPostgresSQL } from './db/schema'; // Add this import
+import { createTablesSQL, createTablesPostgresSQL } from './db/schema';
+import expoNotificationService from './services/expoNotificationService';
 
 
 const app = express();
@@ -103,6 +105,7 @@ app.use('/api/helius', heliusRouter); // Add this line
 app.use('/api/jupiter/ultra', jupiterUltraSwapRouter); // Add this line
 app.use('/api/domain', domainRouter);
 app.use('/api/pumpfun', launchRouter);
+app.use('/api/notifications', notificationRouter);
 
 // Socket.io handlers
 io.on('connection', (socket) => {
@@ -179,13 +182,48 @@ io.on('connection', (socket) => {
 
   // --- WebRTC Call Signaling ---
 
-  socket.on('call_offer', (data) => {
+  socket.on('call_offer', async (data) => {
     const { to, ...payload } = data;
-    console.log(`Relaying call_offer from ${socket.data.userId} to ${to}`);
+    const from = socket.data.userId;
+    console.log(`Relaying call_offer from ${from} to ${to}`);
+    
+    // Relay via socket
     socket.to(`user:${to}`).emit('call_offer', {
-      from: socket.data.userId,
+      from,
       ...payload
     });
+
+    // Also send Push Notification to wake up device if backgrounded
+    try {
+      const pushTokens = await knex('push_tokens')
+        .where({ user_id: to, is_active: true })
+        .pluck('expo_push_token');
+
+      if (pushTokens.length > 0) {
+        console.log(`[CallNotification] Sending push to ${pushTokens.length} devices for ${to}`);
+        
+        // Fetch sender username for the notification
+        const sender = await knex('users').where({ id: from }).first();
+        const senderName = sender?.username || 'Secure Seeker';
+
+        await expoNotificationService.sendNotifications(pushTokens, {
+          title: 'Incoming Call',
+          body: `${senderName} is calling you...`,
+          data: { 
+            type: 'incoming_call', 
+            from, 
+            isVideo: data.isVideo,
+            fromPublicKey: data.fromPublicKey,
+            ciphertext: data.ciphertext,
+            nonce: data.nonce
+          },
+          priority: 'high',
+          sound: 'default'
+        });
+      }
+    } catch (pushError) {
+      console.error('[CallNotification] Failed to send push:', pushError);
+    }
   });
 
   socket.on('call_ringing', (data) => {

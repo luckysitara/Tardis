@@ -4,7 +4,7 @@ import knex from '../db/knex';
 import { PublicKey, Transaction, Connection } from '@solana/web3.js';
 import { verifySignature } from '../utils/solana'; // Actual import for Solana signature verification utility
 import { v4 as uuidv4 } from 'uuid'; // For generating UUIDs for posts
-import { processMentions, createNotification } from '../service/notificationService';
+import { processMentions, createNotification, notifyFollowers } from '../service/notificationService';
 
 import * as tldParserPkg from '@onsol/tldparser';
 const TldParser = (tldParserPkg as any).TldParser || (tldParserPkg as any).default?.TldParser || (tldParserPkg as any).TldParserSvm;
@@ -176,6 +176,8 @@ postsRouter.post('/', async (req: Request, res: Response) => {
 
         // Trigger notifications asynchronously
         processMentions(content, author_wallet_address, postId, 'post');
+        notifyFollowers(author_wallet_address, postId, content);
+        
         if (parent_id) {
             knex('posts').where({ id: parent_id }).first().then(parentPost => {
                 if (parentPost) {
