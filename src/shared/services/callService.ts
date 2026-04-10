@@ -14,6 +14,7 @@ import {
   endCall,
   incomingCall,
   initiateCall,
+  callRinging,
   resetCall,
 } from '../state/call/slice';
 import { sendMessage } from '../state/chat/slice';
@@ -51,13 +52,18 @@ class CallService {
       await this.handleAnswer(data);
     });
 
+    socketService.subscribeToEvent('call_ringing', (data: any) => {
+      console.log('[CallService] Received call_ringing from', data.from);
+      store.dispatch(callRinging());
+    });
+
     socketService.subscribeToEvent('ice_candidate', async (data: any) => {
       await this.handleIceCandidate(data);
     });
 
     socketService.subscribeToEvent('call_hangup', () => {
-      console.log('[CallService] Received call_hangup');
-      this.handleRemoteHangup();
+      store.dispatch(endCall());
+      this.cleanup();
     });
   }
 
@@ -180,7 +186,7 @@ class CallService {
   private iceCandidatesQueue: any[] = [];
 
   private async handleOffer(data: any) {
-    const { from, ciphertext, nonce, isVideo } = data;
+    const { from, ciphertext, nonce, isVideo, fromPublicKey } = data;
     console.log(`[CallService] Handling offer from ${from}`);
     this.remoteUserId = from;
     this.isCaller = false;
@@ -189,15 +195,19 @@ class CallService {
     // Try to find user in any chat room participants
     let remoteUser = state.chat.chats.flatMap(c => c.participants).find(p => p.id === from);
     
-    // Fallback: If not found, create a basic user object from the event data
-    if (!remoteUser) {
-      console.log(`[CallService] Remote user ${from} not found in chats, searching specifically...`);
-      // You might want to fetch user profile here if available
-      remoteUser = { id: from, username: 'Secure User', public_encryption_key: data.fromPublicKey } as any;
+    // Fallback: If not found or missing key, use the public key provided in the signaling data
+    if (!remoteUser || !remoteUser.public_encryption_key) {
+      console.log(`[CallService] Remote user ${from} info or key missing, using provided fromPublicKey.`);
+      remoteUser = { 
+        ...(remoteUser || {}), 
+        id: from, 
+        username: remoteUser?.username || 'Secure User', 
+        public_encryption_key: fromPublicKey 
+      } as any;
     }
 
     if (!remoteUser?.public_encryption_key) {
-      console.error('[CallService] Cannot handle offer: Remote user has no encryption key');
+      console.error('[CallService] Cannot handle offer: No encryption key available');
       return;
     }
 
@@ -207,6 +217,11 @@ class CallService {
         console.error('[CallService] Failed to decrypt signaling data');
         return;
       }
+
+      // Notify the caller that we are ringing
+      const userId = state.auth.address;
+      console.log('[CallService] Emitting call_ringing back to', from);
+      socketService.emit('call_ringing', { to: from, from: userId });
 
       this.pendingOffer = { sdp: decryptedSdp, isVideo };
       store.dispatch(incomingCall({ remoteUser: remoteUser as any, isVideo }));

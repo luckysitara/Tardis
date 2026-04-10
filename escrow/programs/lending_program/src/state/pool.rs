@@ -11,6 +11,7 @@ pub struct LendingPool {
     pub min_borrow: u64,
     pub max_borrow: u64,
     pub interest_rate: u64,     // APR in basis points (e.g., 500 = 5%)
+    pub loan_count: u64,        // Added counter for unique loan PDAs
     pub vault_bump: u8,
     pub pool_bump: u8,
 }
@@ -20,7 +21,8 @@ pub struct LendingPool {
 pub struct ActiveLoan {
     pub borrower: Pubkey,
     pub pool: Pubkey,
-    pub collateral_mint: Pubkey, // Added this field
+    pub collateral_mint: Pubkey,
+    pub loan_id: u64,           // Added to store the unique index
     pub amount_borrowed: u64,
     pub repayment_amount: u64,
     pub collateral_amount: u64,

@@ -62,7 +62,10 @@ pub struct RepayLoan<'info> {
 pub fn repay_loan_handler(ctx: Context<RepayLoan>) -> Result<()> {
     let loan = &mut ctx.accounts.loan_account;
 
-    // 1. Borrower repays lender (amount + interest)
+    // 1. Update status FIRST (Re-entrancy protection)
+    loan.status = STATUS_REPAID;
+
+    // 2. Borrower repays lender (amount + interest)
     let cpi_accounts = TransferChecked {
         from: ctx.accounts.borrower_loan_ata.to_account_info(),
         mint: ctx.accounts.loan_mint.to_account_info(),
@@ -73,7 +76,7 @@ pub fn repay_loan_handler(ctx: Context<RepayLoan>) -> Result<()> {
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     transfer_checked(cpi_ctx, loan.repayment_amount, ctx.accounts.loan_mint.decimals)?;
 
-    // 2. Vault releases collateral back to borrower
+    // 3. Vault releases collateral back to borrower
     let seeds = &[
         b"loan",
         loan.borrower.as_ref(),
@@ -94,8 +97,6 @@ pub fn repay_loan_handler(ctx: Context<RepayLoan>) -> Result<()> {
         signer_seeds,
     );
     transfer_checked(cpi_ctx_vault, loan.collateral_amount, ctx.accounts.collateral_mint.decimals)?;
-
-    loan.status = STATUS_REPAID;
 
     Ok(())
 }

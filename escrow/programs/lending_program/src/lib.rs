@@ -60,4 +60,12 @@ pub mod lending_program {
     pub fn liquidate_pool_loan(ctx: Context<LiquidatePoolLoan>) -> Result<()> {
         instructions::liquidate_pool_loan::liquidate_pool_loan_handler(ctx)
     }
+
+    pub fn withdraw_pool_funds(ctx: Context<WithdrawPoolFunds>, amount: u64) -> Result<()> {
+        instructions::withdraw_pool_funds::withdraw_pool_funds_handler(ctx, amount)
+    }
+
+    pub fn close_pool(ctx: Context<ClosePool>) -> Result<()> {
+        instructions::close_pool::close_pool_handler(ctx)
+    }
 }

@@ -21,7 +21,7 @@ pub struct RepayPoolLoan<'info> {
 
     #[account(
         mut,
-        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &pool_account.remaining_liquidity.to_le_bytes()],
+        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &active_loan.loan_id.to_le_bytes()],
         bump = active_loan.bump,
         constraint = active_loan.borrower == borrower.key(),
         constraint = active_loan.pool == pool_account.key(),
@@ -62,7 +62,11 @@ pub fn repay_pool_loan_handler(ctx: Context<RepayPoolLoan>) -> Result<()> {
     let active_loan = &mut ctx.accounts.active_loan;
     let pool = &mut ctx.accounts.pool_account;
 
-    // 1. Transfer Repayment (USDC) from Borrower to Pool Vault
+    // 1. Update Loan and Pool state FIRST (Re-entrancy protection)
+    active_loan.status = 1; // Repaid
+    pool.remaining_liquidity += active_loan.amount_borrowed; // Add principal back to pool
+
+    // 2. Transfer Repayment (USDC) from Borrower to Pool Vault
     let cpi_repayment = TransferChecked {
         from: ctx.accounts.borrower_loan_ata.to_account_info(),
         mint: ctx.accounts.loan_mint.to_account_info(),
@@ -76,12 +80,12 @@ pub fn repay_pool_loan_handler(ctx: Context<RepayPoolLoan>) -> Result<()> {
         ctx.accounts.loan_mint.decimals
     )?;
 
-    // 2. Release Collateral (SKR) from Loan Vault to Borrower
+    // 3. Release Collateral (SKR) from Loan Vault to Borrower
     let signer_seeds: &[&[&[u8]]] = &[&[
         b"active_loan",
         active_loan.borrower.as_ref(),
         active_loan.pool.as_ref(),
-        &pool.remaining_liquidity.to_le_bytes(),
+        &active_loan.loan_id.to_le_bytes(),
         &[active_loan.bump],
     ]];
 
@@ -97,10 +101,6 @@ pub fn repay_pool_loan_handler(ctx: Context<RepayPoolLoan>) -> Result<()> {
         active_loan.collateral_amount,
         ctx.accounts.collateral_mint.decimals
     )?;
-
-    // 3. Update Loan and Pool state
-    active_loan.status = 1; // Repaid
-    pool.remaining_liquidity += active_loan.amount_borrowed; // Add principal back to pool
 
     Ok(())
 }

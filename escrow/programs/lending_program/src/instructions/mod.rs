@@ -11,6 +11,8 @@ pub mod create_pool;
 pub mod take_loan;
 pub mod repay_pool_loan;
 pub mod liquidate_pool_loan;
+pub mod withdraw_pool_funds;
+pub mod close_pool;
 
 pub use initialize_loan::*;
 pub use accept_loan::*;
@@ -20,6 +22,8 @@ pub use create_pool::*;
 pub use take_loan::*;
 pub use repay_pool_loan::*;
 pub use liquidate_pool_loan::*;
+pub use withdraw_pool_funds::*;
+pub use close_pool::*;
 
 // -----------------------------------------------------------------
 // Lightweight Pyth Price Parsing (No External Crate Required)

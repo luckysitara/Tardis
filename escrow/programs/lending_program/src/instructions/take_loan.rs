@@ -42,7 +42,7 @@ pub struct TakeLoan<'info> {
         init,
         payer = borrower,
         space = 8 + ActiveLoan::INIT_SPACE,
-        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &pool_account.remaining_liquidity.to_le_bytes()],
+        seeds = [b"active_loan", borrower.key().as_ref(), pool_account.key().as_ref(), &pool_account.loan_count.to_le_bytes()],
         bump
     )]
     pub active_loan: Box<Account<'info, ActiveLoan>>,
@@ -93,17 +93,21 @@ pub fn take_loan_handler(
     // Convert USD value back to SKR amount
     let collateral_amount = (required_collateral_usd as f64 / skr_price_usd as f64 * 1_000_000_000.0) as u64;
 
-    // 4. Initialize Active Loan
+    // 4. Initialize Active Loan and Update Pool State FIRST (CEI pattern)
     let loan = &mut ctx.accounts.active_loan;
     loan.borrower = ctx.accounts.borrower.key();
     loan.pool = pool.key();
     loan.collateral_mint = ctx.accounts.collateral_mint.key();
+    loan.loan_id = pool.loan_count;
     loan.amount_borrowed = amount_to_borrow;
     loan.repayment_amount = repayment_amount;
     loan.collateral_amount = collateral_amount;
     loan.expiry = Clock::get()?.unix_timestamp + 86400 * 7; // Default 7 days
     loan.status = 0; // Active
     loan.bump = ctx.bumps.active_loan;
+
+    pool.remaining_liquidity -= amount_to_borrow;
+    pool.loan_count += 1;
 
     // 5. Transfer Collateral (SKR) to Vault
     let cpi_collateral = TransferChecked {
@@ -140,9 +144,6 @@ pub fn take_loan_handler(
         amount_to_borrow,
         ctx.accounts.loan_mint.decimals
     )?;
-
-    // 7. Update Pool Liquidity
-    pool.remaining_liquidity -= amount_to_borrow;
 
     Ok(())
 }

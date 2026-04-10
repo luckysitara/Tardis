@@ -16,4 +16,6 @@ pub enum LendingError {
     InsufficientCollateral,
     #[msg("Calculation error.")]
     CalculationError,
+    #[msg("Insufficient liquidity available in the pool.")]
+    InsufficientLiquidity,
 }

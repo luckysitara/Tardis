@@ -19,6 +19,7 @@ pub mod sales_escrow {
         escrow.order_id = order_id;
         escrow.is_initialized = true;
         escrow.is_completed = false;
+        escrow.is_cancelled = false;
         escrow.bump = ctx.bumps.escrow_account;
 
         // Transfer funds from buyer to escrow vault
@@ -50,6 +51,7 @@ pub mod sales_escrow {
             require!(ctx.accounts.signer.key() == escrow.buyer, EscrowError::Unauthorized);
             require!(escrow.is_initialized, EscrowError::NotInitialized);
             require!(!escrow.is_completed, EscrowError::AlreadyCompleted);
+            require!(!escrow.is_cancelled, EscrowError::AlreadyCancelled);
             
             amount = escrow.amount;
             bump = escrow.bump;
@@ -57,7 +59,12 @@ pub mod sales_escrow {
             order_id = escrow.order_id.clone();
         }
 
-        // Transfer funds from escrow vault to seller
+        // 1. Update state FIRST (Re-entrancy protection)
+        let escrow = &mut ctx.accounts.escrow_account;
+        escrow.is_completed = true;
+
+        // 2. Transfer funds from escrow vault to seller
+        // The vault authority is the escrow_account (the PDA itself)
         let seeds = &[
             b"escrow",
             buyer_key.as_ref(),
@@ -80,9 +87,6 @@ pub mod sales_escrow {
 
         token::transfer(cpi_ctx, amount)?;
 
-        let escrow = &mut ctx.accounts.escrow_account;
-        escrow.is_completed = true;
-
         Ok(())
     }
 
@@ -94,10 +98,14 @@ pub mod sales_escrow {
 
         {
             let escrow = &ctx.accounts.escrow_account;
-            // Only seller can cancel (refund buyer)
-            require!(ctx.accounts.signer.key() == escrow.seller, EscrowError::Unauthorized);
+            // Either buyer or seller can cancel
+            require!(
+                ctx.accounts.signer.key() == escrow.seller || ctx.accounts.signer.key() == escrow.buyer, 
+                EscrowError::Unauthorized
+            );
             require!(escrow.is_initialized, EscrowError::NotInitialized);
             require!(!escrow.is_completed, EscrowError::AlreadyCompleted);
+            require!(!escrow.is_cancelled, EscrowError::AlreadyCancelled);
 
             amount = escrow.amount;
             bump = escrow.bump;
@@ -105,7 +113,11 @@ pub mod sales_escrow {
             order_id = escrow.order_id.clone();
         }
 
-        // Transfer funds back to buyer
+        // 1. Update state FIRST
+        let escrow = &mut ctx.accounts.escrow_account;
+        escrow.is_cancelled = true;
+
+        // 2. Transfer funds back to buyer
         let seeds = &[
             b"escrow",
             buyer_key.as_ref(),
@@ -128,9 +140,6 @@ pub mod sales_escrow {
 
         token::transfer(cpi_ctx, amount)?;
 
-        let escrow = &mut ctx.accounts.escrow_account;
-        escrow.is_completed = true;
-
         Ok(())
     }
 }
@@ -147,7 +156,7 @@ pub struct InitializeEscrow<'info> {
     #[account(
         init,
         payer = buyer,
-        space = 8 + 32 + 32 + 8 + 4 + order_id.len() + 1 + 1 + 1,
+        space = 8 + 32 + 32 + 8 + (4 + order_id.len()) + 1 + 1 + 1 + 1,
         seeds = [b"escrow", buyer.key().as_ref(), order_id.as_bytes()],
         bump
     )]
@@ -250,6 +259,7 @@ pub struct EscrowAccount {
     pub order_id: String,
     pub is_initialized: bool,
     pub is_completed: bool,
+    pub is_cancelled: bool,
     pub bump: u8,
 }
 
@@ -261,4 +271,6 @@ pub enum EscrowError {
     NotInitialized,
     #[msg("Escrow has already been completed.")]
     AlreadyCompleted,
+    #[msg("Escrow has already been cancelled.")]
+    AlreadyCancelled,
 }

@@ -16,7 +16,7 @@ pub struct LiquidatePoolLoan<'info> {
 
     #[account(
         mut,
-        seeds = [b"active_loan", active_loan.borrower.as_ref(), pool_account.key().as_ref(), &pool_account.remaining_liquidity.to_le_bytes()],
+        seeds = [b"active_loan", active_loan.borrower.as_ref(), pool_account.key().as_ref(), &active_loan.loan_id.to_le_bytes()],
         bump = active_loan.bump,
         constraint = active_loan.pool == pool_account.key(),
         constraint = pool_account.lender == lender.key(),
@@ -69,12 +69,15 @@ pub fn liquidate_pool_loan_handler(ctx: Context<LiquidatePoolLoan>) -> Result<()
 
     require!(expired || undercollateralized, LendingError::CalculationError);
 
-    // 2. Transfer all collateral (SKR) to Lender
+    // 2. Update status FIRST (Re-entrancy protection)
+    active_loan.status = 2; // Liquidated
+
+    // 3. Transfer all collateral (SKR) to Lender
     let signer_seeds: &[&[&[u8]]] = &[&[
         b"active_loan",
         active_loan.borrower.as_ref(),
         active_loan.pool.as_ref(),
-        &pool.remaining_liquidity.to_le_bytes(),
+        &active_loan.loan_id.to_le_bytes(),
         &[active_loan.bump],
     ]];
 
@@ -91,9 +94,6 @@ pub fn liquidate_pool_loan_handler(ctx: Context<LiquidatePoolLoan>) -> Result<()
         active_loan.collateral_amount,
         ctx.accounts.collateral_mint.decimals
     )?;
-
-    // 3. Close the loan
-    active_loan.status = 2; // Liquidated
 
     Ok(())
 }

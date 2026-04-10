@@ -7,6 +7,7 @@ import {
   Modal,
   Animated,
   Dimensions,
+  Vibration,
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,9 @@ const IncomingCallModal = () => {
 
   useEffect(() => {
     if (callStatus === 'ringing' && isIncoming) {
+      // Start vibration loop: 500ms on, 1000ms off
+      Vibration.vibrate([500, 1000], true);
+
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.2, duration: 1000, useNativeDriver: true }),
@@ -35,8 +39,13 @@ const IncomingCallModal = () => {
         ])
       ).start();
     } else {
+      Vibration.cancel();
       pulseAnim.setValue(1);
     }
+
+    return () => {
+      Vibration.cancel();
+    };
   }, [callStatus, isIncoming, pulseAnim]);
 
   const handleAccept = () => {

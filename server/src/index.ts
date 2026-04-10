@@ -188,6 +188,15 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('call_ringing', (data) => {
+    const { to, ...payload } = data;
+    console.log(`Relaying call_ringing from ${socket.data.userId} to ${to}`);
+    socket.to(`user:${to}`).emit('call_ringing', {
+      from: socket.data.userId,
+      ...payload
+    });
+  });
+
   socket.on('call_answer', (data) => {
     const { to, ...payload } = data;
     console.log(`Relaying call_answer from ${socket.data.userId} to ${to}`);

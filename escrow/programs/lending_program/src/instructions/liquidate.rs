@@ -63,7 +63,10 @@ pub fn liquidate_handler(ctx: Context<Liquidate>) -> Result<()> {
         &ctx.accounts.switchboard_price_info,
     )?;
 
-    // 3. Transfer collateral to lender
+    // 3. Update status FIRST (Re-entrancy protection)
+    loan.status = STATUS_LIQUIDATED;
+
+    // 4. Transfer collateral to lender
     let seeds = &[
         b"loan",
         loan.borrower.as_ref(),
@@ -84,8 +87,6 @@ pub fn liquidate_handler(ctx: Context<Liquidate>) -> Result<()> {
         signer_seeds,
     );
     transfer_checked(cpi_ctx_vault, loan.collateral_amount, ctx.accounts.collateral_mint.decimals)?;
-
-    loan.status = STATUS_LIQUIDATED;
 
     Ok(())
 }
