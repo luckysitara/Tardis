@@ -70,13 +70,33 @@ class CallService {
   }
 
   private encryptSignaling(data: string, recipientPublicKey: string) {
-    const keypair = this.getEncryptionKeys();
-    return encryptMessage(data, recipientPublicKey, keypair.secretKey);
+    try {
+      const keypair = this.getEncryptionKeys();
+      const result = encryptMessage(data, recipientPublicKey, keypair.secretKey);
+      if (!result) throw new Error('Encryption returned null');
+      return result;
+    } catch (e) {
+      console.error('[CallService] Encryption failed:', e);
+      throw e;
+    }
   }
 
   private decryptSignaling(ciphertext: string, nonce: string, senderPublicKey: string) {
-    const keypair = this.getEncryptionKeys();
-    return decryptMessage(ciphertext, nonce, senderPublicKey, keypair.secretKey);
+    try {
+      const keypair = this.getEncryptionKeys();
+      const result = decryptMessage(ciphertext, nonce, senderPublicKey, keypair.secretKey);
+      if (!result) {
+        console.warn('[CallService] Decryption returned null - keys might be mismatched or payload corrupted');
+        console.log('[CallService] Debug info:', { 
+           senderPublicKey: senderPublicKey.substring(0, 10) + '...', 
+           recipientPublicKey: store.getState().auth.publicEncryptionKey?.substring(0, 10) + '...'
+        });
+      }
+      return result;
+    } catch (e) {
+      console.error('[CallService] Decryption failed error:', e);
+      return null;
+    }
   }
 
   public async startCall(remoteUser: any, isVideo: boolean, chatId?: string) {

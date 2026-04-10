@@ -187,6 +187,60 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
     finally { setIsReposting(false); }
   };
 
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const isOwnPost = userId === author_wallet_address;
+  const isOwnRepost = !!isRepost && (repostedBy?.id === userId);
+  const canDelete = isOwnPost || isOwnRepost;
+
+  const handleDelete = async () => {
+    if (!userId || !canDelete || isDeleting) return;
+
+    Alert.alert(
+      "Delete",
+      `Are you sure you want to delete this ${isOwnRepost ? 'repost' : 'post'}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const timestamp = new Date().toISOString();
+              // Reconstruct message as expected by backend: JSON.stringify({ id, author_wallet_address, timestamp })
+              const messageToSign = JSON.stringify({ id, author_wallet_address: userId, timestamp });
+              const signatureBytes = await signMessage(messageToSign);
+              
+              if (!signatureBytes) {
+                setIsDeleting(false);
+                return;
+              }
+              
+              const signature = Buffer.from(signatureBytes).toString('base64');
+              
+              await dispatch(deletePost({ 
+                postId: id, 
+                author_wallet_address: userId, 
+                signature, 
+                timestamp 
+              })).unwrap();
+              
+              if (isThreadView) {
+                navigation.goBack();
+              }
+            } catch (error) {
+              console.error('[PostComponent] Delete failed:', error);
+              Alert.alert("Error", "Failed to delete. Please try again.");
+            } finally {
+              setIsDeleting(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <TouchableOpacity style={styles.container} onPress={() => !isThreadView && navigation.navigate('ThreadDetail', { postId: interactionId })} activeOpacity={0.9}>
       {isRepost && (
@@ -211,7 +265,15 @@ const PostComponent: React.FC<PostComponentProps> = (props) => {
               <Text style={styles.dot}>·</Text>
               <Text style={styles.time}>{formatRelativeTime(timestamp)}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.moreButton}><Icons.Settings width={16} height={16} color={COLORS.greyMid} /></TouchableOpacity>
+            {canDelete && (
+              <TouchableOpacity style={styles.moreButton} onPress={handleDelete}>
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color={COLORS.greyMid} />
+                ) : (
+                  <Icons.Settings width={16} height={16} color={COLORS.greyMid} />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
           {replyToUsername && <Text style={styles.replyingToText}>Replying to <Text style={styles.replyingToHandle}>@{replyToUsername}</Text></Text>}
           <View style={styles.contentContainer}>

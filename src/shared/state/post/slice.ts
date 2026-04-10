@@ -87,8 +87,10 @@ export const deletePost = createAsyncThunk(
       const response = await axios.delete(`${SERVER_BASE_URL}/api/posts/${postId}`, {
         data: { author_wallet_address, signature, timestamp }
       });
-      return { postId, success: response.data.success };
+      // Return postId even if response.data.success is assumed from 200 OK
+      return { postId, success: response.data.success || true };
     } catch (error: any) {
+      console.error('[deletePost thunk] Error:', error.response?.data || error.message);
       return rejectWithValue(error.response?.data?.error || error.message);
     }
   }

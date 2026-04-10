@@ -9,7 +9,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
@@ -17,11 +16,11 @@ import Icons from '@/assets/svgs';
 import callService from '@/shared/services/callService';
 import { acceptCall } from '@/shared/state/call/slice';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
+import { navigationRef } from '@/shared/hooks/useAppNavigation';
 
 const { width } = Dimensions.get('window');
 
 const IncomingCallModal = () => {
-  const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const { callStatus, remoteUser, isVideo, isIncoming } = useAppSelector((state) => state.call);
 
@@ -43,7 +42,9 @@ const IncomingCallModal = () => {
   const handleAccept = () => {
     dispatch(acceptCall());
     callService.joinCall(isVideo);
-    navigation.navigate('CallScreen');
+    if (navigationRef.isReady()) {
+      (navigationRef as any).navigate('CallScreen');
+    }
   };
 
   const handleDecline = () => {

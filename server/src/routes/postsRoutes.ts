@@ -544,7 +544,7 @@ postsRouter.get('/:id/thread', async (req: Request, res: Response) => {
     }
 });
 
-// DELETE /api/posts/:id - Delete a post
+// DELETE /api/posts/:id - Delete a post or repost
 postsRouter.delete('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -559,25 +559,38 @@ postsRouter.delete('/:id', async (req: Request, res: Response) => {
 
         const isSignatureValid = verifySignature(signedMessage, signature, author_wallet_address);
         if (!isSignatureValid) {
+            console.error('[PostsRouter] Invalid deletion signature:', signedMessage);
             return res.status(401).json({ success: false, error: 'Invalid signature for deletion.' });
         }
 
-        // Verify the author
+        // 1. Check if it's an original post
         const post = await knex('posts').where({ id }).first();
-        if (!post || post.author_wallet_address !== author_wallet_address) {
-            return res.status(403).json({ success: false, error: 'Unauthorized to delete this post.' });
+        if (post) {
+            if (post.author_wallet_address !== author_wallet_address) {
+                return res.status(403).json({ success: false, error: 'Unauthorized to delete this post.' });
+            }
+
+            await knex('posts').where({ id }).del();
+            console.log(`[PostsRouter] Post ${id} deleted by author ${author_wallet_address}`);
+            return res.json({ success: true, message: 'Post deleted successfully.' });
         }
 
+        // 2. If not a post, check if it's a repost
+        const repost = await knex('reposts').where({ id }).first();
+        if (repost) {
+            if (repost.reposter_wallet_address !== author_wallet_address) {
+                return res.status(403).json({ success: false, error: 'Unauthorized to delete this repost.' });
+            }
 
-        const deletedCount = await knex('posts')
-            .where({ id, author_wallet_address })
-            .del();
-
-        if (deletedCount === 0) {
-            return res.status(404).json({ success: false, error: 'Post not found.' });
+            // Decrement repost count on the original post
+            await knex('posts').where({ id: repost.original_post_id }).decrement('repost_count', 1);
+            
+            await knex('reposts').where({ id }).del();
+            console.log(`[PostsRouter] Repost ${id} deleted by reposter ${author_wallet_address}`);
+            return res.json({ success: true, message: 'Repost deleted successfully.' });
         }
 
-        return res.json({ success: true, message: 'Post deleted successfully.' });
+        return res.status(404).json({ success: false, error: 'Post or repost not found.' });
 
     } catch (error: any) {
         console.error('[DELETE /api/posts/:id] Error deleting post:', error);
