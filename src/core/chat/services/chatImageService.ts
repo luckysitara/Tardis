@@ -2,9 +2,27 @@
  * Chat image service for uploading images to IPFS
  */
 import axios from 'axios';
-import { SERVER_URL } from '@env';
+import { SERVER_BASE_URL } from '@/shared/config/server';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator';
+
+/**
+ * Compresses an image before upload
+ */
+async function compressImage(uri: string): Promise<string> {
+  try {
+    const result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1024 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    return result.uri;
+  } catch (error) {
+    console.warn('[uploadChatImage] Compression failed, using original:', error);
+    return uri;
+  }
+}
 
 /**
  * Uploads a chat image to IPFS
@@ -16,16 +34,17 @@ import { Platform } from 'react-native';
 export async function uploadChatImage(userId: string, imageUri: string): Promise<string> {
   console.log(`[uploadChatImage] Initiating upload for user ${userId}, uri: ${imageUri}`);
   try {
+    // Compress image first to avoid large payloads failing on mobile networks
+    const compressedUri = await compressImage(imageUri);
+    
     const formData = new FormData();
     
-    const fileName = imageUri.split('/').pop() || 'image.jpg';
+    const fileName = compressedUri.split('/').pop() || 'image.jpg';
     const match = /\.(\w+)$/.exec(fileName);
     const type = match ? `image/${match[1]}` : `image/jpeg`;
 
-    // Important: React Native FormData needs an object with uri, name, type
-    // and uri should have file:// prefix on most versions
     const photo = {
-      uri: imageUri,
+      uri: compressedUri,
       name: fileName,
       type: type,
     };
@@ -34,8 +53,8 @@ export async function uploadChatImage(userId: string, imageUri: string): Promise
     formData.append('chatImage', photo);
     formData.append('userId', userId);
 
-    // Use SERVER_URL from @env
-    const targetServerUrl = SERVER_URL;
+    // Use SERVER_BASE_URL from shared config
+    const targetServerUrl = SERVER_BASE_URL;
     console.log(`[uploadChatImage] Sending request to ${targetServerUrl}/api/chat/images/upload`);
 
     const response = await fetch(`${targetServerUrl}/api/chat/images/upload`, {
@@ -43,7 +62,6 @@ export async function uploadChatImage(userId: string, imageUri: string): Promise
       body: formData,
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'multipart/form-data',
       },
     });
 
