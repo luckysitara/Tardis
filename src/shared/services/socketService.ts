@@ -146,9 +146,18 @@ class SocketService {
     });
   }
 
+  private eventSubscriptions: Map<string, Array<(data: any) => void>> = new Map();
+
   // Set up socket event listeners
   private setupEventListeners(): void {
     if (!this.socket) return;
+
+    // Apply any queued subscriptions
+    this.eventSubscriptions.forEach((callbacks, event) => {
+      callbacks.forEach(callback => {
+        this.socket?.on(event, callback);
+      });
+    });
 
     // Authentication response
     this.socket.on('authenticated', (data: { success: boolean }) => {
@@ -426,23 +435,33 @@ class SocketService {
 
   // Add subscribeToEvent and unsubscribeFromEvent methods
   public subscribeToEvent(event: string, callback: (data: any) => void): void {
-    if (!this.socket) {
-      console.warn(`Cannot subscribe to "${event}" - socket not initialized`);
-      return;
+    if (!this.eventSubscriptions.has(event)) {
+      this.eventSubscriptions.set(event, []);
     }
     
-    this.socket.on(event, callback);
-    console.log(`Subscribed to ${event} events`);
+    this.eventSubscriptions.get(event)?.push(callback);
+    
+    if (this.socket) {
+      this.socket.on(event, callback);
+      console.log(`Subscribed to ${event} events (socket active)`);
+    } else {
+      console.log(`Queued subscription for ${event} events (socket not yet initialized)`);
+    }
   }
 
   public unsubscribeFromEvent(event: string, callback: (data: any) => void): void {
-    if (!this.socket) {
-      console.warn(`Cannot unsubscribe from "${event}" - socket not initialized`);
-      return;
+    const callbacks = this.eventSubscriptions.get(event);
+    if (callbacks) {
+      const index = callbacks.indexOf(callback);
+      if (index !== -1) {
+        callbacks.splice(index, 1);
+      }
     }
     
-    this.socket.off(event, callback);
-    console.log(`Unsubscribed from ${event} events`);
+    if (this.socket) {
+      this.socket.off(event, callback);
+      console.log(`Unsubscribed from ${event} events`);
+    }
   }
 }
 

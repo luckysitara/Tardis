@@ -5,57 +5,12 @@ import * as SplashScreen from 'expo-splash-screen';
 
 global.Buffer = Buffer;
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Prevent the splash screen from auto-hiding before asset loading is complete
 SplashScreen.preventAutoHideAsync().catch(() => {
-  /* reloading the app might cause some errors here, we can ignore them */
+  /* reloading the app might trigger some race conditions, ignore them */
 });
 
-// Add a global dev mode flag that can be used anywhere in the app
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Declare global type for TypeScript
-declare global {
-  namespace NodeJS {
-    interface Global {
-      __DEV_MODE__: boolean;
-    }
-  }
-  var __DEV_MODE__: boolean;
-}
-
-// Set a global __DEV_MODE__ flag during app initialization
-global.__DEV_MODE__ = global.__DEV_MODE__ || false;
-
-// Function to explicitly set dev mode for Expo Go
-const forceDevMode = async () => {
-  try {
-    // Check if we're running yarn start --dev by looking at the app launch URL
-    // This code will run before any React component mounts
-    if (__DEV__) {
-      // Check for dev mode in storage
-      const storedDevMode = await AsyncStorage.getItem('devMode');
-
-      // HACK: We know when start.js was run with --dev, we created a file
-      // Try to read this manually from AsyncStorage which persists between runs
-      const isInDevMode = storedDevMode === 'true';
-
-      // Set the global flag
-      global.__DEV_MODE__ = isInDevMode;
-
-      console.log('[DEV MODE] Direct detection at startup:', {
-        isInDevMode,
-        storedDevMode,
-      });
-
-      if (isInDevMode) {
-        // FORCE DEV MODE WHEN DETECTED
-        console.log('🟢 FORCE-ENABLING DEV MODE AT APP STARTUP');
-      }
-    }
-  } catch (error) {
-    console.error('[DEV MODE] Error in direct detection:', error);
-  }
-};
+import { forceDevMode } from '@/shared/utils/devModeUtils';
 
 // Run this immediately at app startup
 forceDevMode().catch(console.error);
@@ -74,14 +29,6 @@ import COLORS from './src/assets/colors';
 import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { PersistGate } from 'redux-persist/integration/react';
 
-
-// Removed: import { TurnkeyProvider } from '@turnkey/sdk-react-native';
-
-// Removed: Dynamic client initialization
-// import {
-//   getDynamicClient,
-//   initDynamicClient,
-// } from './src/modules/wallet-providers/services/walletProviders/dynamic';
 import TransactionNotification from './src/core/shared-ui/TransactionNotification';
 import { IncomingCallModal } from '@/core/chat';
 
@@ -99,14 +46,22 @@ import { CustomizationProvider } from '@/shared/config/CustomizationProvider';
 import { EnvErrorProvider, useEnvError } from '@/shared/context/EnvErrorContext';
 import { EnvWarningDrawer } from './src/core/dev-mode';
 
+const PersistLoading = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+    <ActivityIndicator size="large" color={COLORS.brandPrimary} />
+  </View>
+);
 
+const GlobalUIElements = () => (
+  <>
+    <TransactionNotification />
+    <IncomingCallModal />
+  </>
+);
 
-// Component that conditionally renders dev tools
 const DevModeComponents = () => {
   const { isDevMode } = useDevMode();
-
   if (!isDevMode) return null;
-
   return (
     <>
       <DevModeStatusBar />
@@ -115,95 +70,15 @@ const DevModeComponents = () => {
   );
 };
 
-// Component that conditionally renders standard mode warnings
 const StandardModeComponents = () => {
   const { isDevMode } = useDevMode();
-  const { hasMissingEnvVars } = useEnvError();
-
-  // Only render in standard mode (not dev mode) when there are missing env vars
-  // User requested to resolve missing environment warning, so we disable it for now
-  // if (isDevMode || !hasMissingEnvVars) return null;
-
-  // return (
-  //   <EnvWarningDrawer />
-  // );
-  return null;
+  const { error } = useEnvError();
+  if (isDevMode || !error) return null;
+  return <EnvWarningDrawer />;
 };
 
-// Loading component for PersistGate
-const PersistLoading = () => (
-  <View
-    style={{
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: COLORS.background,
-    }}>
-    <ActivityIndicator size="large" color={COLORS.brandPrimary} />
-  </View>
-);
-
 export default function App() {
-  const config = DefaultCustomizationConfig;
-  // Removed: const [dynamicInitialized, setDynamicInitialized] = useState(false);
-
-  useEffect(() => {
-    // Initialize notification service
-    notificationService.initialize().catch(err => {
-      console.error('Failed to initialize notification service:', err);
-    });
-
-    return () => {
-      notificationService.cleanup();
-    };
-  }, []);
-
-  // Removed: Dynamic initialization useEffect
-  // useEffect(() => {
-  //   if (config.auth.provider === 'dynamic') {
-  //     try {
-  //       initDynamicClient(
-  //         config.auth.dynamic.environmentId,
-  //         config.auth.dynamic.appName,
-  //         config.auth.dynamic.appLogoUrl,
-  //       );
-  //       setDynamicInitialized(true);
-  //     } catch (error) {
-  //       console.error('Failed to initialize Dynamic client:', error);
-  //     }
-  //   }
-  // }, [config.auth.provider]);
-
-
-
-  // Removed: Get Dynamic client after initialization is complete
-  // const getDynamicWebView = () => {
-  //   if (!dynamicInitialized) return null;
-
-  //   try {
-  //     const client = getDynamicClient();
-  //     return client?.reactNative?.WebView ? (
-  //       <client.reactNative.WebView />
-  //     ) : null;
-  //   } catch (error) {
-  //     console.error('Error getting Dynamic WebView:', error);
-  //     return null;
-  //   }
-  // };
-
-  // Component to render notification and any other global UI elements
-  const GlobalUIElements = () => (
-    <>
-      <TransactionNotification />
-      <IncomingCallModal />
-    </>
-  );
-
-  // Removed: Turnkey session config
-  // const turnkeySessionConfig = {
-  //   apiBaseUrl: config.auth.turnkey.baseUrl,
-  //   organizationId: config.auth.turnkey.organizationId,
-  // };
+  const [config] = useState(DefaultCustomizationConfig);
 
   const onBeforeLift = async () => {
     try {
@@ -211,11 +86,10 @@ export default function App() {
       await new Promise(resolve => setTimeout(resolve, 500));
       await SplashScreen.hideAsync();
     } catch (e) {
-      console.warn('[SplashScreen] Error hiding splash screen:', e);
+      console.warn(e);
     }
   };
 
-  // Wrap the app with EnvErrorProvider for global env variable error handling
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <CustomizationProvider config={config}>
@@ -226,29 +100,14 @@ export default function App() {
               <DevModeProvider>
                 <EnvErrorProvider>
                   <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-                    {/* Removed conditional rendering for turnkey */}
-                    {/* {config.auth.provider === 'turnkey' ? (
-                      <TurnkeyProvider config={turnkeySessionConfig}>
-                        <NavigationContainer ref={navigationRef}>
-                          <RootNavigator />
-                          <GlobalUIElements />
-                        </NavigationContainer>
-                        {getDynamicWebView()}
-                      </TurnkeyProvider>
-                    ) : ( */}
-                      <>
-                        <NavigationContainer ref={navigationRef}>
-                          <RootNavigator />
-                          <GlobalUIElements />
-                        </NavigationContainer>
-                        {/* Removed Dynamic WebView */}
-                      </>
-                    {/* )} */}
+                    <NavigationContainer ref={navigationRef}>
+                      <View style={{ flex: 1 }}>
+                        <RootNavigator />
+                        <GlobalUIElements />
+                      </View>
+                    </NavigationContainer>
 
-                    {/* DevMode components will only render in dev mode */}
                     <DevModeComponents />
-
-                    {/* Standard mode warnings will only render in standard mode */}
                     <StandardModeComponents />
                   </View>
                 </EnvErrorProvider>

@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-redux';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { RootState } from '@/shared/state/store';

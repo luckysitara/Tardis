@@ -80,129 +80,231 @@ class CallService {
   }
 
   public async startCall(remoteUser: any, isVideo: boolean, chatId?: string) {
-    const state = store.getState();
-    const userId = state.auth.address;
-    if (!userId) return;
-
-    this.remoteUserId = remoteUser.id;
-    this.currentChatId = chatId || state.chat.selectedChatId;
-    this.isCaller = true;
-    this.callStartTime = Date.now();
-
-    const recipientPublicKey = remoteUser.public_encryption_key;
-    if (!recipientPublicKey) throw new Error('Recipient has no encryption key');
-
-    this.pc = new RTCPeerConnection(configuration);
-    this.localStream = await mediaDevices.getUserMedia({
-      audio: true,
-      video: isVideo ? { facingMode: 'user' } : false,
-    });
-
-    this.localStream.getTracks().forEach(track => this.pc?.addTrack(track, this.localStream!));
-    store.dispatch(setLocalStream(this.localStream));
-
-    this.pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        const encrypted = this.encryptSignaling(JSON.stringify(event.candidate), recipientPublicKey);
-        socketService.emit('ice_candidate', { to: this.remoteUserId, from: userId, ...encrypted });
+    try {
+      const state = store.getState();
+      const userId = state.auth.address;
+      if (!userId) {
+        console.error('[CallService] No user address found, cannot start call');
+        return;
       }
-    };
 
-    this.pc.ontrack = (event) => {
-      store.dispatch(setRemoteStream(event.streams[0]));
-    };
+      this.remoteUserId = remoteUser.id;
+      this.currentChatId = chatId || state.chat.selectedChatId;
+      this.isCaller = true;
+      this.callStartTime = Date.now();
+      this.iceCandidatesQueue = [];
 
-    const offer = await this.pc.createOffer();
-    await this.pc.setLocalDescription(offer);
+      const recipientPublicKey = remoteUser.public_encryption_key;
+      if (!recipientPublicKey) {
+        console.error('[CallService] Recipient has no encryption key');
+        throw new Error('Recipient has no encryption key');
+      }
 
-    const encryptedOffer = this.encryptSignaling(offer.sdp, recipientPublicKey);
-    console.log('[CallService] Sending call_offer to', this.remoteUserId);
-    socketService.emit('call_offer', { to: this.remoteUserId, from: userId, isVideo, ...encryptedOffer });
+      this.pc = new RTCPeerConnection(configuration);
+      
+      this.pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          try {
+            const encrypted = this.encryptSignaling(JSON.stringify(event.candidate), recipientPublicKey);
+            socketService.emit('ice_candidate', { to: this.remoteUserId, from: userId, ...encrypted });
+          } catch (e) {
+            console.error('[CallService] Error encrypting/sending ICE candidate', e);
+          }
+        }
+      };
+
+      this.pc.ontrack = (event) => {
+        console.log('[CallService] Received remote track');
+        store.dispatch(setRemoteStream(event.streams[0]));
+      };
+
+      try {
+        this.localStream = await mediaDevices.getUserMedia({
+          audio: true,
+          video: isVideo ? { facingMode: 'user' } : false,
+        });
+        this.localStream.getTracks().forEach(track => this.pc?.addTrack(track, this.localStream!));
+        store.dispatch(setLocalStream(this.localStream));
+      } catch (e) {
+        console.error('[CallService] Failed to get local media stream', e);
+        // We can't really start a call without local media in this app's current design
+        throw new Error('Failed to access camera or microphone');
+      }
+
+      const offer = await this.pc.createOffer();
+      await this.pc.setLocalDescription(offer);
+
+      const encryptedOffer = this.encryptSignaling(offer.sdp, recipientPublicKey);
+      console.log('[CallService] Sending call_offer to', this.remoteUserId);
+      
+      if (!socketService.isConnected()) {
+        console.error('[CallService] Socket not connected, cannot send call offer');
+        throw new Error('Socket not connected');
+      }
+      
+      const fromPublicKey = state.auth.publicEncryptionKey;
+      socketService.emit('call_offer', { 
+        to: this.remoteUserId, 
+        from: userId, 
+        fromPublicKey,
+        isVideo, 
+        ...encryptedOffer 
+      });
+    } catch (error: any) {
+      console.error('[CallService] Error starting call:', error);
+      this.cleanup();
+      store.dispatch(endCall());
+    }
   }
+
+  private iceCandidatesQueue: any[] = [];
 
   private async handleOffer(data: any) {
     const { from, ciphertext, nonce, isVideo } = data;
+    console.log(`[CallService] Handling offer from ${from}`);
     this.remoteUserId = from;
     this.isCaller = false;
 
     const state = store.getState();
-    const remoteUser = state.chat.chats.flatMap(c => c.participants).find(p => p.id === from);
-    if (!remoteUser?.public_encryption_key) return;
+    // Try to find user in any chat room participants
+    let remoteUser = state.chat.chats.flatMap(c => c.participants).find(p => p.id === from);
+    
+    // Fallback: If not found, create a basic user object from the event data
+    if (!remoteUser) {
+      console.log(`[CallService] Remote user ${from} not found in chats, searching specifically...`);
+      // You might want to fetch user profile here if available
+      remoteUser = { id: from, username: 'Secure User', public_encryption_key: data.fromPublicKey } as any;
+    }
 
-    const decryptedSdp = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);
-    if (!decryptedSdp) return;
+    if (!remoteUser?.public_encryption_key) {
+      console.error('[CallService] Cannot handle offer: Remote user has no encryption key');
+      return;
+    }
 
-    this.pendingOffer = { sdp: decryptedSdp, isVideo };
-    store.dispatch(incomingCall({ remoteUser: remoteUser as any, isVideo }));
+    try {
+      const decryptedSdp = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);
+      if (!decryptedSdp) {
+        console.error('[CallService] Failed to decrypt signaling data');
+        return;
+      }
+
+      this.pendingOffer = { sdp: decryptedSdp, isVideo };
+      store.dispatch(incomingCall({ remoteUser: remoteUser as any, isVideo }));
+    } catch (error) {
+      console.error('[CallService] Error handling call offer:', error);
+    }
   }
 
   private pendingOffer: any = null;
 
   public async joinCall(isVideo: boolean) {
-    const state = store.getState();
-    const userId = state.auth.address;
-    const remoteUser = state.call.remoteUser;
-    if (!userId || !remoteUser?.public_encryption_key || !this.pendingOffer) return;
-
-    this.pc = new RTCPeerConnection(configuration);
-    this.localStream = await mediaDevices.getUserMedia({
-      audio: true,
-      video: isVideo ? { facingMode: 'user' } : false,
-    });
-
-    this.localStream.getTracks().forEach(track => this.pc?.addTrack(track, this.localStream!));
-    store.dispatch(setLocalStream(this.localStream));
-
-    this.pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        const encrypted = this.encryptSignaling(JSON.stringify(event.candidate), remoteUser.public_encryption_key!);
-        socketService.emit('ice_candidate', { to: this.remoteUserId, from: userId, ...encrypted });
+    try {
+      const state = store.getState();
+      const userId = state.auth.address;
+      const remoteUser = state.call.remoteUser;
+      if (!userId || !remoteUser?.public_encryption_key || !this.pendingOffer) {
+        console.error('[CallService] Missing data for joinCall', { userId, remoteUserExists: !!remoteUser, hasPendingOffer: !!this.pendingOffer });
+        return;
       }
-    };
 
-    this.pc.ontrack = (event) => {
-      store.dispatch(setRemoteStream(event.streams[0]));
-    };
+      this.pc = new RTCPeerConnection(configuration);
+      
+      this.pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          const encrypted = this.encryptSignaling(JSON.stringify(event.candidate), remoteUser.public_encryption_key!);
+          socketService.emit('ice_candidate', { to: this.remoteUserId, from: userId, ...encrypted });
+        }
+      };
 
-    await this.pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: this.pendingOffer.sdp }));
-    const answer = await this.pc.createAnswer();
-    await this.pc.setLocalDescription(answer);
+      this.pc.ontrack = (event) => {
+        console.log('[CallService] Received remote track');
+        store.dispatch(setRemoteStream(event.streams[0]));
+      };
 
-    const encryptedAnswer = this.encryptSignaling(answer.sdp, remoteUser.public_encryption_key!);
-    socketService.emit('call_answer', { to: this.remoteUserId, from: userId, ...encryptedAnswer });
+      // Add local tracks
+      try {
+        this.localStream = await mediaDevices.getUserMedia({
+          audio: true,
+          video: isVideo ? { facingMode: 'user' } : false,
+        });
+        this.localStream.getTracks().forEach(track => this.pc?.addTrack(track, this.localStream!));
+        store.dispatch(setLocalStream(this.localStream));
+      } catch (e) {
+        console.error('[CallService] Failed to get local media stream', e);
+        // Continue even if local media fails, or maybe abort? 
+        // For now, let's try to proceed with just receiving.
+      }
 
-    this.pendingOffer = null;
-    this.callStartTime = Date.now();
-    store.dispatch(callConnected({ localStream: this.localStream, remoteStream: (this.pc as any)._remoteStreams?.[0] || null }));
+      await this.pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: this.pendingOffer.sdp }));
+      
+      // Process any queued ICE candidates
+      while (this.iceCandidatesQueue.length > 0) {
+        const candidate = this.iceCandidatesQueue.shift();
+        await this.pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error('Error adding queued ICE candidate', e));
+      }
+
+      const answer = await this.pc.createAnswer();
+      await this.pc.setLocalDescription(answer);
+
+      const encryptedAnswer = this.encryptSignaling(answer.sdp, remoteUser.public_encryption_key!);
+      socketService.emit('call_answer', { to: this.remoteUserId, from: userId, ...encryptedAnswer });
+
+      this.pendingOffer = null;
+      this.callStartTime = Date.now();
+      store.dispatch(callConnected({ localStream: this.localStream, remoteStream: (this.pc as any)._remoteStreams?.[0] || null }));
+    } catch (error) {
+      console.error('[CallService] Error joining call:', error);
+      this.cleanup();
+      store.dispatch(endCall());
+    }
   }
 
   public async handleAnswer(data: any) {
     if (!this.pc) return;
-    const { from, ciphertext, nonce } = data;
-    const remoteUser = store.getState().call.remoteUser;
-    if (!remoteUser?.public_encryption_key) return;
+    try {
+      const { from, ciphertext, nonce } = data;
+      const remoteUser = store.getState().call.remoteUser;
+      if (!remoteUser?.public_encryption_key) return;
 
-    const decryptedSdp = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);
-    if (!decryptedSdp) return;
+      const decryptedSdp = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);
+      if (!decryptedSdp) return;
 
-    await this.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: decryptedSdp }));
-    this.callStartTime = Date.now();
-    store.dispatch(callConnected({ localStream: this.localStream, remoteStream: (this.pc as any)._remoteStreams?.[0] || null }));
+      await this.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: decryptedSdp }));
+      
+      // Process any queued ICE candidates
+      while (this.iceCandidatesQueue.length > 0) {
+        const candidate = this.iceCandidatesQueue.shift();
+        await this.pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error('Error adding queued ICE candidate', e));
+      }
+
+      this.callStartTime = Date.now();
+      store.dispatch(callConnected({ localStream: this.localStream, remoteStream: (this.pc as any)._remoteStreams?.[0] || null }));
+    } catch (error) {
+      console.error('[CallService] Error handling call answer:', error);
+    }
   }
 
   public async handleIceCandidate(data: any) {
-    if (!this.pc) return;
     const { from, ciphertext, nonce } = data;
     const state = store.getState();
     const remoteUser = state.call.remoteUser || state.chat.chats.flatMap(c => c.participants).find(p => p.id === from);
     if (!remoteUser?.public_encryption_key) return;
 
-    const decryptedCandidate = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);
-    if (!decryptedCandidate) return;
-
     try {
-      await this.pc.addIceCandidate(new RTCIceCandidate(JSON.parse(decryptedCandidate)));
-    } catch (e) { console.error('Error adding ICE candidate', e); }
+      const decryptedCandidate = this.decryptSignaling(ciphertext, nonce, remoteUser.public_encryption_key);
+      if (!decryptedCandidate) return;
+
+      const candidate = JSON.parse(decryptedCandidate);
+      
+      if (this.pc && this.pc.remoteDescription) {
+        await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        console.log('[CallService] Queuing ICE candidate as remote description not yet set');
+        this.iceCandidatesQueue.push(candidate);
+      }
+    } catch (e) { 
+      console.error('Error handling ICE candidate', e); 
+    }
   }
 
   public hangup() {
@@ -265,6 +367,8 @@ class CallService {
     this.currentChatId = null;
     this.isCaller = false;
     this.callStartTime = 0;
+    this.iceCandidatesQueue = [];
+    this.pendingOffer = null;
   }
 }
 

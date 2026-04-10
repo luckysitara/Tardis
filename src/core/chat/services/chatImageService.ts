@@ -25,7 +25,7 @@ export async function uploadChatImage(userId: string, imageUri: string): Promise
     // Important: React Native FormData needs an object with uri, name, type
     // and uri should have file:// prefix on most versions
     const photo = {
-      uri: imageUri.startsWith('file://') ? imageUri : `file://${imageUri}`,
+      uri: imageUri,
       name: fileName,
       type: type,
     };
@@ -34,10 +34,11 @@ export async function uploadChatImage(userId: string, imageUri: string): Promise
     formData.append('chatImage', photo);
     formData.append('userId', userId);
 
-    const finalServerUrl = 'https://seek.kikhaus.com';
-    console.log(`[uploadChatImage] FORCING request to ${finalServerUrl}/api/chat/images/upload`);
+    // Use SERVER_URL from @env
+    const targetServerUrl = SERVER_URL;
+    console.log(`[uploadChatImage] Sending request to ${targetServerUrl}/api/chat/images/upload`);
 
-    const response = await fetch(`${finalServerUrl}/api/chat/images/upload`, {
+    const response = await fetch(`${targetServerUrl}/api/chat/images/upload`, {
       method: 'POST',
       body: formData,
       headers: {
