@@ -88,28 +88,30 @@ const CallScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* Main Remote Video View */}
-      {isVideo && remoteStream && remoteStream.toURL() ? (
-        <RTCView
-          streamURL={remoteStream.toURL()}
-          style={styles.remoteVideo}
-          objectFit="cover"
-        />
-      ) : (
-        <View style={styles.placeholderContainer}>
-          <IPFSAwareImage
-            source={getValidImageSource(remoteUser?.profile_picture_url || '')}
-            style={styles.placeholderAvatar}
+      <View style={styles.backgroundWrapper}>
+        {isVideo && remoteStream && remoteStream.toURL() ? (
+          <RTCView
+            streamURL={remoteStream.toURL()}
+            style={styles.remoteVideo}
+            objectFit="cover"
           />
-          <Text style={styles.placeholderName}>{remoteUser?.username || 'User'}</Text>
-          <Text style={styles.callStatusText}>
-            {callStatus === 'dialing' ? 'Dialing...' :
-             callStatus === 'ringing' ? 'Ringing...' : 'Connecting...'}
-          </Text>
-        </View>
-      )}
+        ) : (
+          <View style={styles.placeholderContainer}>
+            <IPFSAwareImage
+              source={getValidImageSource(remoteUser?.profile_picture_url || '')}
+              style={styles.placeholderAvatar}
+            />
+            <Text style={styles.placeholderName}>{remoteUser?.username || 'User'}</Text>
+            <Text style={styles.callStatusText}>
+              {callStatus === 'dialing' ? 'Dialing...' :
+               callStatus === 'ringing' ? 'Ringing...' : 'Connecting...'}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Local Video Overlay */}
       {isVideo && localStream && localStream.toURL() && !isCameraOff && (
@@ -188,12 +190,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  backgroundWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
   remoteVideo: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: 0,
+    flex: 1,
   },
   localVideo: {
     position: 'absolute',

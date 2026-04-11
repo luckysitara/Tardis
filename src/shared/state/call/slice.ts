@@ -74,11 +74,11 @@ const callSlice = createSlice({
     },
     switchCamera: (state) => {
       state.cameraType = state.cameraType === 'front' ? 'back' : 'front';
+    },
     endCall: (state) => {
       state.callStatus = 'ended';
       console.log('[InCallManager] Stopping...');
       InCallManager.stop();
-    },
       state.localStream = null;
       state.remoteStream = null;
       state.remoteUser = null;
