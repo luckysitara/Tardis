@@ -144,13 +144,14 @@ class CallService {
         console.log('[CallService] Received remote track:', event.track.kind);
         if (event.streams && event.streams[0]) {
           console.log('[CallService] Using provided stream from event');
-          store.dispatch(setRemoteStream(event.streams[0]));
+          this.remoteStream = event.streams[0];
+          store.dispatch(setRemoteStream(this.remoteStream));
         } else {
           console.log('[CallService] No stream provided, creating new MediaStream for track');
-          if (!this.remoteStream) {
-            this.remoteStream = new MediaStream();
-          }
-          this.remoteStream.addTrack(event.track);
+          // Create a NEW MediaStream instance to force Redux to recognize the change
+          const newStream = new MediaStream(this.remoteStream ? this.remoteStream.getTracks() : []);
+          newStream.addTrack(event.track);
+          this.remoteStream = newStream;
           store.dispatch(setRemoteStream(this.remoteStream));
         }
       };
@@ -266,13 +267,14 @@ class CallService {
         console.log('[CallService] Received remote track:', event.track.kind);
         if (event.streams && event.streams[0]) {
           console.log('[CallService] Using provided stream from event');
-          store.dispatch(setRemoteStream(event.streams[0]));
+          this.remoteStream = event.streams[0];
+          store.dispatch(setRemoteStream(this.remoteStream));
         } else {
           console.log('[CallService] No stream provided, creating new MediaStream for track');
-          if (!this.remoteStream) {
-            this.remoteStream = new MediaStream();
-          }
-          this.remoteStream.addTrack(event.track);
+          // Create a NEW MediaStream instance to force Redux to recognize the change
+          const newStream = new MediaStream(this.remoteStream ? this.remoteStream.getTracks() : []);
+          newStream.addTrack(event.track);
+          this.remoteStream = newStream;
           store.dispatch(setRemoteStream(this.remoteStream));
         }
       };

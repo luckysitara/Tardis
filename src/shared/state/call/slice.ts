@@ -15,6 +15,7 @@ interface CallState {
   isMuted: boolean;
   isCameraOff: boolean;
   cameraType: 'front' | 'back';
+  hasRemoteVideo: boolean;
 }
 
 const initialState: CallState = {
@@ -27,6 +28,7 @@ const initialState: CallState = {
   isMuted: false,
   isCameraOff: false,
   cameraType: 'front',
+  hasRemoteVideo: false,
 };
 
 const callSlice = createSlice({
@@ -65,6 +67,9 @@ const callSlice = createSlice({
     },
     setRemoteStream: (state, action: PayloadAction<any>) => {
       state.remoteStream = action.payload;
+      if (action.payload) {
+        state.hasRemoteVideo = true;
+      }
     },
     toggleMute: (state) => {
       state.isMuted = !state.isMuted;
@@ -85,6 +90,7 @@ const callSlice = createSlice({
       state.isMuted = false;
       state.isCameraOff = false;
       state.cameraType = 'front';
+      state.hasRemoteVideo = false;
     },
     resetCall: (state) => {
       return initialState;

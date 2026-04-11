@@ -35,6 +35,7 @@ const CallScreen = () => {
     isCameraOff,
     cameraType,
     isVideo,
+    hasRemoteVideo,
   } = useAppSelector((state) => state.call);
 
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -92,7 +93,7 @@ const CallScreen = () => {
 
       {/* Main Remote Video View */}
       <View style={styles.backgroundWrapper}>
-        {isVideo && remoteStream && remoteStream.toURL() ? (
+        {isVideo && hasRemoteVideo && remoteStream && remoteStream.toURL ? (
           <RTCView
             streamURL={remoteStream.toURL()}
             style={styles.remoteVideo}
