@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { MediaStream } from 'react-native-webrtc';
+import InCallManager from 'react-native-incall-manager';
 import { ChatParticipant } from '../chat/slice';
 
 export type CallStatus = 'idle' | 'dialing' | 'ringing' | 'connected' | 'ended';
@@ -56,6 +57,8 @@ const callSlice = createSlice({
       state.callStatus = 'connected';
       state.localStream = action.payload.localStream;
       state.remoteStream = action.payload.remoteStream;
+      console.log('[InCallManager] Starting for speakerphone...');
+      InCallManager.start({ media: 'video' });
     },
     setLocalStream: (state, action: PayloadAction<any>) => {
       state.localStream = action.payload;
@@ -71,9 +74,11 @@ const callSlice = createSlice({
     },
     switchCamera: (state) => {
       state.cameraType = state.cameraType === 'front' ? 'back' : 'front';
-    },
     endCall: (state) => {
       state.callStatus = 'ended';
+      console.log('[InCallManager] Stopping...');
+      InCallManager.stop();
+    },
       state.localStream = null;
       state.remoteStream = null;
       state.remoteUser = null;
