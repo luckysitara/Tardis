@@ -300,13 +300,13 @@ export const removeAttachedCoin = createAsyncThunk(
  */
 export const deleteAccountAction = createAsyncThunk<
   { success: boolean; message: string }, // Expected success response type
-  string, // Argument type: userId
+  { userId: string; signature: string; timestamp: string }, // Argument type: Object with auth
   { rejectValue: string } // Type for thunkAPI.rejectWithValue
 >(
   'auth/deleteAccount',
-  async (userId: string, thunkAPI) => {
-    if (!userId) {
-      return thunkAPI.rejectWithValue('User ID is required to delete account.');
+  async ({ userId, signature, timestamp }, thunkAPI) => {
+    if (!userId || !signature || !timestamp) {
+      return thunkAPI.rejectWithValue('User ID, signature, and timestamp are required.');
     }
     try {
       console.log(`[AuthThunk deleteAccountAction] Attempting to delete account for userId: ${userId}`);
@@ -316,9 +316,8 @@ export const deleteAccountAction = createAsyncThunk<
           method: 'DELETE',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userId}` // Add the user's wallet address as a Bearer token
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, signature, timestamp }),
         },
       );
       const data = await response.json();

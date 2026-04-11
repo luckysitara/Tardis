@@ -284,10 +284,17 @@ profileImageRouter.delete(
   '/delete-account',
   async (req: any, res: any) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ success: false, error: 'userId is required.' });
+      const { userId, signature, timestamp } = req.body;
+      if (!userId || !signature || !timestamp) {
+        return res.status(400).json({ success: false, error: 'userId, signature, and timestamp are required.' });
       }
+
+      const signedMessage = `{"action":"delete_account","userId":"${userId}","timestamp":"${timestamp}"}`;
+      const isSignatureValid = verifySignature(signedMessage, signature, userId);
+      if (!isSignatureValid) {
+        return res.status(401).json({ success: false, error: 'Invalid hardware signature.' });
+      }
+
       await deleteUserAccountService(userId);
       return res.status(200).json({ success: true, message: 'Account deleted successfully.' });
     } catch (error: any) {

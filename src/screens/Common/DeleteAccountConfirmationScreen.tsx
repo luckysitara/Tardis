@@ -19,7 +19,7 @@ import { deleteAccountAction } from '@/shared/state/auth/reducer';
 function DeleteAccountConfirmationScreen() {
     const navigation = useNavigation();
     const dispatch = useAppDispatch();
-    const { logout } = useAuth();
+    const { logout, signMessage } = useAuth();
     const currentUserId = useAppSelector((state) => state.auth.address);
     const [isLoading, setIsLoading] = React.useState(false);
 
@@ -43,8 +43,19 @@ function DeleteAccountConfirmationScreen() {
                         }
                         setIsLoading(true);
                         try {
+                            const timestamp = new Date().toISOString();
+                            const messageToSign = `{"action":"delete_account","userId":"${currentUserId}","timestamp":"${timestamp}"}`;
+                            const signatureBytes = await signMessage(messageToSign);
+                            
+                            if (!signatureBytes) {
+                                setIsLoading(false);
+                                return;
+                            }
+                            
+                            const signature = Buffer.from(signatureBytes).toString('base64');
+                            
                             console.log(`[DeleteAccountScreen] Initiating account deletion for user: ${currentUserId}`);
-                            const result = await dispatch(deleteAccountAction(currentUserId)).unwrap();
+                            const result = await dispatch(deleteAccountAction({ userId: currentUserId, signature, timestamp })).unwrap();
                             console.log('[DeleteAccountScreen] Account deletion API success:', result);
 
                             await logout();

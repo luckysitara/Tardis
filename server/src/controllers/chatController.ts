@@ -321,6 +321,11 @@ export async function sendMessage(req: Request, res: Response) {
     }
 
     // Check if chat exists and user is a participant
+    const chatRoom = await knex('chat_rooms').where('id', chatId).first();
+    if (!chatRoom) {
+      return res.status(404).json({ success: false, error: 'Chat room not found.' });
+    }
+
     const participant = await knex('chat_participants')
       .where('chat_room_id', chatId)
       .where('user_id', userId)
@@ -331,6 +336,23 @@ export async function sendMessage(req: Request, res: Response) {
         success: false, 
         error: 'User is not a participant in this chat' 
       });
+    }
+
+    if (chatRoom.type === 'group' || chatRoom.type === 'global') {
+      const signature = additionalData?.signature;
+      const timestamp = additionalData?.timestamp;
+      
+      if (!signature || !timestamp) {
+        return res.status(401).json({ success: false, error: 'Missing signature or timestamp for group message.' });
+      }
+
+      const messageToSign = `{"content":"${content ? content.trim() : ''}","timestamp":"${timestamp}"${imageUrl ? `,"imageUrl":"${imageUrl}"` : ""},"chatId":"${chatId}"}`;
+      const isSignatureValid = verifySignature(messageToSign, signature, userId);
+
+      if (!isSignatureValid) {
+        console.error('[ChatController] Invalid signature for message:', messageToSign);
+        return res.status(401).json({ success: false, error: 'Invalid signature.' });
+      }
     }
 
     // Create the message with E2EE support

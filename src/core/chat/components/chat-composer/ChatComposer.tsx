@@ -116,7 +116,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
       if (selectedImage) uploadedImageUrl = await uploadChatImage(currentUser.id, selectedImage);
 
       if (chatContext) {
-        let finalContent = currentTextValue, nonce, isEncrypted = false, signature;
+        let finalContent = currentTextValue, nonce, isEncrypted = false, signature, messageTimestamp;
         const chat = chats.find(c => c.id === chatContext.chatId);
         if (chat?.type === 'direct' && encryptionSeed) {
           const recipient = chat.participants.find(p => p.id !== currentUser.id);
@@ -126,14 +126,14 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
             finalContent = ciphertext; nonce = msgNonce; isEncrypted = true;
           }
         } else if (chat?.type === 'group' || !chat) {
-          const timestamp = new Date().toISOString();
-          const messageToSign = `{"content":"${currentTextValue.trim()}","timestamp":"${timestamp}"${uploadedImageUrl ? `,"imageUrl":"${uploadedImageUrl}"` : ""},"chatId":"${chatContext.chatId}"}`;
+          messageTimestamp = new Date().toISOString();
+          const messageToSign = `{"content":"${currentTextValue.trim()}","timestamp":"${messageTimestamp}"${uploadedImageUrl ? `,"imageUrl":"${uploadedImageUrl}"` : ""},"chatId":"${chatContext.chatId}"}`;
           const sig = await walletSign(new Uint8Array(Buffer.from(messageToSign, 'utf8')));
           if (!sig) { setIsSubmitting(false); return; }
           signature = Buffer.from(sig).toString('base64');
         }
 
-        const resultAction = await dispatch(sendMessage({ chatId: chatContext.chatId, userId: currentUser.id, content: finalContent, imageUrl: uploadedImageUrl, nonce, isEncrypted, replyToId: replyingTo?.id, additionalData: signature ? { signature } : undefined })).unwrap();
+        const resultAction = await dispatch(sendMessage({ chatId: chatContext.chatId, userId: currentUser.id, content: finalContent, imageUrl: uploadedImageUrl, nonce, isEncrypted, replyToId: replyingTo?.id, additionalData: signature ? { signature, timestamp: messageTimestamp } : undefined })).unwrap();
         if (resultAction?.id) socketService.sendMessage(chatContext.chatId, { ...resultAction, senderId: currentUser.id, chatId: chatContext.chatId });
         if (onMessageSent) onMessageSent(currentTextValue, uploadedImageUrl);
       } else {
