@@ -86,61 +86,48 @@ const CallScreen = () => {
     }
   };
 
-  const renderRemoteVideo = () => {
-    if (isVideo && remoteStream && remoteStream.toURL()) {
-      return (
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Main Remote Video View */}
+      {isVideo && remoteStream && remoteStream.toURL() ? (
         <RTCView
           streamURL={remoteStream.toURL()}
           style={styles.remoteVideo}
           objectFit="cover"
         />
-      );
-    }
-    return (
-      <View style={styles.placeholderContainer}>
-        <IPFSAwareImage
-          source={getValidImageSource(remoteUser?.profile_picture_url || '')}
-          style={styles.placeholderAvatar}
-        />
-        <Text style={styles.placeholderName}>{remoteUser?.username || 'User'}</Text>
-        <Text style={styles.callStatusText}>
-          {callStatus === 'dialing' ? 'Dialing...' : 
-           callStatus === 'ringing' ? 'Ringing...' : 'Connected'}
-        </Text>
-      </View>
-    );
-  };
-
-  const renderLocalVideo = () => {
-    if (isVideo && localStream && localStream.toURL() && !isCameraOff) {
-      return (
-        <Animated.View style={[styles.localVideoContainer, { opacity: fadeAnim }]}>
-          <RTCView
-            streamURL={localStream.toURL()}
-            style={styles.localVideo}
-            objectFit="cover"
-            zOrder={1}
+      ) : (
+        <View style={styles.placeholderContainer}>
+          <IPFSAwareImage
+            source={getValidImageSource(remoteUser?.profile_picture_url || '')}
+            style={styles.placeholderAvatar}
           />
-        </Animated.View>
-      );
-    }
-    return null;
-  };
+          <Text style={styles.placeholderName}>{remoteUser?.username || 'User'}</Text>
+          <Text style={styles.callStatusText}>
+            {callStatus === 'dialing' ? 'Dialing...' :
+             callStatus === 'ringing' ? 'Ringing...' : 'Connecting...'}
+          </Text>
+        </View>
+      )}
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      <TouchableOpacity 
-        activeOpacity={1} 
-        style={styles.videoWrapper} 
-        onPress={toggleControls}
-      >
-        {renderRemoteVideo()}
-        {renderLocalVideo()}
-      </TouchableOpacity>
+      {/* Local Video Overlay */}
+      {isVideo && localStream && localStream.toURL() && !isCameraOff && (
+        <RTCView
+          streamURL={localStream.toURL()}
+          style={styles.localVideo}
+          objectFit="cover"
+          zOrder={1} // Ensure local video is on top
+        />
+      )}
 
+      {/* Controls Overlay */}
       <Animated.View style={[styles.controlsOverlay, { opacity: fadeAnim }]}>
+        <TouchableOpacity 
+          activeOpacity={1} 
+          style={StyleSheet.absoluteFill} 
+          onPress={toggleControls}
+        />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <TouchableOpacity onPress={handleHangup} style={styles.backButton}>
@@ -201,13 +188,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  videoWrapper: {
-    flex: 1,
-  },
   remoteVideo: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
   },
-  localVideoContainer: {
+  localVideo: {
     position: 'absolute',
     top: 60,
     right: 20,
@@ -218,9 +206,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkerBackground,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  localVideo: {
-    flex: 1,
   },
   placeholderContainer: {
     flex: 1,
