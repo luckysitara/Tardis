@@ -52,7 +52,7 @@ pub struct LiquidatePoolLoan<'info> {
 
 pub fn liquidate_pool_loan_handler(ctx: Context<LiquidatePoolLoan>) -> Result<()> {
     let active_loan = &mut ctx.accounts.active_loan;
-    let pool = &mut ctx.accounts.pool_account;
+    let _pool = &mut ctx.accounts.pool_account;
     let clock = Clock::get()?;
 
     // 1. Check if liquidation conditions are met

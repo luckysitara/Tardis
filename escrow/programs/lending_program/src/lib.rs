@@ -12,30 +12,6 @@ declare_id!("E3BgKRdiLizpKkbeB6txw5VB4DUZUduQJnSF1Nikb4XP");
 pub mod lending_program {
     use super::*;
 
-    pub fn initialize_loan(
-        ctx: Context<InitializeLoan>,
-        collateral_amount: u64,
-        loan_amount: u64,
-        repayment_amount: u64,
-        expiry: i64,
-    ) -> Result<()> {
-        instructions::initialize_loan::initialize_loan_handler(ctx, collateral_amount, loan_amount, repayment_amount, expiry)
-    }
-
-    pub fn accept_loan(ctx: Context<AcceptLoan>) -> Result<()> {
-        instructions::accept_loan::accept_loan_handler(ctx)
-    }
-
-    pub fn repay_loan(ctx: Context<RepayLoan>) -> Result<()> {
-        instructions::repay_loan::repay_loan_handler(ctx)
-    }
-
-    pub fn liquidate(ctx: Context<Liquidate>) -> Result<()> {
-        instructions::liquidate::liquidate_handler(ctx)
-    }
-
-    // --- New Pool Based Instructions ---
-
     pub fn create_pool(
         ctx: Context<CreatePool>,
         total_liquidity: u64,
@@ -46,10 +22,7 @@ pub mod lending_program {
         instructions::create_pool::create_pool_handler(ctx, total_liquidity, min_borrow, max_borrow, interest_rate)
     }
 
-    pub fn take_loan(
-        ctx: Context<TakeLoan>,
-        amount_to_borrow: u64,
-    ) -> Result<()> {
+    pub fn take_loan(ctx: Context<TakeLoan>, amount_to_borrow: u64) -> Result<()> {
         instructions::take_loan::take_loan_handler(ctx, amount_to_borrow)
     }
 

@@ -64,7 +64,9 @@ pub fn repay_pool_loan_handler(ctx: Context<RepayPoolLoan>) -> Result<()> {
 
     // 1. Update Loan and Pool state FIRST (Re-entrancy protection)
     active_loan.status = 1; // Repaid
-    pool.remaining_liquidity += active_loan.amount_borrowed; // Add principal back to pool
+    // Account for both principal and interest in the pool's liquidity
+    pool.remaining_liquidity += active_loan.repayment_amount;
+    pool.total_liquidity += (active_loan.repayment_amount - active_loan.amount_borrowed);
 
     // 2. Transfer Repayment (USDC) from Borrower to Pool Vault
     let cpi_repayment = TransferChecked {

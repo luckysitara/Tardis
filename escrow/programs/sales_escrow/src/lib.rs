@@ -98,9 +98,10 @@ pub mod sales_escrow {
 
         {
             let escrow = &ctx.accounts.escrow_account;
-            // Either buyer or seller can cancel
+            // SECURITY FIX: Only the seller can unilaterally cancel (to refund the buyer).
+            // This prevents the buyer from taking the money back after the seller has performed their duty.
             require!(
-                ctx.accounts.signer.key() == escrow.seller || ctx.accounts.signer.key() == escrow.buyer, 
+                ctx.accounts.signer.key() == escrow.seller, 
                 EscrowError::Unauthorized
             );
             require!(escrow.is_initialized, EscrowError::NotInitialized);
@@ -210,7 +211,10 @@ pub struct ConfirmDelivery<'info> {
     )]
     pub escrow_vault: Account<'info, TokenAccount>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = seller_token_account.owner == seller.key() @ EscrowError::Unauthorized
+    )]
     pub seller_token_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
@@ -245,7 +249,10 @@ pub struct CancelEscrow<'info> {
     )]
     pub escrow_vault: Account<'info, TokenAccount>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = buyer_token_account.owner == buyer.key() @ EscrowError::Unauthorized
+    )]
     pub buyer_token_account: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
