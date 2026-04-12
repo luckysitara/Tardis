@@ -10,12 +10,11 @@ interface CallState {
   isIncoming: boolean;
   isVideo: boolean;
   remoteUser: ChatParticipant | null;
-  localStream: any | null; // MediaStream is not serializable, but we store it for UI
-  remoteStream: any | null; // MediaStream is not serializable
   isMuted: boolean;
   isCameraOff: boolean;
   cameraType: 'front' | 'back';
   hasRemoteVideo: boolean;
+  hasLocalVideo: boolean;
 }
 
 const initialState: CallState = {
@@ -23,12 +22,11 @@ const initialState: CallState = {
   isIncoming: false,
   isVideo: false,
   remoteUser: null,
-  localStream: null,
-  remoteStream: null,
   isMuted: false,
   isCameraOff: false,
   cameraType: 'front',
   hasRemoteVideo: false,
+  hasLocalVideo: false,
 };
 
 const callSlice = createSlice({
@@ -40,6 +38,8 @@ const callSlice = createSlice({
       state.remoteUser = action.payload.remoteUser;
       state.isVideo = action.payload.isVideo;
       state.isIncoming = false;
+      state.hasLocalVideo = false;
+      state.hasRemoteVideo = false;
     },
     callRinging: (state) => {
       if (state.callStatus === 'dialing') {
@@ -51,25 +51,22 @@ const callSlice = createSlice({
       state.remoteUser = action.payload.remoteUser;
       state.isVideo = action.payload.isVideo;
       state.isIncoming = true;
+      state.hasLocalVideo = false;
+      state.hasRemoteVideo = false;
     },
     acceptCall: (state) => {
       state.callStatus = 'connected';
     },
-    callConnected: (state, action: PayloadAction<{ localStream: any; remoteStream: any }>) => {
+    callConnected: (state) => {
       state.callStatus = 'connected';
-      state.localStream = action.payload.localStream;
-      state.remoteStream = action.payload.remoteStream;
       console.log('[InCallManager] Starting for speakerphone...');
       InCallManager.start({ media: 'video' });
     },
-    setLocalStream: (state, action: PayloadAction<any>) => {
-      state.localStream = action.payload;
+    setLocalStream: (state, action: PayloadAction<boolean>) => {
+      state.hasLocalVideo = action.payload;
     },
-    setRemoteStream: (state, action: PayloadAction<any>) => {
-      state.remoteStream = action.payload;
-      if (action.payload) {
-        state.hasRemoteVideo = true;
-      }
+    setRemoteStream: (state, action: PayloadAction<boolean>) => {
+      state.hasRemoteVideo = action.payload;
     },
     toggleMute: (state) => {
       state.isMuted = !state.isMuted;
@@ -84,13 +81,12 @@ const callSlice = createSlice({
       state.callStatus = 'ended';
       console.log('[InCallManager] Stopping...');
       InCallManager.stop();
-      state.localStream = null;
-      state.remoteStream = null;
       state.remoteUser = null;
       state.isMuted = false;
       state.isCameraOff = false;
       state.cameraType = 'front';
       state.hasRemoteVideo = false;
+      state.hasLocalVideo = false;
     },
     resetCall: (state) => {
       return initialState;

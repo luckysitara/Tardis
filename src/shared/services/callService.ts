@@ -145,14 +145,14 @@ class CallService {
         if (event.streams && event.streams[0]) {
           console.log('[CallService] Using provided stream from event');
           this.remoteStream = event.streams[0];
-          store.dispatch(setRemoteStream(this.remoteStream));
+          store.dispatch(setRemoteStream(true));
         } else {
           console.log('[CallService] No stream provided, creating new MediaStream for track');
           // Create a NEW MediaStream instance to force Redux to recognize the change
           const newStream = new MediaStream(this.remoteStream ? this.remoteStream.getTracks() : []);
           newStream.addTrack(event.track);
           this.remoteStream = newStream;
-          store.dispatch(setRemoteStream(this.remoteStream));
+          store.dispatch(setRemoteStream(true));
         }
       };
 
@@ -162,7 +162,7 @@ class CallService {
           video: isVideo ? { facingMode: 'user' } : false,
         });
         this.localStream.getTracks().forEach(track => this.pc?.addTrack(track, this.localStream!));
-        store.dispatch(setLocalStream(this.localStream));
+        store.dispatch(setLocalStream(true));
       } catch (e) {
         console.error('[CallService] Failed to get local media stream', e);
         // We can't really start a call without local media in this app's current design
@@ -268,14 +268,14 @@ class CallService {
         if (event.streams && event.streams[0]) {
           console.log('[CallService] Using provided stream from event');
           this.remoteStream = event.streams[0];
-          store.dispatch(setRemoteStream(this.remoteStream));
+          store.dispatch(setRemoteStream(true));
         } else {
           console.log('[CallService] No stream provided, creating new MediaStream for track');
           // Create a NEW MediaStream instance to force Redux to recognize the change
           const newStream = new MediaStream(this.remoteStream ? this.remoteStream.getTracks() : []);
           newStream.addTrack(event.track);
           this.remoteStream = newStream;
-          store.dispatch(setRemoteStream(this.remoteStream));
+          store.dispatch(setRemoteStream(true));
         }
       };
 
@@ -286,7 +286,7 @@ class CallService {
           video: isVideo ? { facingMode: 'user' } : false,
         });
         this.localStream.getTracks().forEach(track => this.pc?.addTrack(track, this.localStream!));
-        store.dispatch(setLocalStream(this.localStream));
+        store.dispatch(setLocalStream(true));
       } catch (e) {
         console.error('[CallService] Failed to get local media stream', e);
         // Continue even if local media fails, or maybe abort? 
@@ -309,7 +309,7 @@ class CallService {
 
       this.pendingOffer = null;
       this.callStartTime = Date.now();
-      store.dispatch(callConnected({ localStream: this.localStream, remoteStream: (this.pc as any)._remoteStreams?.[0] || null }));
+      store.dispatch(callConnected());
     } catch (error) {
       console.error('[CallService] Error joining call:', error);
       this.cleanup();
@@ -336,7 +336,7 @@ class CallService {
       }
 
       this.callStartTime = Date.now();
-      store.dispatch(callConnected({ localStream: this.localStream, remoteStream: (this.pc as any)._remoteStreams?.[0] || null }));
+      store.dispatch(callConnected());
     } catch (error) {
       console.error('[CallService] Error handling call answer:', error);
     }
@@ -363,6 +363,14 @@ class CallService {
     } catch (e) { 
       console.error('Error handling ICE candidate', e); 
     }
+  }
+
+  public getLocalStream() {
+    return this.localStream;
+  }
+
+  public getRemoteStream() {
+    return this.remoteStream;
   }
 
   public hangup() {

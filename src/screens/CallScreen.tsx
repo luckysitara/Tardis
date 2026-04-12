@@ -29,14 +29,16 @@ const CallScreen = () => {
   const {
     callStatus,
     remoteUser,
-    localStream,
-    remoteStream,
     isMuted,
     isCameraOff,
     cameraType,
     isVideo,
     hasRemoteVideo,
   } = useAppSelector((state) => state.call);
+
+  // Avoid pulling complex objects from Redux to prevent freezing/proxying issues
+  const localStream = callService.getLocalStream();
+  const remoteStream = callService.getRemoteStream();
 
   const [controlsVisible, setControlsVisible] = useState(true);
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -93,7 +95,7 @@ const CallScreen = () => {
 
       {/* Main Remote Video View */}
       <View style={styles.backgroundWrapper}>
-        {isVideo && hasRemoteVideo && remoteStream && remoteStream.toURL ? (
+        {isVideo && hasRemoteVideo && remoteStream && typeof remoteStream.toURL === 'function' ? (
           <RTCView
             streamURL={remoteStream.toURL()}
             style={styles.remoteVideo}
@@ -108,14 +110,15 @@ const CallScreen = () => {
             <Text style={styles.placeholderName}>{remoteUser?.username || 'User'}</Text>
             <Text style={styles.callStatusText}>
               {callStatus === 'dialing' ? 'Dialing...' :
-               callStatus === 'ringing' ? 'Ringing...' : 'Connecting...'}
+               callStatus === 'ringing' ? 'Ringing...' :
+               callStatus === 'connected' ? 'Connected' : 'Connecting...'}
             </Text>
           </View>
         )}
       </View>
 
       {/* Local Video Overlay */}
-      {isVideo && localStream && localStream.toURL() && !isCameraOff && (
+      {isVideo && localStream && typeof localStream.toURL === 'function' && !isCameraOff && (
         <RTCView
           streamURL={localStream.toURL()}
           style={styles.localVideo}
