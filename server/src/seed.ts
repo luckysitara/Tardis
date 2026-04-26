@@ -4,7 +4,10 @@ import nacl from 'tweetnacl';
 import { Buffer } from 'buffer';
 
 async function seed() {
-  const myAddress = '2ggoPe4b9KFQQ5hghks3S9QWYdbSsGq1sJFscVNva5ZM';
+  const myAddress = process.env.SEED_WALLET_ADDRESS || 'SeekeR_TEST_WALLET_HOLDER_111111111111111';
+  if (!process.env.SEED_WALLET_ADDRESS) {
+    console.warn('⚠️  No SEED_WALLET_ADDRESS provided in ENV. Using placeholder.');
+  }
   console.log('🌱 Refreshing test environment for:', myAddress);
   
   // 1. Generate stable keys for test users (so they stay the same across seeds)

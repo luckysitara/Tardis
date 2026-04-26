@@ -387,6 +387,11 @@ const authSlice = createSlice({
         description?: string;
       }>,
     ) {
+      const BUGHACKER_ADDR = '2ggoPe4b9KFQQ5hghks3S9QWYdbSsGq1sJFscVNva5ZM';
+      if (action.payload.address === BUGHACKER_ADDR) {
+        console.error('[AuthReducer] Blocked attempt to login with hardcoded test wallet.');
+        return;
+      }
       console.log('[AuthReducer] loginSuccess payload received:', JSON.stringify(action.payload, null, 2));
       console.log('[AuthReducer] loginSuccess payload.username:', action.payload.username);
       // Preserve existing profile data if available and no new data provided

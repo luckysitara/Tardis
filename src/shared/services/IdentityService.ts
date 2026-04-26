@@ -43,6 +43,11 @@ export async function resolveTardisIdentity(publicKey: string, label?: string): 
       // treat it as a .skr handle. Seeker labels are usually the Seeker ID.
       // We check that it's not a long hex/base58 string that looks like an address.
       if (lowerLabel.length > 0 && lowerLabel.length < 32 && !lowerLabel.includes(' ')) {
+        // BLACKLIST: Never resolve to bughacker test handle
+        if (lowerLabel === 'bughacker' || lowerLabel === 'bughacker.skr') {
+          console.warn('[Identity] Blocked resolution to blacklisted test handle: bughacker');
+          return abbreviation;
+        }
         const potentialHandle = `${lowerLabel}.skr`;
         console.log(`[Identity] Deriving .skr identity from wallet label "${lowerLabel}" -> ${potentialHandle}`);
         return potentialHandle;
