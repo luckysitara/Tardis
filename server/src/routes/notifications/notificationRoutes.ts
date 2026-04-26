@@ -31,4 +31,4 @@ router.get('/stats', adminAuthMiddleware, notificationController.getTokenStats.b
  */
 router.delete('/remove-token', notificationController.removePushToken.bind(notificationController));
 
-export default router; 
+export const notificationRouter = router; 
