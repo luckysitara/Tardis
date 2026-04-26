@@ -47,13 +47,35 @@ pub fn check_asset_value(
     pyth_price_info: &AccountInfo,
     switchboard_feed: &AccountInfo,
 ) -> Result<u64> {
-    // 1. Get Pyth Price
+    // 1. Validate Account Ownership
+    // Pyth Oracle (Legacy Push Model): FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH
+    let pyth_program_id = pubkey!("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH");
+    // Switchboard On-Demand: SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv
+    let switchboard_program_id = pubkey!("SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv");
+
+    if pyth_price_info.owner != &pyth_program_id {
+        return Err(error!(LendingError::CalculationError));
+    }
+    if switchboard_feed.owner != &switchboard_program_id {
+        return Err(error!(LendingError::CalculationError));
+    }
+
+    // 2. Get Pyth Price Safely
     let data = pyth_price_info.try_borrow_data()?;
+    if data.len() < std::mem::size_of::<PythPriceAccount>() {
+        return Err(error!(LendingError::CalculationError));
+    }
+
     let price_account = bytemuck::from_bytes::<PythPriceAccount>(&data[..std::mem::size_of::<PythPriceAccount>()]);
     
+    // Validate Magic Number (0xa1b2c3d4) and Price Type (1 = Price)
+    if price_account.magic != 0xa1b2c3d4 || price_account.price_type != 1 {
+        return Err(error!(LendingError::CalculationError));
+    }
+
     let pyth_val = (price_account.price as f64) * 10f64.powi(price_account.exponent);
 
-    // 2. Get Switchboard Price (with 60s staleness threshold)
+    // 3. Get Switchboard Price (with 60s staleness threshold)
     let feed_data = PullFeedAccountData::parse(switchboard_feed.data.borrow())
         .map_err(|_| error!(LendingError::CalculationError))?;
     

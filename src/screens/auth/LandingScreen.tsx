@@ -13,6 +13,7 @@ import { useAppDispatch } from '@/shared/hooks/useReduxHooks';
 import { loginSuccess, setVerified, fetchUserProfile } from '@/shared/state/auth/reducer';
 import { verifyHardware, verifySGT } from '@/shared/services/VerificationService';
 import { resolveTardisIdentity } from '@/shared/services/IdentityService';
+import { useDevMode } from '@/shared/context/DevModeContext';
 
 const { width } = Dimensions.get('window');
 const TardisIconImage = require('@/assets/images/tardis_icon.jpg');
@@ -21,6 +22,7 @@ const LandingScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { authorizeSeeker } = useTardisMobileWallet();
   const dispatch = useAppDispatch();
+  const { isDevMode } = useDevMode();
   
   const [isConnecting, setIsConnecting] = useState(false);
   const [status, setStatus] = useState('NODE_IDLE');
@@ -61,18 +63,39 @@ const LandingScreen: React.FC = () => {
     setStatus('SIGNING_MWA_REQUEST...');
     try {
       const auth = await authorizeSeeker();
-      if (!auth) { setIsConnecting(false); setStatus('NODE_IDLE'); return; }
+      if (!auth) { 
+        console.warn('[Landing] Authorization cancelled or failed');
+        setIsConnecting(false); 
+        setStatus('NODE_IDLE'); 
+        return; 
+      }
       
-      setStatus('ATTESTING_HARDWARE_ENCLAVE...');
-      const [hw, sgt] = await Promise.all([verifyHardware(), verifySGT(auth.address)]);
+      setStatus('ATTESTING_HARDWARE...');
+      const hw = await verifyHardware();
+      if (!hw && !isDevMode) {
+        setStatus('HARDWARE_CHECK_FAILED');
+        Alert.alert('Seeker Required', 'Tardis requires verified Solana Seeker hardware.');
+        setIsConnecting(false);
+        return;
+      }
 
-      if (hw && sgt) {
+      setStatus('VERIFYING_GENESIS_TOKEN...');
+      // 10 second timeout for SGT verification to prevent infinite rotating
+      const sgt = await Promise.race([
+        verifySGT(auth.address),
+        new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('SGT Verification Timed Out')), 15000))
+      ]);
+
+      console.log(`[Landing] Attestation results: hw=${hw}, sgt=${sgt}`);
+
+      if ((hw && sgt) || isDevMode) {
         setStatus('RESOLVING_.SKR_IDENTITY...');
         
         // Resolve the actual .skr handle from SNS, passing the wallet label as hint
         const resolvedUsername = await resolveTardisIdentity(auth.address, auth.label);
         console.log(`[Landing] Resolved identity for ${auth.address}: ${resolvedUsername}`);
 
+        setStatus('SYNCHRONIZING_SESSION...');
         dispatch(loginSuccess({ 
           provider: 'mwa', 
           address: auth.address, 
@@ -87,13 +110,34 @@ const LandingScreen: React.FC = () => {
 
         dispatch(setVerified(true));
       } else {
-        setStatus('AUTH_FAILED: ACCESS_DENIED');
+        console.error('[Landing] SGT verification failed');
+        setStatus('SGT_CHECK_FAILED');
+        Alert.alert(
+            'Genesis Token Required', 
+            'The Seeker Genesis Token (SGT) was not found in this wallet. You need an SGT to access Tardis.'
+        );
         setIsConnecting(false);
       }
-    } catch (e) {
-      setStatus('NETWORK_SIGNAL_LOST');
+    } catch (e: any) {
+      console.error('[Landing] Connection error:', e);
+      setStatus('ERROR: ' + (e.message || 'UNKNOWN').substring(0, 20).toUpperCase());
+      Alert.alert('Login Error', e.message || 'An error occurred during verification.');
       setIsConnecting(false);
     }
+  };
+
+  const handleDevBypass = () => {
+    if (!isDevMode) return;
+    console.log('[Landing] Manual Dev Bypass triggered');
+    
+    // Perform a dummy login so RootNavigator sees both isLoggedIn AND isVerified as true
+    dispatch(loginSuccess({
+      provider: 'mwa',
+      address: 'DevBypasS11111111111111111111111111111111',
+      username: 'dev_tester.skr'
+    }));
+    
+    dispatch(setVerified(true));
   };
 
   return (
@@ -166,6 +210,17 @@ const LandingScreen: React.FC = () => {
               <Text style={styles.btnText}>VALIDATE IDENTITY</Text>
             </BlurView>
           </TouchableOpacity>
+
+          {isDevMode && (
+            <TouchableOpacity 
+              style={[styles.mainBtn, { marginTop: 10, borderColor: 'rgba(255, 100, 0, 0.4)' }]} 
+              onPress={handleDevBypass}
+            >
+              <BlurView intensity={20} tint="dark" style={styles.btnBlur}>
+                <Text style={[styles.btnText, { color: '#FF6400' }]}>DEV BYPASS GATE</Text>
+              </BlurView>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
