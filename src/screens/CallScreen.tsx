@@ -35,12 +35,14 @@ const CallScreen = () => {
     isVideo,
     hasRemoteVideo,
   } = useAppSelector((state) => state.call);
+  const { profilePicUrl } = useAppSelector((state) => state.auth);
 
   // Avoid pulling complex objects from Redux to prevent freezing/proxying issues
   const localStream = callService.getLocalStream();
   const remoteStream = callService.getRemoteStream();
 
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [isLocalMain, setIsLocalMain] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -56,6 +58,10 @@ const CallScreen = () => {
       duration: 300,
       useNativeDriver: true,
     }).start();
+  };
+
+  const handleMinimize = () => {
+    navigation.goBack();
   };
 
   const handleHangup = () => {
@@ -93,21 +99,41 @@ const CallScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Main Remote Video View */}
-      <View style={styles.backgroundWrapper}>
-        {isVideo && hasRemoteVideo && remoteStream && typeof remoteStream.toURL === 'function' ? (
-          <RTCView
-            streamURL={remoteStream.toURL()}
-            style={styles.remoteVideo}
-            objectFit="cover"
-          />
+      {/* Main Video View (Full Screen) */}
+      <TouchableOpacity 
+        activeOpacity={1} 
+        onPress={toggleControls} 
+        style={styles.backgroundWrapper}
+      >
+        {isVideo ? (
+          isLocalMain ? (
+            localStream && !isCameraOff && typeof localStream.toURL === 'function' ? (
+              <RTCView streamURL={localStream.toURL()} style={styles.remoteVideo} objectFit="cover" />
+            ) : (
+              <View style={styles.placeholderContainer}>
+                <IPFSAwareImage source={getValidImageSource(profilePicUrl || '')} style={styles.placeholderAvatar} />
+                <Text style={styles.placeholderName}>You</Text>
+              </View>
+            )
+          ) : (
+            hasRemoteVideo && remoteStream && typeof remoteStream.toURL === 'function' ? (
+              <RTCView streamURL={remoteStream.toURL()} style={styles.remoteVideo} objectFit="cover" />
+            ) : (
+              <View style={styles.placeholderContainer}>
+                <IPFSAwareImage source={getValidImageSource(remoteUser?.profile_picture_url || '')} style={styles.placeholderAvatar} />
+                <Text style={styles.placeholderName}>{remoteUser?.display_name || remoteUser?.username || 'User'}</Text>
+                <Text style={styles.callStatusText}>
+                  {callStatus === 'dialing' ? 'Dialing...' :
+                   callStatus === 'ringing' ? 'Ringing...' :
+                   callStatus === 'connected' ? 'Waiting for video...' : 'Connecting...'}
+                </Text>
+              </View>
+            )
+          )
         ) : (
           <View style={styles.placeholderContainer}>
-            <IPFSAwareImage
-              source={getValidImageSource(remoteUser?.profile_picture_url || '')}
-              style={styles.placeholderAvatar}
-            />
-            <Text style={styles.placeholderName}>{remoteUser?.username || 'User'}</Text>
+            <IPFSAwareImage source={getValidImageSource(remoteUser?.profile_picture_url || '')} style={styles.placeholderAvatar} />
+            <Text style={styles.placeholderName}>{remoteUser?.display_name || remoteUser?.username || 'User'}</Text>
             <Text style={styles.callStatusText}>
               {callStatus === 'dialing' ? 'Dialing...' :
                callStatus === 'ringing' ? 'Ringing...' :
@@ -115,16 +141,33 @@ const CallScreen = () => {
             </Text>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
 
-      {/* Local Video Overlay */}
-      {isVideo && localStream && typeof localStream.toURL === 'function' && !isCameraOff && (
-        <RTCView
-          streamURL={localStream.toURL()}
-          style={styles.localVideo}
-          objectFit="cover"
-          zOrder={1} // Ensure local video is on top
-        />
+      {/* Overlay Video View (Small Picture-in-Picture) */}
+      {isVideo && (
+        <TouchableOpacity 
+          style={styles.localVideoWrapper} 
+          onPress={() => setIsLocalMain(!isLocalMain)}
+          activeOpacity={0.8}
+        >
+          {isLocalMain ? (
+            hasRemoteVideo && remoteStream && typeof remoteStream.toURL === 'function' ? (
+              <RTCView streamURL={remoteStream.toURL()} style={styles.localVideo} objectFit="cover" zOrder={1} />
+            ) : (
+              <View style={[styles.localVideo, styles.placeholderSmall]}>
+                 <IPFSAwareImage source={getValidImageSource(remoteUser?.profile_picture_url || '')} style={styles.avatarSmall} />
+              </View>
+            )
+          ) : (
+            localStream && !isCameraOff && typeof localStream.toURL === 'function' ? (
+              <RTCView streamURL={localStream.toURL()} style={styles.localVideo} objectFit="cover" zOrder={1} />
+            ) : (
+              <View style={[styles.localVideo, styles.placeholderSmall]}>
+                 <IPFSAwareImage source={getValidImageSource(profilePicUrl || '')} style={styles.avatarSmall} />
+              </View>
+            )
+          )}
+        </TouchableOpacity>
       )}
 
       {/* Controls Overlay */}
@@ -136,11 +179,11 @@ const CallScreen = () => {
         />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleHangup} style={styles.backButton}>
+            <TouchableOpacity onPress={handleMinimize} style={styles.backButton}>
                <Icons.ArrowLeftIcon width={24} height={24} color={COLORS.white} />
             </TouchableOpacity>
             <View style={styles.headerInfo}>
-               <Text style={styles.headerTitle}>{remoteUser?.username || 'Secure Call'}</Text>
+               <Text style={styles.headerTitle}>{remoteUser?.display_name || remoteUser?.username || 'Secure Call'}</Text>
                <View style={styles.encryptionBadge}>
                  <Icons.Shield width={12} height={12} color={COLORS.brandPrimary} />
                  <Text style={styles.encryptionText}>End-to-End Encrypted</Text>
@@ -202,6 +245,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   localVideo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  localVideoWrapper: {
     position: 'absolute',
     top: 60,
     right: 20,
@@ -212,6 +260,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.darkerBackground,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 10,
+    zIndex: 1,
+  },
+  placeholderSmall: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkerBackground,
+  },
+  avatarSmall: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   placeholderContainer: {
     flex: 1,

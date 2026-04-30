@@ -30,7 +30,7 @@ import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { PersistGate } from 'redux-persist/integration/react';
 
 import TransactionNotification from './src/core/shared-ui/TransactionNotification';
-import { IncomingCallModal } from '@/core/chat';
+import { IncomingCallModal, FloatingCallBar } from '@/core/chat';
 
 // Import DevMode components
 import DevDrawer from './src/core/dev-mode/DevDrawer';
@@ -56,6 +56,7 @@ const GlobalUIElements = () => (
   <>
     <TransactionNotification />
     <IncomingCallModal />
+    <FloatingCallBar />
   </>
 );
 
