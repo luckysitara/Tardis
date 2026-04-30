@@ -65,6 +65,7 @@ export interface NFTData {
 export interface MessageUser {
   id: string;
   username: string;
+  display_name?: string;
   handle?: string;
   avatar?: ImageSourcePropType;
   verified?: boolean;

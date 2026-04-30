@@ -175,7 +175,7 @@ function MessageBubble({ message, isCurrentUser, themeOverrides, styleOverrides,
         <View style={styles.quotedMessageContainer}>
           <View style={styles.quotedIndicator} />
           <View style={styles.quotedTextContainer}>
-            <Text style={styles.quotedUser}>{replyTo.username || replyTo.sender?.username || 'User'}</Text>
+            <Text style={styles.quotedUser}>{replyTo.display_name || replyTo.username || replyTo.sender?.display_name || replyTo.sender?.username || 'User'}</Text>
             <Text style={styles.quotedContent} numberOfLines={2}>{replyTo.content}</Text>
           </View>
         </View>

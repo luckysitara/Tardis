@@ -166,7 +166,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
       {replyingTo && (
         <View style={styles.replyPreviewContainer}>
           <View style={styles.replyTextContainer}>
-            <Text style={styles.replyToUser}>Replying to {replyingTo.sender?.username || 'User'}</Text>
+            <Text style={styles.replyToUser}>Replying to {replyingTo.sender?.display_name || replyingTo.sender?.username || 'User'}</Text>
             <Text style={styles.replyContent} numberOfLines={1}>{replyingTo.content}</Text>
           </View>
           <TouchableOpacity onPress={onCancelReply} style={styles.closeReplyButton}><Text style={styles.removeImageButtonText}>✕</Text></TouchableOpacity>
@@ -187,7 +187,7 @@ export const ChatComposer = forwardRef<{ focus: () => void }, ChatComposerProps>
         </TouchableOpacity>
       </View>
 
-      <TipModal visible={showTipModal} onClose={() => setShowTipModal(false)} recipientAddress={otherParticipant?.id || ''} recipientName={otherParticipant?.username || 'User'} onTipSent={handleTipSent} />
+      <TipModal visible={showTipModal} onClose={() => setShowTipModal(false)} recipientAddress={otherParticipant?.id || ''} recipientName={otherParticipant?.display_name || otherParticipant?.username || 'User'} onTipSent={handleTipSent} />
 
       <Modal transparent visible={showAttachmentMenu} animationType="slide" onRequestClose={() => setShowAttachmentMenu(false)}>
         <TouchableOpacity style={localStyles.modalOverlay} activeOpacity={1} onPress={() => setShowAttachmentMenu(false)}>

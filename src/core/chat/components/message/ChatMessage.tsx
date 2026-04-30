@@ -186,7 +186,7 @@ function ChatMessage({
       </Animated.View>
 
       <ReactionPicker visible={showReactionPicker} onClose={() => setShowReactionPicker(false)} onSelectEmoji={handleSelectEmoji} />
-      <TipModal visible={showTipModal} onClose={() => setShowTipModal(false)} recipientAddress={(message.user?.id || message.sender_id || (message as any).senderId) as string} recipientName={(message.user?.username || 'User') as string} onTipSent={handleTipSent} />
+      <TipModal visible={showTipModal} onClose={() => setShowTipModal(false)} recipientAddress={(message.user?.id || message.sender_id || (message as any).senderId) as string} recipientName={(message.user?.display_name || message.user?.username || 'User') as string} onTipSent={handleTipSent} />
     </View>
   );
 }

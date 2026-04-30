@@ -46,6 +46,7 @@ export async function getUserChats(req: Request, res: Response) {
           .select(
             'users.id',
             'users.username',
+            'users.display_name',
             'users.profile_picture_url',
             'users.public_encryption_key',
             'chat_participants.is_admin'
@@ -257,7 +258,7 @@ export async function getChatMessages(req: Request, res: Response) {
       messages.map(async (message) => {
         const sender = await knex('users')
           .where('id', message.sender_id)
-          .first('id', 'username', 'profile_picture_url');
+          .first('id', 'username', 'display_name', 'profile_picture_url');
 
         const reactions = await knex('message_reactions')
           .where('message_id', message.id)
@@ -268,7 +269,7 @@ export async function getChatMessages(req: Request, res: Response) {
           replyTo = await knex('chat_messages')
             .join('users', 'chat_messages.sender_id', 'users.id')
             .where('chat_messages.id', message.reply_to_id)
-            .select('chat_messages.*', 'users.username', 'users.profile_picture_url')
+            .select('chat_messages.*', 'users.username', 'users.display_name', 'users.profile_picture_url')
             .first();
         }
 
@@ -402,7 +403,7 @@ export async function sendMessage(req: Request, res: Response) {
     // Get sender information
     const sender = await knex('users')
       .where('id', userId)
-      .first('id', 'username', 'profile_picture_url');
+      .first('id', 'username', 'display_name', 'profile_picture_url');
 
     const messageWithSender = {
       ...message,
@@ -461,7 +462,7 @@ export async function getUsersForChat(req: Request, res: Response) {
     const { query, userId } = req.query;
     
     let usersQuery = knex('users')
-      .select('id', 'username', 'profile_picture_url')
+      .select('id', 'username', 'display_name', 'profile_picture_url')
       .orderBy('username', 'asc')
       .limit(20);
     
@@ -537,7 +538,7 @@ export async function editMessage(req: Request, res: Response) {
     // Get sender information
     const sender = await knex('users')
       .where('id', updatedMessage.sender_id)
-      .first('id', 'username', 'profile_picture_url');
+      .first('id', 'username', 'display_name', 'profile_picture_url');
 
     // Return the updated message with sender info
     return res.json({ 

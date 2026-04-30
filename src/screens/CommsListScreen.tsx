@@ -85,7 +85,7 @@ const CommsListScreen = () => {
     if (!searchQuery) return sorted;
     return sorted.filter(chat => {
       const otherParticipant = chat.participants?.find(p => p.id !== userId);
-      const name = chat.name || otherParticipant?.username || '';
+      const name = chat.name || otherParticipant?.display_name || otherParticipant?.username || '';
       return name.toLowerCase().includes(searchQuery.toLowerCase());
     });
   }, [chats, searchQuery, userId]);
@@ -93,7 +93,7 @@ const CommsListScreen = () => {
   const renderChatItem = ({ item }: { item: ChatRoom }) => {
     const isGroup = item.type === 'group' || item.type === 'global';
     const otherParticipant = item.participants?.find(p => p.id !== userId);
-    const chatName = item.name || otherParticipant?.username || 'Seeker';
+    const chatName = item.name || otherParticipant?.display_name || otherParticipant?.username || 'Seeker';
     
     const avatar = isGroup 
       ? (item.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`)

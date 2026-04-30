@@ -39,7 +39,7 @@ const ChatScreen = () => {
   const dispatch = useAppDispatch();
   const { chatId, title } = route.params;
 
-  const { address: userId, username, profilePicUrl } = useAppSelector(state => state.auth);
+  const { address: userId, username, displayName, profilePicUrl } = useAppSelector(state => state.auth);
   const { messages, chats, loadingMessages } = useAppSelector(state => state.chat);
   const { signMessage } = useTardisMobileWallet();
   const chatMessages = messages[chatId] || [];
@@ -51,6 +51,11 @@ const ChatScreen = () => {
   const headerAvatar = useMemo(() => {
     if (isGroup) return currentChat?.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${title}`;
     return otherParticipant?.profile_picture_url || `https://api.dicebear.com/7.x/initials/png?seed=${title}`;
+  }, [isGroup, currentChat, otherParticipant, title]);
+
+  const headerTitle = useMemo(() => {
+    if (isGroup) return title || currentChat?.name || 'Group Chat';
+    return otherParticipant?.display_name || otherParticipant?.username || title || 'Secure Chat';
   }, [isGroup, currentChat, otherParticipant, title]);
 
   const flatListRef = useRef<any>(null);
@@ -132,10 +137,11 @@ const ChatScreen = () => {
   const currentUser = useMemo(() => ({
     id: userId || '',
     username: username || 'Me',
+    display_name: displayName || username || 'Me',
     handle: username ? `@${username.toLowerCase()}` : '@me',
     avatar: profilePicUrl || '',
     verified: true
-  }), [userId, username, profilePicUrl]);
+  }), [userId, username, displayName, profilePicUrl]);
 
   const handleSendMessage = (content: string, imageUrl?: string) => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -186,7 +192,7 @@ const ChatScreen = () => {
         <TouchableOpacity style={styles.headerInfo} activeOpacity={0.7} onPress={handleHeaderPress}>
           <IPFSAwareImage source={getValidImageSource(headerAvatar)} style={styles.headerAvatar} />
           <View style={styles.titleContainer}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{title || 'Secure Chat'}</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>{headerTitle}</Text>
             <View style={styles.securityStatus}>
               <Animated.View style={{ transform: [{ scale: pulseAnim }] }}><Icons.Shield width={10} height={10} color={COLORS.brandPrimary} /></Animated.View>
               <Text style={styles.securityText}>End-to-End Encrypted</Text>
@@ -226,7 +232,7 @@ const ChatScreen = () => {
               }
               return (
                 <ChatMessage
-                  message={{ ...item, user: item.sender || { id: item.sender_id, username: 'Unknown', avatar: '' } } as any}
+                  message={{ ...item, user: item.sender || { id: item.sender_id, username: 'Unknown', display_name: 'Unknown', avatar: '' } } as any}
                   currentUser={currentUser}
                   onPressUser={(user) => navigation.navigate('Profile', { userId: user.id })}
                   onPressMessage={(msg) => setReplyingTo(msg)}

@@ -51,7 +51,7 @@ function MessageHeader({ message, showAvatar = true, onPressUser }: MessageHeade
         )}
         <View style={messageHeaderStyles.userInfoContainer}>
           <Text style={messageHeaderStyles.username}>
-            {user.username || 'Anonymous'}
+            {user.display_name || user.username || 'Anonymous'}
           </Text>
           <Text style={messageHeaderStyles.headerTimestamp}>
             {formatTimestamp(timestamp)}

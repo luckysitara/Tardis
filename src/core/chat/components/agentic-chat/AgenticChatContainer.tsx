@@ -86,7 +86,7 @@ const AgenticChatContainer: React.FC<AgenticChatContainerProps> = ({
       content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
       isAI: msg.role === 'assistant',
       avatar: msg.role === 'assistant' ? memoizedAiUser.avatar : memoizedCurrentUser.avatar,
-      name: msg.role === 'assistant' ? memoizedAiUser.name : memoizedCurrentUser.username,
+      name: msg.role === 'assistant' ? memoizedAiUser.name : (currentUser.display_name || currentUser.username),
       timestamp: msg.createdAt || new Date(),
       isLastMessage: index === messages.length - 1
     }));

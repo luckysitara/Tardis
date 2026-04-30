@@ -73,7 +73,7 @@ const IncomingCallModal = () => {
             />
           </Animated.View>
           
-          <Text style={styles.callerName}>{remoteUser?.username || 'Secure Caller'}</Text>
+          <Text style={styles.callerName}>{remoteUser?.display_name || remoteUser?.username || 'Secure Caller'}</Text>
           <Text style={styles.callType}>{isVideo ? 'Incoming Video Call...' : 'Incoming Audio Call...'}</Text>
 
           <View style={styles.actions}>

@@ -6,6 +6,7 @@ import { SERVER_BASE_URL } from '../../config/server';
 export interface ChatParticipant {
   id: string;
   username: string;
+  display_name?: string;
   profile_picture_url: string | null;
   public_encryption_key?: string | null;
   is_admin?: boolean;
@@ -29,6 +30,7 @@ export interface ChatMessage {
   sender?: {
     id: string;
     username: string;
+    display_name?: string;
     profile_picture_url: string | null;
   };
 }
