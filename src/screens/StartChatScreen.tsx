@@ -17,6 +17,7 @@ import COLORS from '@/assets/colors';
 import TYPOGRAPHY from '@/assets/typography';
 import Icons from '@/assets/svgs';
 import { DEFAULT_IMAGES } from '@/shared/config/constants';
+import UserChatItem from '@/core/chat/components/UserChatItem';
 
 const StartChatScreen = () => {
   const navigation = useNavigation<any>();
@@ -56,25 +57,7 @@ const StartChatScreen = () => {
   };
 
   const renderUserItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.userItem}
-      onPress={() => handleStartChat(item)}
-    >
-      <Image 
-        source={item.profile_picture_url ? { uri: item.profile_picture_url } : DEFAULT_IMAGES.user} 
-        style={styles.avatar} 
-      />
-      <View style={styles.userInfo}>
-        <Text style={styles.username}>{item.username}</Text>
-        <Text style={styles.userHandle}>{item.id.substring(0, 8)}...{item.id.substring(item.id.length - 4)}</Text>
-      </View>
-      <Icons.BackIcon 
-        width={20} 
-        height={20} 
-        color={COLORS.greyMid} 
-        style={{ transform: [{ rotate: '180deg' }] }} 
-      />
-    </TouchableOpacity>
+    <UserChatItem user={item} onPress={handleStartChat} />
   );
 
   return (

@@ -109,20 +109,23 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
   const isMainnet = useMemo(() => connection.rpcEndpoint.includes('mainnet'), [connection]);
 
   const fetchBalances = useCallback(async () => {
-    if (!publicKey) return;
+    if (!publicKey || !connection) return;
     try {
       const sol = await connection.getBalance(publicKey);
       setSolBalance(sol / LAMPORTS_PER_SOL);
 
-      const usdcAta = await getAssociatedTokenAddress(new PublicKey(DEFAULT_USDC_TOKEN.address), publicKey);
-      try {
-        const account = await getAccount(connection, usdcAta);
-        setUsdcBalance(Number(account.amount) / 1_000_000);
-      } catch {
-        setUsdcBalance(0);
+      const usdcAddress = DEFAULT_USDC_TOKEN?.address;
+      if (usdcAddress) {
+        const usdcAta = await getAssociatedTokenAddress(new PublicKey(usdcAddress), publicKey);
+        try {
+          const account = await getAccount(connection, usdcAta);
+          setUsdcBalance(Number(account.amount) / 1_000_000);
+        } catch {
+          setUsdcBalance(0);
+        }
       }
-    } catch (err) {
-      console.warn("Balance fetch error:", err);
+    } catch (err: any) {
+      console.warn("Balance fetch error:", err.message || err);
     }
   }, [publicKey, connection]);
 
@@ -223,14 +226,22 @@ const LendingView: React.FC<LendingViewProps> = ({ address, ListHeaderComponent 
   }), []);
 
   const fetchPools = useCallback(async () => {
-    if (!provider) return;
+    if (!provider || !idl) return;
     setLoading(true);
     try {
+      console.log("[LendingView] Fetching pools from contract:", idl.address);
       const program = new Program(idl, provider);
+      
+      // Safety check for program accounts
+      if (!program.account || !program.account.lendingPool) {
+        throw new Error("LendingPool account definition missing in IDL");
+      }
+      
       const allPools = await program.account.lendingPool.all();
+      console.log(`[LendingView] Found ${allPools.length} pools`);
       setPools(allPools as any);
-    } catch (err) {
-      console.error("Error fetching pools:", err);
+    } catch (err: any) {
+      console.error("Error fetching pools:", err.message || err);
     } finally {
       setLoading(false);
       setRefreshing(false);

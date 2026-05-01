@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppDispatch, useAppSelector } from '@/shared/hooks/useReduxHooks';
-import { fetchChatMessages, deleteMessage } from '@/shared/state/chat/slice';
+import { fetchChatMessages, deleteMessage, fetchChatRoomById } from '@/shared/state/chat/slice';
 import { initiateCall } from '@/shared/state/call/slice';
 import callService from '@/shared/services/callService';
 import { requestCallPermissions } from '@/shared/utils/permissions';

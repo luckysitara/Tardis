@@ -83,26 +83,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function App() {
   const [config] = useState(DefaultCustomizationConfig);
 
-  // SANITY CHECK: Purge hardcoded test wallet from persistence
-  useEffect(() => {
-    const purgeTestWallet = async () => {
-      try {
-        const BUGHACKER_ADDR = '2ggoPe4b9KFQQ5hghks3S9QWYdbSsGq1sJFscVNva5ZM';
-        const persistedData = await AsyncStorage.getItem('persist:root');
-        if (persistedData && persistedData.includes(BUGHACKER_ADDR)) {
-          console.warn('[App] Detected hardcoded test wallet in persistence. Purging auth state...');
-          // We could use persistor.purge(), but let's be surgical and just logout
-          store.dispatch({ type: 'auth/logoutSuccess' });
-          await AsyncStorage.removeItem('persist:root'); // Full reset for safety
-          console.log('[App] Persistence purged. Please restart the app.');
-        }
-      } catch (e) {
-        console.error('Failed to purge test wallet:', e);
-      }
-    };
-    purgeTestWallet();
-  }, []);
-
   const onBeforeLift = async () => {
     try {
       // Small delay to ensure any additional UI stabilizes
