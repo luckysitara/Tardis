@@ -48,7 +48,7 @@ const StartChatScreen = () => {
       if (result.success && result.chatId) {
         navigation.replace('ChatScreen', { 
           chatId: result.chatId, 
-          title: otherUser.username 
+          title: otherUser.display_name || otherUser.username 
         });
       }
     } catch (error) {

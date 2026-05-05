@@ -14,6 +14,31 @@ import knex from '../db/knex';
 import { v4 as uuidv4 } from 'uuid';
 import { verifySignature } from '../utils/solana';
 import { processMentions, createNotification } from '../service/notificationService';
+import { getConnection } from '../utils/connection';
+import { PublicKey } from '@solana/web3.js';
+import * as tldParserPkg from '@onsol/tldparser';
+const TldParser = (tldParserPkg as any).TldParser || (tldParserPkg as any).default?.TldParser;
+
+/**
+ * Helper to resolve a user's .skr domain from their wallet address
+ */
+async function resolveSkrUsername(userId: string): Promise<string> {
+  try {
+    const connection = getConnection();
+    if (!connection) return userId;
+    
+    const parser = new TldParser(connection);
+    const publicKey = new PublicKey(userId);
+    const domains = await parser.getParsedAllUserDomainsFromTld(publicKey, 'skr');
+    if (domains && domains.length > 0) {
+      const rawDomain = domains[0].domain;
+      return rawDomain.toLowerCase().endsWith('.skr') ? rawDomain : `${rawDomain}.skr`;
+    }
+  } catch (e) {
+    console.log(`[IdentityResolution] .skr resolution failed for ${userId}:`, e);
+  }
+  return userId;
+}
 
 /**
  * Get all chat rooms for a user
@@ -477,10 +502,34 @@ export async function getUsersForChat(req: Request, res: Response) {
     }
     
     const users = await usersQuery;
+
+    // Resolve .skr handles for users who only have wallet addresses as usernames
+    const resolvedUsers = await Promise.all(
+      users.map(async (user: any) => {
+        // If username looks like a wallet address (long base58), try to resolve it
+        if (user.username && user.username.length > 30) {
+          const resolved = await resolveSkrUsername(user.id);
+          if (resolved !== user.id) {
+            // Update the database cache so we don't have to resolve again next time
+            await knex('users').where({ id: user.id }).update({
+              username: resolved,
+              display_name: user.display_name === user.id ? resolved : user.display_name,
+              updated_at: new Date()
+            });
+            return { 
+              ...user, 
+              username: resolved, 
+              display_name: user.display_name === user.id ? resolved : user.display_name 
+            };
+          }
+        }
+        return user;
+      })
+    );
     
     return res.json({ 
       success: true, 
-      users 
+      users: resolvedUsers
     });
   } catch (error: any) {
     console.error('[Get Users For Chat Error]', error);

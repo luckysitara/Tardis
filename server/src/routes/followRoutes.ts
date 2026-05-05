@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { followUser, unfollowUser, getFollowStats, checkIfFollowing, getFollowing } from '../controllers/followController';
+import { followUser, unfollowUser, getFollowStats, checkIfFollowing, getFollowing, getSuggestedUsers } from '../controllers/followController';
 
 const followRouter = Router();
 
@@ -8,5 +8,6 @@ followRouter.post('/unfollow', unfollowUser);
 followRouter.get('/stats/:userId', getFollowStats);
 followRouter.get('/is-following', checkIfFollowing);
 followRouter.get('/following/:userId', getFollowing);
+followRouter.get('/suggested', getSuggestedUsers);
 
 export { followRouter };

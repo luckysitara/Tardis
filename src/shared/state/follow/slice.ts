@@ -4,12 +4,14 @@ import { SERVER_BASE_URL } from '../../config/server';
 
 interface FollowState {
   following: string[];
+  suggestedUsers: any[];
   loading: boolean;
   error: string | null;
 }
 
 const initialState: FollowState = {
   following: [],
+  suggestedUsers: [],
   loading: false,
   error: null,
 };
@@ -22,6 +24,21 @@ export const fetchFollowing = createAsyncThunk(
       return response.data.following;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || 'Failed to fetch following');
+    }
+  }
+);
+
+export const fetchSuggestedUsers = createAsyncThunk(
+  'follow/fetchSuggestedUsers',
+  async (userId: string | undefined, { rejectWithValue }) => {
+    try {
+      const url = userId 
+        ? `${SERVER_BASE_URL}/api/follows/suggested?userId=${userId}`
+        : `${SERVER_BASE_URL}/api/follows/suggested`;
+      const response = await axios.get(url);
+      return response.data.users;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch suggested users');
     }
   }
 );
@@ -66,6 +83,9 @@ const followSlice = createSlice({
       .addCase(fetchFollowing.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      .addCase(fetchSuggestedUsers.fulfilled, (state, action) => {
+        state.suggestedUsers = action.payload;
       })
       .addCase(followUser.fulfilled, (state, action) => {
         if (!state.following.includes(action.payload)) {

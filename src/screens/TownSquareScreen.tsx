@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IPFSAwareImage, getValidImageSource } from '@/shared/utils/IPFSImage';
 import { TextInput } from 'react-native-gesture-handler';
+import OnboardingChecklist from '@/components/onboarding/OnboardingChecklist';
 
 const { width } = Dimensions.get('window');
 
@@ -129,6 +130,7 @@ const TownSquareScreen = () => {
         <FlashList
           data={filteredPosts}
           renderItem={renderItem}
+          ListHeaderComponent={activeTab === 'FOR_YOU' ? <OnboardingChecklist /> : null}
           keyExtractor={(item) => item.id}
           estimatedItemSize={200}
           contentContainerStyle={styles.flashListContentContainer}

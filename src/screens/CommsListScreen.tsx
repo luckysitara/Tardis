@@ -93,7 +93,13 @@ const CommsListScreen = () => {
   const renderChatItem = ({ item }: { item: ChatRoom }) => {
     const isGroup = item.type === 'group' || item.type === 'global';
     const otherParticipant = item.participants?.find(p => p.id !== userId);
-    const chatName = item.name || otherParticipant?.display_name || otherParticipant?.username || 'Seeker';
+    
+    let chatName = item.name || otherParticipant?.display_name || otherParticipant?.username || 'Seeker';
+    
+    // Abbreviate if it's a long wallet address
+    if (chatName && chatName.length > 30 && !chatName.includes(' ')) {
+      chatName = `${chatName.substring(0, 4)}...${chatName.substring(chatName.length - 4)}`;
+    }
     
     const avatar = isGroup 
       ? (item.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${chatName}`)

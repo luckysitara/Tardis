@@ -6,15 +6,40 @@ import COLORS from '@/assets/colors';
 import Icons from '@/assets/svgs';
 
 const UserChatItem = ({ user, onPress }) => {
-  const [resolvedUsername, setResolvedUsername] = useState(user.username);
-  const [resolvedHandle, setResolvedHandle] = useState(user.id.substring(0, 8) + '...' + user.id.substring(user.id.length - 4));
+  // Prioritize display_name if available, fallback to username
+  const rawDisplayName = user.display_name || user.username || 'Seeker';
+  const isAddress = (str: string) => str && str.length > 30;
+  
+  // Abbreviate if it's an address
+  const initialDisplayName = isAddress(rawDisplayName)
+    ? `${rawDisplayName.substring(0, 8)}...${rawDisplayName.substring(rawDisplayName.length - 4)}`
+    : rawDisplayName;
+    
+  const [resolvedUsername, setResolvedUsername] = useState(initialDisplayName);
+  
+  // For the handle, use username if it's not an address, otherwise use a truncated address
+  const initialHandle = user.username && !isAddress(user.username) 
+    ? `@${user.username}` 
+    : (user.id ? `${user.id.substring(0, 8)}...${user.id.substring(user.id.length - 4)}` : '');
+    
+  const [resolvedHandle, setResolvedHandle] = useState(initialHandle);
 
   useEffect(() => {
     const resolveIdentity = async () => {
       if (user?.id) {
-        const handle = await resolveTardisIdentity(user.id, user.username);
-        setResolvedUsername(handle);
-        setResolvedHandle(handle.startsWith('@') ? handle : `@${handle}`);
+        // Pass the most human-readable name we have as a hint
+        const nameHint = user.display_name || user.username;
+        const resolved = await resolveTardisIdentity(user.id, nameHint);
+        
+        // Only overwrite if the resolved name is "better" (i.e. not just an abbreviation)
+        // OR if the current name is just an address
+        const currentIsAddress = isAddress(resolvedUsername);
+        const resolvedIsAbbreviation = resolved.includes('...');
+        
+        if (!resolvedIsAbbreviation || currentIsAddress) {
+          setResolvedUsername(resolved);
+          setResolvedHandle(resolved.startsWith('@') ? resolved : `@${resolved}`);
+        }
       }
     };
     resolveIdentity();

@@ -56,6 +56,7 @@ export {
   HeartIcon,
   ShareIcon,
   CheckIcon,
+  CloseIcon,
   RocketIcon,
   ArrowIcon,
 };
