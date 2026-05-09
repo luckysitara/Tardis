@@ -44,21 +44,26 @@ router.get('/:address', async (req: Request, res: Response) => {
       ...tokens
     ];
 
-    // 4. Fetch Prices (Using Jupiter or Birdeye - simplified for now)
-    // In production, you'd use your BIRDEYE_API_KEY
+    // 4. Fetch Prices (Using Jupiter)
     const prices: Record<string, number> = {};
+    const JUP_API_KEY = process.env.JUPITER_API_KEY;
+    
     try {
       const mints = allTokens.map(t => t.mint).join(',');
-      const priceResponse = await axios.get(`https://api.jup.ag/price/v2?ids=${mints}`);
+      const priceResponse = await axios.get(`https://api.jup.ag/price/v2?ids=${mints}`, {
+        headers: JUP_API_KEY ? {
+          'x-api-key': JUP_API_KEY
+        } : {}
+      });
       const jupData = priceResponse.data.data;
       
       allTokens.forEach(t => {
-        if (jupData[t.mint]) {
+        if (jupData && jupData[t.mint]) {
           prices[t.mint] = parseFloat(jupData[t.mint].price);
         }
       });
-    } catch (e) {
-      console.warn('Failed to fetch prices from Jupiter');
+    } catch (e: any) {
+      console.warn(`[Portfolio] Jupiter Price Fetch Failed: ${e.message}`);
     }
 
     // 5. Aggregate Data
