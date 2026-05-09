@@ -388,7 +388,7 @@ CREATE TABLE IF NOT EXISTS follows (
     following_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (following_id) REFERENCES users(id) NOT NULL,
+    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (follower_id, following_id)
 );
 
