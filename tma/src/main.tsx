@@ -1,12 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { PrivyProvider } from '@privy-io/react-auth';
-import { SolanaProvider } from '@privy-io/react-auth/solana';
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import App from './App';
 import './index.css';
 
 // Privy Configuration (Replace with your actual App ID)
-const PRIVY_APP_ID = 'cm7h0f1g403a4lqex62696is9'; 
+const PRIVY_APP_ID = 'cmoy8gxtk04kw0cjx0r6hivf7'; 
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -20,13 +21,26 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           showWalletLoginFirst: false,
         },
         embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
+          solana: {
+            createOnLogin: 'users-without-wallets',
+          },
+        },
+        externalWallets: {
+          solana: {
+            connectors: toSolanaWalletConnectors(),
+          },
+        },
+        solana: {
+          rpcs: {
+            'solana:mainnet': {
+              rpc: createSolanaRpc('https://api.mainnet-beta.solana.com'),
+              rpcSubscriptions: createSolanaRpcSubscriptions('wss://api.mainnet-beta.solana.com'),
+            },
+          },
         },
       }}
     >
-      <SolanaProvider>
-        <App />
-      </SolanaProvider>
+      <App />
     </PrivyProvider>
   </React.StrictMode>
 );
