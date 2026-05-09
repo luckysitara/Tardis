@@ -168,9 +168,10 @@ export class TelegramBotService {
       if (recipient) {
         const actionUrl = `https://seek.kikhaus.com/api/actions/tip?to=${recipient.id}&amount=${amount}&mint=${token}`;
         
+        // 1. Reply to Sender with the signing button
         await ctx.reply(
           `✅ *Ready to tip ${amount} ${token} to @${recipientUsername}!*\n\n` +
-          `Click below to sign and send:`,
+          `Click below to sign and send. You must authorize this transaction:`,
           {
             parse_mode: 'Markdown',
             reply_markup: {
@@ -178,6 +179,20 @@ export class TelegramBotService {
             }
           }
         );
+
+        // 2. Notify Recipient if we have their Telegram ID
+        if (recipient.telegram_id) {
+          try {
+            await ctx.telegram.sendMessage(
+              recipient.telegram_id,
+              `💰 *@${ctx.from?.username || 'A user'}* is sending you a tip of *${amount} ${token}* on Tardis!\n\n` +
+              `The transaction will arrive in your wallet as soon as they confirm it.`,
+              { parse_mode: 'Markdown' }
+            );
+          } catch (e) {
+            console.log(`Could not notify recipient ${recipientUsername} (likely hasn't started the bot)`);
+          }
+        }
       } else {
         // Pending tip logic...
         const pendingId = uuidv4();
