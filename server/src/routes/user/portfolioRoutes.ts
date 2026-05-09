@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import axios from 'axios';
-import { getConnection } from '../utils/connection';
+import { getConnection } from '../../utils/connection';
 import Decimal from 'decimal.js';
 
 const router = Router();
