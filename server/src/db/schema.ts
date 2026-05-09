@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
     description TEXT NULL,
     public_encryption_key TEXT NULL, -- X25519 Public Key for E2EE
     is_hardware_verified BOOLEAN DEFAULT FALSE, -- Verified via hardware signature
+    telegram_id VARCHAR(255) NULL UNIQUE, -- Linked Telegram ID
+    telegram_username VARCHAR(255) NULL, -- Telegram username
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -205,6 +207,18 @@ CREATE TABLE IF NOT EXISTS push_tokens (
     last_used_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS pending_tips (
+    id CHAR(36) PRIMARY KEY NOT NULL,
+    sender_id VARCHAR(255) NOT NULL,
+    recipient_tg_id VARCHAR(255) NOT NULL,
+    amount VARCHAR(255) NOT NULL,
+    mint_address VARCHAR(255) NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+);
 `;
 
 export const createTablesPostgresSQL = `
@@ -216,6 +230,8 @@ CREATE TABLE IF NOT EXISTS users (
     description TEXT NULL,
     public_encryption_key TEXT NULL,
     is_hardware_verified BOOLEAN DEFAULT FALSE,
+    telegram_id VARCHAR(255) NULL UNIQUE,
+    telegram_username VARCHAR(255) NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -372,7 +388,7 @@ CREATE TABLE IF NOT EXISTS follows (
     following_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES users(id) NOT NULL,
     UNIQUE (follower_id, following_id)
 );
 
@@ -405,5 +421,17 @@ CREATE TABLE IF NOT EXISTS push_tokens (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_used_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS pending_tips (
+    id UUID PRIMARY KEY NOT NULL,
+    sender_id VARCHAR(255) NOT NULL,
+    recipient_tg_id VARCHAR(255) NOT NULL,
+    amount VARCHAR(255) NOT NULL,
+    mint_address VARCHAR(255) NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
 );
 `;

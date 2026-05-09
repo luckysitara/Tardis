@@ -23,6 +23,8 @@ import cors from 'cors';
 import { setupConnection } from './utils/connection';
 import { createTablesSQL, createTablesPostgresSQL } from './db/schema';
 import expoNotificationService from './services/expoNotificationService';
+import { telegramBotService } from './services/telegramBot';
+import telegramAuthRouter from './routes/auth/telegramAuthRoutes';
 
 
 const app = express();
@@ -106,6 +108,7 @@ app.use('/api/jupiter/ultra', jupiterUltraSwapRouter); // Add this line
 app.use('/api/domain', domainRouter);
 app.use('/api/pumpfun', launchRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api/auth/telegram', telegramAuthRouter);
 
 // Socket.io handlers
 io.on('connection', (socket) => {
@@ -459,6 +462,9 @@ const HOST = process.env.HOST || '0.0.0.0'; // Listen on all interfaces
 
     console.log('✅ Database schema initialization completed.');
     console.log('✅ Database setup completed successfully');
+    
+    // Launch Telegram Bot
+    telegramBotService.launch();
   } catch (error) {
     console.error('⚠️ Database setup failed, but server is running:', error);
     // Server continues running even if DB fails - important for App Runner
