@@ -23,8 +23,6 @@ export class TelegramBotService {
 
   private setupCommands() {
     this.bot.command('start', async (ctx) => {
-      const payload = (ctx as any).startPayload;
-      
       let message = "Welcome to Tardis - The Social-Financial OS for Solana!\n\n";
       message += "Connect your wallet or create a new one to start tipping, trading, and lending directly in Telegram.";
       
@@ -43,93 +41,166 @@ export class TelegramBotService {
       await ctx.reply(message, { reply_markup: keyboard });
     });
 
+    this.bot.command('balance', async (ctx) => {
+      try {
+        const user = await knex('users').where({ telegram_id: ctx.from.id.toString() }).first();
+        if (!user) {
+          return ctx.reply("❌ Your wallet is not linked. Use /start to connect.");
+        }
+
+        // Generate a Blink for balance (or just link to a tracker)
+        const balanceUrl = `https://solscan.io/account/${user.id}`;
+        ctx.reply(
+          `👤 *Account:* \`${user.display_name}\`\n` +
+          `💳 *Wallet:* \`${user.id.substring(0, 4)}...${user.id.substring(user.id.length - 4)}\`\n\n` +
+          `Click below to view your full portfolio on-chain:`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [[{ text: "🔍 View on Solscan", url: balanceUrl }]]
+            }
+          }
+        );
+      } catch (e) {
+        ctx.reply("Error fetching balance.");
+      }
+    });
+
+    this.bot.command('tip', async (ctx) => {
+      const text = ctx.message.text;
+      const parts = text.split(' ');
+      // Format: /tip @user 5 USDC
+      if (parts.length < 4) {
+        return ctx.reply("Usage: /tip @username <amount> <token>");
+      }
+      const recipient = parts[1].replace('@', '');
+      const amount = parts[2];
+      const token = parts[3].toUpperCase();
+      
+      await this.processTip(ctx, recipient, amount, token);
+    });
+
+    this.bot.command('swap', async (ctx) => {
+      const user = await knex('users').where({ telegram_id: ctx.from.id.toString() }).first();
+      if (!user) return ctx.reply("❌ Link your wallet first using /start");
+
+      const swapUrl = `https://tardis.link/swap`; // This would be a Blink/Action
+      ctx.reply(
+        "🔄 *Tardis Swap*\n\nSwap any Solana token instantly with the best rates via Jupiter.",
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [[{ text: "💸 Open Swap", url: swapUrl }]]
+          }
+        }
+      );
+    });
+
+    this.bot.command('wallet', async (ctx) => {
+      try {
+        const user = await knex('users').where({ telegram_id: ctx.from.id.toString() }).first();
+        if (user) {
+          ctx.reply(
+            `✅ *Wallet Connected*\n\n` +
+            `*Address:* \`${user.id}\`\n` +
+            `*Identity:* ${user.display_name}\n\n` +
+            `Your Telegram ID is successfully synced with Tardis.`,
+            { parse_mode: 'Markdown' }
+          );
+        } else {
+          ctx.reply(
+            `❌ *No Wallet Linked*\n\n` +
+            `Your Telegram account is not yet connected to a Solana wallet. Click /start to get set up.`,
+            { parse_mode: 'Markdown' }
+          );
+        }
+      } catch (e) {
+        ctx.reply("Error checking wallet status.");
+      }
+    });
+
     this.bot.command('help', (ctx) => {
       ctx.reply(
-        "Tardis Bot Commands:\n" +
-        "/start - Connect your wallet\n" +
-        "/tip @username <amount> <token> - Tip a user\n" +
-        "/balance - Check your linked wallet balance\n" +
-        "/help - Show this message"
+        "🛡 *Tardis Social-Finance Commands:*\n\n" +
+        "/start - Connect/Create Solana wallet\n" +
+        "/wallet - Check connection status\n" +
+        "/balance - View your portfolio\n" +
+        "/tip @user <amount> <token> - Send tokens\n" +
+        "/swap - Trade tokens instantly\n" +
+        "/help - Show this menu",
+        { parse_mode: 'Markdown' }
       );
     });
   }
 
   private setupListeners() {
-    // Listen for "tip" pattern in messages
     this.bot.on('text', async (ctx, next) => {
       const text = ctx.message.text;
-      const tipRegex = /@(\w+)\s+tip\s+@(\w+)\s+([\d.]+)\s+(\w+)/i;
-      // Also support simpler: tip @user 5 USDC
-      const simpleTipRegex = /tip\s+@(\w+)\s+([\d.]+)\s+(\w+)/i;
+      if (text.startsWith('/')) return next();
 
-      let match = text.match(tipRegex) || text.match(simpleTipRegex);
+      // Simple natural language tip detection: "tip @user 5 usdc"
+      const tipRegex = /^tip\s+@(\w+)\s+([\d.]+)\s+(\w+)$/i;
+      const match = text.match(tipRegex);
 
       if (match) {
-        // Handle as tip
-        await this.handleTip(ctx, match);
+        const recipient = match[1];
+        const amount = match[2];
+        const token = match[3].toUpperCase();
+        await this.processTip(ctx, recipient, amount, token);
       } else {
         return next();
       }
     });
   }
 
-  private async handleTip(ctx: Context, match: RegExpMatchArray) {
+  private async processTip(ctx: Context, recipientUsername: string, amount: string, token: string) {
     try {
-      // Logic depends on which regex matched
-      const isMentionBot = match.length === 5;
-      const recipientUsername = isMentionBot ? match[2] : match[1];
-      const amount = match[isMentionBot ? 3 : 2];
-      const token = match[isMentionBot ? 4 : 3].toUpperCase();
-
       const senderId = ctx.from?.id.toString();
       if (!senderId) return;
 
-      // 1. Find sender in DB
       const sender = await knex('users').where({ telegram_id: senderId }).first();
       if (!sender) {
-        return ctx.reply(
-          `Hey ${ctx.from?.first_name}, you haven't linked your wallet yet! ` +
-          `Click /start to get set up and start tipping.`
-        );
+        return ctx.reply("❌ You need to link your wallet to send tips. Click /start to begin.");
       }
 
-      // 2. Find recipient in DB (by telegram_username)
       const recipient = await knex('users').where({ telegram_username: recipientUsername }).first();
 
       if (recipient) {
-        // Both are linked! Generate a Blink/Action link
-        // In a real implementation, we'd provide a button to sign the tx
-        const actionUrl = `https://tardis.link/tip?to=${recipient.id}&amount=${amount}&token=${token}`;
+        const actionUrl = `https://seek.kikhaus.com/api/actions/tip?to=${recipient.id}&amount=${amount}&mint=${token}`;
         
         await ctx.reply(
-          `Ready to tip ${amount} ${token} to @${recipientUsername}!\n\n` +
-          `Click below to sign the transaction:`,
+          `✅ *Ready to tip ${amount} ${token} to @${recipientUsername}!*\n\n` +
+          `Click below to sign and send:`,
           {
+            parse_mode: 'Markdown',
             reply_markup: {
-              inline_keyboard: [[{ text: "✅ Confirm Tip", url: actionUrl }]]
+              inline_keyboard: [[{ text: "🚀 Confirm On-Chain Tip", url: actionUrl }]]
             }
           }
         );
       } else {
-        // VIRAL ONBOARDING: Recipient not found, create a pending tip
+        // Pending tip logic...
         const pendingId = uuidv4();
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 48);
 
         await knex('pending_tips').insert({
           id: pendingId,
-          sender_id: sender.id, // Wallet address
-          recipient_tg_id: recipientUsername, // We store username since we don't have ID yet
+          sender_id: sender.id,
+          recipient_tg_id: recipientUsername,
           amount: amount,
-          mint_address: token, // Simplified for now
+          mint_address: token,
           status: 'pending',
           expires_at: expiresAt
         });
 
         await ctx.reply(
-          `💰 @${recipientUsername}, you have an incoming tip of ${amount} ${token} from @${ctx.from?.username || ctx.from?.first_name}!\n\n` +
-          `You have 48 hours to claim it. Click below to create your wallet and claim your funds.`,
+          `💰 *@${recipientUsername}, you have an incoming tip!*\n\n` +
+          `*Amount:* ${amount} ${token}\n` +
+          `*From:* @${ctx.from?.username || ctx.from?.first_name}\n\n` +
+          `You have 48 hours to claim. Click below to create your wallet:`,
           {
+            parse_mode: 'Markdown',
             reply_markup: {
               inline_keyboard: [[{ text: "🎁 Claim My Tip", web_app: { url: `${MINI_APP_URL}?claim=${pendingId}&username=${recipientUsername}` } }]]
             }
@@ -137,8 +208,8 @@ export class TelegramBotService {
         );
       }
     } catch (error) {
-      console.error('Error handling tip:', error);
-      ctx.reply('Sorry, I ran into an error processing that tip.');
+      console.error('Tip Processing Error:', error);
+      ctx.reply("⚠️ Sorry, I couldn't process that tip request.");
     }
   }
 
