@@ -25,6 +25,7 @@ import { createTablesSQL, createTablesPostgresSQL } from './db/schema';
 import expoNotificationService from './services/expoNotificationService';
 import { telegramBotService } from './services/telegramBot';
 import telegramAuthRouter from './routes/auth/telegramAuthRoutes';
+import portfolioRouter from './routes/user/portfolioRoutes';
 
 
 const app = express();
@@ -109,6 +110,7 @@ app.use('/api/domain', domainRouter);
 app.use('/api/pumpfun', launchRouter);
 app.use('/api/notifications', notificationRouter);
 app.use('/api/auth/telegram', telegramAuthRouter);
+app.use('/api/user/portfolio', portfolioRouter);
 
 // Socket.io handlers
 io.on('connection', (socket) => {
