@@ -84,13 +84,13 @@ export class TelegramBotService {
       const user = await knex('users').where({ telegram_id: ctx.from.id.toString() }).first();
       if (!user) return ctx.reply("❌ Link your wallet first using /start");
 
-      const swapUrl = `https://tardis.link/swap`; // This would be a Blink/Action
+      const tmaSwapUrl = `${MINI_APP_URL}?action=swap&tg_id=${ctx.from.id}`;
       ctx.reply(
         "🔄 *Tardis Swap*\n\nSwap any Solana token instantly with the best rates via Jupiter.",
         {
           parse_mode: 'Markdown',
           reply_markup: {
-            inline_keyboard: [[{ text: "💸 Open Swap", url: swapUrl }]]
+            inline_keyboard: [[{ text: "💸 Open Swap", web_app: { url: tmaSwapUrl } }]]
           }
         }
       );
@@ -166,16 +166,16 @@ export class TelegramBotService {
       const recipient = await knex('users').where({ telegram_username: recipientUsername }).first();
 
       if (recipient) {
-        const actionUrl = `https://seek.kikhaus.com/api/actions/tip?to=${recipient.id}&amount=${amount}&mint=${token}`;
+        const tmaTipUrl = `${MINI_APP_URL}?action=tip&to=${recipient.id}&amount=${amount}&token=${token}&tg_id=${ctx.from?.id}`;
         
         // 1. Reply to Sender with the signing button
         await ctx.reply(
           `✅ *Ready to tip ${amount} ${token} to @${recipientUsername}!*\n\n` +
-          `Click below to sign and send. You must authorize this transaction:`,
+          `Click below to confirm and sign in your secure Tardis wallet:`,
           {
             parse_mode: 'Markdown',
             reply_markup: {
-              inline_keyboard: [[{ text: "🚀 Confirm On-Chain Tip", url: actionUrl }]]
+              inline_keyboard: [[{ text: "🚀 Confirm On-Chain Tip", web_app: { url: tmaTipUrl } }]]
             }
           }
         );
