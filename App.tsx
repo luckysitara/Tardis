@@ -80,6 +80,23 @@ const StandardModeComponents = () => {
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const tardisLinking = {
+  prefixes: ['tardisapp://', 'tardis://'],
+  config: {
+    screens: {
+      Authenticated: {
+        screens: {
+          CreatePost: 'post',
+          ChatScreen: 'dm/:chatId',
+          CommunityFeed: 'community/:communityId',
+          TownSquare: 'feed',
+          Communities: 'communities',
+        },
+      },
+    },
+  },
+};
+
 export default function App() {
   const [config] = useState(DefaultCustomizationConfig);
 
@@ -103,7 +120,7 @@ export default function App() {
               <DevModeProvider>
                 <EnvErrorProvider>
                   <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-                    <NavigationContainer ref={navigationRef}>
+                    <NavigationContainer ref={navigationRef} linking={tardisLinking}>
                       <View style={{ flex: 1 }}>
                         <RootNavigator />
                         <GlobalUIElements />
